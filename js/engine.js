@@ -24,7 +24,7 @@ async function buildBundledEngineWorker(engineUrl){
   const wasmUrl=URL.createObjectURL(new Blob([wasm],{type:'application/wasm'}));
   const jsResponse=await fetch(engineUrl,{cache:'reload'});if(!jsResponse.ok)throw new Error('engine JavaScript file returned HTTP '+jsResponse.status);
   const source=await jsResponse.text();
-  const bootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(){return '+JSON.stringify(wasmUrl)+';};\n'+source;
+  const wasmLiteral=JSON.stringify(wasmUrl);\n  const bootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(path){if(/\\.wasm$/i.test(path))return '+wasmLiteral+';return new URL(path,'+JSON.stringify(engineUrl)+').href;};\\n'+source;
   const workerUrl=URL.createObjectURL(new Blob([bootstrap],{type:'text/javascript'}));
   stockfishBlobUrls.push(wasmUrl,workerUrl);
   return new Worker(workerUrl);
@@ -34,9 +34,9 @@ async function createStockfish(force=false){
   const cfg=ENGINE_CONFIGS[selectedEngine]||null,previousWorker=stockfishWorker,previousReady=stockfishReady;
   const engineUrl=selectedEngine==='custom-wasm'?document.getElementById('customEngineUrl')?.value.trim():cfg?.url?new URL(cfg.url,document.baseURI).href:'';
   if(!engineUrl){stockfishLoading=false;setEngineUi(previousReady?'previous engine ready':'Engine unavailable',previousReady);log(previousReady?'engine selection has no valid URL; keeping the working engine':'engine URL is missing');return;}
-  if(cfg?.multi&&(!window.crossOriginIsolated||typeof SharedArrayBuffer==='undefined')){stockfishLoading=false;setEngineUi(previousReady?'previous engine ready':'Multi-threaded engine unavailable',previousReady);log(cfg.label+' requires cross-origin isolation (COOP/COEP); keeping the current engine');return;}
+  if(cfg?.multi&&(!window.crossOriginIsolated||typeof SharedArrayBuffer==='undefined')){stockfishLoading=false;setEngineUi('Multi-threaded engine unavailable',false);log(cfg.label+' requires cross-origin isolation (COOP/COEP); reload once after the isolation service worker activates');return;}
   const requestedLabel=cfg?.label||'Custom UCI WASM engine';log('loading '+requestedLabel+' · '+engineUrl);stockfishLoading=true;let worker=null,settled=false;
-  const fail=(reason)=>{if(settled)return;settled=true;stockfishLoading=false;try{worker?.terminate()}catch(e){}if(stockfishWorker===worker)stockfishWorker=null;if(previousWorker&&previousReady&&previousWorker!==worker){stockfishWorker=previousWorker;stockfishReady=true;setEngineUi('previous engine ready',true);log(requestedLabel+' failed; kept the previously working engine');}else{stockfishReady=false;setEngineUi(requestedLabel+' failed',false);}log('Engine worker error: '+reason);};
+  const fail=(reason)=>{if(settled)return;settled=true;stockfishLoading=false;try{worker?.terminate()}catch(e){}if(stockfishWorker===worker)stockfishWorker=null;stockfishReady=false;setEngineUi(requestedLabel+' failed',false);log('Engine worker error: '+reason);};
   try{
     worker=await buildBundledEngineWorker(engineUrl);if(settled){try{worker.terminate()}catch(e){}return;}stockfishWorker=worker;stockfishReady=false;
     worker.onmessage=e=>{const d=typeof e.data==='string'?e.data:'';if(!d)return;if(d.includes('uciok')){settled=true;stockfishReady=true;stockfishLoading=false;setEngineUi(requestedLabel+' ready',true);log(requestedLabel+' ready · local GitHub Pages worker');try{if(cfg?.multi)worker.postMessage('setoption name Threads value '+Math.max(1,navigator.hardwareConcurrency||2));worker.postMessage('isready');}catch(err){log('engine initialization command failed: '+err.message)}return;}if(d.includes('readyok'))stockfishReady=true;if(analysisActive){if(d.startsWith('info ')){const m=d.match(/score\s+(cp|mate)\s+(-?\d+)/);if(m){const n=Number(m[2]);analysisActive.score=m[1]==='mate'?(n>0?100000:-100000):n;}}if(d.startsWith('bestmove')){const a=analysisActive;analysisActive=null;a.resolve({score:a.score??0,best:d.split(/\s+/)[1]||null});return;}}if(d.startsWith('bestmove')){const m=d.split(/\s+/)[1],q=stockfishQueue.shift();stockfishActiveResolve=null;if(q)q(m);}};
