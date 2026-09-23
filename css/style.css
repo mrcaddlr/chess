@@ -41,7 +41,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .square.last{background-image:linear-gradient(rgba(255,212,94,.48),rgba(255,212,94,.48))}
 .square.selected{box-shadow:inset 0 0 0 4px var(--purple),inset 0 0 0 999px rgba(124,104,255,.08)}
 .square.check{box-shadow:inset 0 0 0 5px var(--pink),inset 0 0 35px rgba(255,95,162,.28)}
-.piece{font-family:"Noto Sans Symbols 2","Segoe UI Symbol",serif;font-size:clamp(29px,8vw,70px);line-height:1;pointer-events:none;filter:drop-shadow(0 3px 2px rgba(40,34,48,.17))}
+.piece{font-family:"Noto Sans Symbols 2","Segoe UI Symbol",serif;font-size:clamp(27px,7.4vw,64px);line-height:.9;width:100%;height:100%;display:grid;place-items:center;box-sizing:border-box;pointer-events:none;filter:drop-shadow(0 3px 2px rgba(40,34,48,.17));transform:scale(.9);transform-origin:center}
 .white-piece{color:#fff;text-shadow:0 2px 0 #6d6470,0 0 3px #6d6470}.black-piece{color:#302d36;text-shadow:0 1px 0 rgba(255,255,255,.28)}
 .legal{position:absolute;width:19%;height:19%;border-radius:50%;background:rgba(124,104,255,.78)}.capture{position:absolute;inset:7%;border:4px solid rgba(255,95,162,.78);border-radius:24%}
 .coord{position:absolute;left:5px;bottom:3px;font-size:8px;font-weight:1000;opacity:.52;pointer-events:none}.dark .coord{color:#fff}.light .coord{color:#514b54}
