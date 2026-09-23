@@ -72,23 +72,17 @@ function recordMove(fenBefore,mv,actor){
 }
 
 function renderTrainingVisual(){const root=document.getElementById('networkVisual');if(!root)return;const layers=[{n:12,label:'832 input'},{n:24,label:'256 trunk'},{n:24,label:'3 residual blocks'},{n:32,label:'policy + value'}];if(!root.dataset.ready){root.innerHTML='';layers.forEach((l,li)=>{const col=document.createElement('div');col.className='net-layer';for(let j=0;j<l.n;j++){const node=document.createElement('span');node.className='net-node';node.style.setProperty('--d',(j*35+li*70)+'ms');col.appendChild(node)}const lab=document.createElement('small');lab.textContent=l.label;col.appendChild(lab);root.appendChild(col)});root.dataset.ready='1'}const active=training;root.classList.toggle('active',active);const state=document.getElementById('brainState');if(state)state.textContent=active?'learning':'idle';root.style.setProperty('--pulse',Math.min(1,trainingSpeed/20).toFixed(2));}
-function renderTrainingBoard(){
-  const root=document.getElementById('trainingBoard'),turn=document.getElementById('trainingBoardTurn'),ply=document.getElementById('trainingBoardPly');
-  if(!root)return;
-  const fen=trainingLiveState?.fen||'start';
-  let c;
-  try{c=new Chess(fen==='start'?undefined:fen)}catch(e){return}
-  const b=c.board(),html=[];
-  for(let r=0;r<8;r++)for(let f=0;f<8;f++){
-    const p=b[r][f],key=p?p.color+p.type:'';
-    html.push('<div class="training-square '+(((r+f)&1)?'dark':'light')+' '+(p?(p.color==='w'?'white-piece':'black-piece'):'')+'">'+(PIECES[key]||'')+'</div>');
-  }
-  root.innerHTML=html.join('');
-  if(turn)turn.textContent=c.turn()==='w'?'white to move':'black to move';
-  if(ply)ply.textContent='ply '+(trainingLiveState?.ply||0);
+function renderTrainingLive(){
+  const panel=document.querySelector('.training-visual-panel');
+  if(!panel)return;
+  panel.classList.toggle('is-training',!!training);
+  const s=trainingLiveState||{};
+  const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value};
+  set('trainingLiveBadge',training?'learning':'idle');
+  set('livePhase',training?(s.phase||'learning'):'waiting');
+  set('liveDetail',training?(s.detail||'self-play → replay → gradient updates'):'start training to watch the learner learn');
+  set('liveGames',games);
 }
-
-function renderTrainingLive(){renderTrainingBoard();const panel=document.querySelector('.training-visual-panel');const live=v=>document.getElementById(v);if(!panel)return;panel.classList.toggle('is-training',!!training);const s=trainingLiveState||{};live('trainingLiveBadge').textContent=training?'learning':'idle';live('livePhase').textContent=training?(s.phase||'learning'):'waiting';live('liveDetail').textContent=training?(s.detail||'self-play → replay → gradient updates'):'start training to watch the learner learn';live('liveGames').textContent=games;live('liveReplay').textContent=replay.length;live('liveSteps').textContent=steps;live('liveGeneration').textContent=generation;live('liveGamesRate').textContent=trainingSpeed?trainingSpeed.toFixed(1):'0';live('liveLoss').textContent=Number.isFinite(window.lastTrainingLoss)?window.lastTrainingLoss.toFixed(4):'—';live('liveRepetition').textContent=typeof repetitionDetections==='number'?repetitionDetections:0;const workers=document.querySelector('#trainingActivityBar');if(workers)workers.style.width=training?(Math.max(8,Math.min(100,35+trainingSpeed*3))+'%'):'0%';const at=live('trainingActivityText');if(at)at.textContent=training?(s.phase==='self-play'?'game '+(s.game||0)+' / '+(s.totalGames||0)+' · ply '+(s.ply||0)+' / '+(s.maxPlies||0):'network update '+(s.updates||0)):'network idle';const wt=live('trainingWorkerText');if(wt)wt.textContent=training?(s.phase==='self-play'?((s.workers||1)+' worker'+((s.workers||1)===1?'':'s')+' · '+(s.sims||Number(document.getElementById('sims')?.value)||4)+' MCTS sims'):(s.workers||1)+' training worker'+((s.workers||1)===1?'':'s')):'0 workers'}
 function renderStats(){document.getElementById('gamesStat').textContent=games;document.getElementById('stepsStat').textContent=steps;document.getElementById('replayStat')&&(document.getElementById('replayStat').textContent=replay.length);document.getElementById('generationBadge').textContent='gen '+generation;document.getElementById('evalStat')&&(document.getElementById('evalStat').textContent=evalRecord??'—');document.getElementById('pointsStat')&&(document.getElementById('pointsStat').textContent=points);document.getElementById('trainingElo')&&(document.getElementById('trainingElo').textContent=estimatedElo);document.getElementById('trainingTarget')&&(document.getElementById('trainingTarget').textContent=trainingTargetElo);document.getElementById('trainingSpeed')&&(document.getElementById('trainingSpeed').textContent=trainingSpeed?trainingSpeed.toFixed(1):'—');document.getElementById('brainState').textContent='gen '+generation+' · '+brain.w1.length+' weights'}
 
 function renderAll(){renderPlayers();renderPlayers();renderBoard();renderMoves();renderTrainingVisual();renderTrainingLive();renderStats();renderReview();const t=terminalText(game);if(t)setStatus(t,'game finished');else if(!busy&&!training){const inCheck=isInCheck(game);setStatus(inCheck?'check':(botForTurn()==='human'?'your move':'ready'),inCheck?(botLabel(botForTurn())+' is in check'):'choose a matchup and press Play')}}
