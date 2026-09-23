@@ -2,7 +2,7 @@
 (function(){
   const root=document.documentElement;
   const $=id=>document.getElementById(id);
-  const uiThemes=['sakura','catppuccin','ocean','mint','lavender','sunset','mono'];
+  const uiThemes=['sakura','pink','catppuccin','ocean','mint','lavender','sunset','mono'];
   const boardThemes=['classic','catppuccin','rose','ocean','mint','lavender','mono'];
   function read(key,fallback){try{return localStorage.getItem(key)||fallback}catch(e){return fallback}}
   function write(key,value){try{localStorage.setItem(key,value)}catch(e){}}
