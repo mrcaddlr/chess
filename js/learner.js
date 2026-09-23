@@ -20,21 +20,21 @@ function expandNode(node,c,learnerBrain=brain){const moves=c.moves({verbose:true
 
 // Search cache: reuse the subtree that survived the previous move and memoize positions.
 // chess.js remains the rules authority; the cache only avoids repeating network expansion work.
-let mctsRoot=null,mctsRootKey=null;
+let mctsRoot=null,mctsRootKey=null,mctsPendingKey=null;
 const mctsTranspositions=new Map();
 const MCTS_CACHE_MAX=4096;
 function searchKey(c){return c.fen();}
 function pruneMctsCache(){while(mctsTranspositions.size>MCTS_CACHE_MAX){const first=mctsTranspositions.keys().next().value;mctsTranspositions.delete(first)}}
-function retainMctsChild(move){
+function retainMctsChild(c,move){
   if(!mctsRoot||!move)return;
   const child=mctsRoot.children.get(actionIndex(move));
-  if(child){mctsRoot=child;mctsRoot.move=null;mctsRootKey=null;return}
-  mctsRoot=null;mctsRootKey=null;
+  if(child){const next=new Chess(c.fen());if(next.move({from:move.from,to:move.to,promotion:move.promotion})){mctsRoot=child;mctsRoot.move=null;mctsPendingKey=next.fen();mctsRootKey=null;return}}
+  mctsRoot=null;mctsRootKey=null;mctsPendingKey=null;
 }
-function resetMctsTree(){mctsRoot=null;mctsRootKey=null;mctsTranspositions.clear()}
+function resetMctsTree(){mctsRoot=null;mctsRootKey=null;mctsPendingKey=null;mctsTranspositions.clear()}
 function cachedRootFor(c){
   const key=searchKey(c);
-  if(mctsRoot&&mctsRootKey===key)return mctsRoot;
+  if(mctsRoot&&(mctsRootKey===key||mctsPendingKey===key)){mctsRootKey=key;mctsPendingKey=null;mctsTranspositions.set(key,mctsRoot);return mctsRoot;}
   const cached=mctsTranspositions.get(key);
   if(cached){mctsRoot=cached;mctsRootKey=key;return cached}
   const root=new Node(1);mctsRoot=root;mctsRootKey=key;mctsTranspositions.set(key,root);pruneMctsCache();return root;
@@ -79,6 +79,6 @@ async function mcts(c,sims,learnerBrain=brain,detailed=false){
   const policy=[...root.children.values()].filter(ch=>ch.visits>0).map(ch=>({a:actionIndex(ch.move),p:ch.visits/total}));
   return {move:best,policy,legal:[...root.children.keys()],nodes:root.visits};
 }
-async function learnerMove(c,sims,learnerBrain=brain,hist=repetition){const legal=c.moves({verbose:true});if(!legal.length)return null;try{let m;if(!learnerBrain)m=legal[Math.floor(Math.random()*legal.length)];else{const safeSims=Math.max(1,Math.min(16,Number(sims)||4));m=await mcts(c,safeSims,learnerBrain)}const safe=safeRepetitionMove(c,m,learnerBrain,hist);if(safe.forcedDraw)return null;retainMctsChild(safe.move);return safe.move}catch(e){log('Learner search error: '+e.message);const safe=safeRepetitionMove(c,null,learnerBrain,hist);return safe.move}}
+async function learnerMove(c,sims,learnerBrain=brain,hist=repetition){const legal=c.moves({verbose:true});if(!legal.length)return null;try{let m;if(!learnerBrain)m=legal[Math.floor(Math.random()*legal.length)];else{const safeSims=Math.max(1,Math.min(16,Number(sims)||4));m=await mcts(c,safeSims,learnerBrain)}const safe=safeRepetitionMove(c,m,learnerBrain,hist);if(safe.forcedDraw)return null;retainMctsChild(c,safe.move);return safe.move}catch(e){log('Learner search error: '+e.message);const safe=safeRepetitionMove(c,null,learnerBrain,hist);return safe.move}}
 
 function randomMove(c){const ms=c.moves({verbose:true});return ms.length?ms[Math.floor(Math.random()*ms.length)]:null}
