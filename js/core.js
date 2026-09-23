@@ -1,7 +1,7 @@
 /* Chess Learning Lab · application state + chess-rule helpers */
 const PIECES={wp:'♙',wn:'♘',wb:'♗',wr:'♖',wq:'♕',wk:'♔',bp:'♟',bn:'♞',bb:'♝',br:'♜',bq:'♛',bk:'♚'};
 const FILES='abcdefgh';
-const CONFIG={version:'0.11.7',architecture:'residual-policy-value-v3',input:832,hidden1:256,hidden2:256,residualBlocks:3,policy:4352,replayMax:2500,lr:0.0015,valueWeight:.55,policyWeight:1.0,rlBatch:64,trainPlies:80};
+const CONFIG={version:'0.11.9',architecture:'residual-policy-value-v3',input:832,hidden1:256,hidden2:256,residualBlocks:3,policy:4352,replayMax:2500,lr:0.0015,valueWeight:.55,policyWeight:1.0,rlBatch:64,trainPlies:160};
 let game=new Chess(), flipped=false, selected=null, legalMoves=[], lastMove=null, busy=false, botWhite='learner', botBlack='learner', training=false, trainTimer=null, cancelRequested=false;
 const ENGINE_CONFIGS={'sf19-full-single':{label:'Stockfish 19 · Full · Single-threaded',url:'stockfish/stockfish-19-single.js',multi:false},'sf19-full-multi':{label:'Stockfish 19 · Full · Multi-threaded',url:'stockfish/stockfish-19.js',multi:true},'sf19-lite-single':{label:'Stockfish 19 · Lite · Single-threaded',url:'stockfish/stockfish-19-lite-single.js',multi:false},'sf18-full-single':{label:'Stockfish 18 · Full · Single-threaded',url:'stockfish/stockfish-18-single.js',multi:false},'sf18-full-multi':{label:'Stockfish 18 · Full · Multi-threaded',url:'stockfish/stockfish-18.js',multi:true},'sf18-lite-single':{label:'Stockfish 18 · Lite · Single-threaded',url:'stockfish/stockfish-18-lite-single.js',multi:false},'lozza':{label:'Lozza · JavaScript',url:'stockfish/lozza.js',multi:false}};
 let selectedEngine='sf19-lite-single';
@@ -64,14 +64,18 @@ class TinyNet{
     for(let k=0;k<legal.length;k++){const a=legal[k],off=a*CONFIG.hidden2;let z=this.bp[a];for(let i=0;i<CONFIG.hidden2;i++)z+=this.wp[off+i]*h2[i];logits[k]=z}
     return logits;
   }
-  predict(x,legal){
+  predictLegal(x,legal){
     const o=this.trunk(x),logits=this.legalLogits(o.h2,legal);let max=-Infinity;
-    for(const z of logits)if(z>max)max=z;
+    for(let i=0;i<logits.length;i++)if(logits[i]>max)max=logits[i];
     const vals=new Float32Array(logits.length);let sum=0;
     for(let i=0;i<logits.length;i++){vals[i]=Math.exp(Math.max(-30,logits[i]-max));sum+=vals[i]}
     if(sum)for(let i=0;i<vals.length;i++)vals[i]/=sum;
-    const probs=new Float32Array(CONFIG.policy);for(let i=0;i<legal.length;i++)probs[legal[i]]=vals[i];
-    return {policy:probs,value:o.v,cache:o};
+    return {policy:vals,value:o.v,cache:o};
+  }
+  predict(x,legal){
+    const p=this.predictLegal(x,legal),probs=new Float32Array(CONFIG.policy);
+    for(let i=0;i<legal.length;i++)probs[legal[i]]=p.policy[i];
+    return {policy:probs,value:p.value,cache:p.cache};
   }
   _train(x,target,value,legal,lr,rlAction=null,rlReward=0){
     const o=this.trunk(x),logits=this.legalLogits(o.h2,legal),p=new Float32Array(legal.length);let max=-Infinity;
