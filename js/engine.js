@@ -15,6 +15,11 @@ async function buildBundledEngineWorker(engineUrl){
     if(r.ok)manifest=await r.json();
   }catch(err){log('engine manifest fetch failed: '+err.message)}
 
+  if(engineUrl.endsWith('/lozza.js')){
+    log('loading Lozza · native UCI worker');
+    return new Worker(engineUrl);
+  }
+
   const jsName=engineUrl.split('/').pop();
   const wasmName=jsName.replace(/\\.js$/i,'.wasm');
   const parts=manifest?.[wasmName];
