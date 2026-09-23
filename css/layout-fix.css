@@ -93,3 +93,24 @@ select,input[type=number],input[type=url]{text-overflow:ellipsis}
 @media(max-width:560px){
   .remote-benchmark-grid{grid-template-columns:repeat(2,1fr)}
 }
+
+
+/* 0.31.14 compact training merge: keep live progress inside the training panel. */
+.training-layout{grid-template-columns:1fr;gap:8px}
+.training-controls-panel{min-width:0}
+.training-controls-head{margin-bottom:6px}
+.training-live-inline{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;margin-bottom:9px;padding:8px 10px;border:1px solid var(--line);border-radius:14px;background:var(--stat)}
+.training-live-inline .live-top{display:contents}
+.training-live-inline .live-top>div:first-child{display:grid;gap:2px;min-width:0}
+.training-live-inline #livePhase{font-size:10px}
+.training-live-inline #liveDetail{font-size:8px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.training-live-inline .live-rate{display:none}
+.training-live-inline .training-game-counter{display:flex;align-items:baseline;gap:5px;white-space:nowrap}
+.training-live-inline .training-game-counter b{font-size:20px;line-height:1}
+.training-live-inline .training-game-counter span{font-size:7px;color:var(--muted);font-weight:900}
+.training-live-inline.is-training{border-color:color-mix(in srgb,var(--mint) 35%,var(--line))}
+@media(max-width:560px){
+  .training-live-inline{grid-template-columns:minmax(0,1fr) auto;gap:7px;padding:7px 8px}
+  .training-live-inline #liveDetail{font-size:7px}
+  .training-live-inline .training-game-counter b{font-size:18px}
+}
