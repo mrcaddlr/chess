@@ -911,146 +911,50 @@ body::before{width:100%!important;height:100%!important;inset:0!important;border
 .promo{font-size:18px!important}
 
 
-/* 0.31.0 — terminal motion cleanup */
-.player-card .piece-dot{
-  display:none!important;
-  width:0!important;
-  height:0!important;
-  padding:0!important;
-  margin:0!important;
-  background:transparent!important;
-  border:0!important;
-  box-shadow:none!important;
-}
-
-/* kill decorative floating/pulsing motion */
-*,*::before,*::after{
-  animation:none!important;
-}
-.workspace,.status-card,.training-visual-panel .flow-box,.learning-flow>i,
-.brand-mark,.btn,.badge,.log,.network .net-node{
-  animation:none!important;
-  transform:none!important;
-  filter:none!important;
-}
-.panel:hover,.status-card:hover,.flow-box:hover,.stat:hover,.review-item:hover,
-.btn:hover,.btn:active{
-  transform:none!important;
-}
-.btn.primary{
-  animation:none!important;
-  box-shadow:none!important;
-}
-.training-visual-panel.is-training .flow-box,
-.training-visual-panel.is-training .learning-flow>i,
-.training-visual-panel.is-training .live-top b,
-.training-visual-panel.is-training .live-rate b{
-  animation:none!important;
-  transform:none!important;
-  filter:none!important;
-}
-.training-visual-panel.is-training .activity-track i,
-.training-visual-panel.is-training .bar>i{
-  animation:none!important;
-  filter:none!important;
-}
-body::before{
-  animation:none!important;
-}
-body::after{
-  animation:none!important;
-  background:
-    repeating-linear-gradient(
-      to bottom,
-      rgba(126,231,135,.025) 0px,
-      rgba(126,231,135,.025) 1px,
-      rgba(0,0,0,.06) 2px,
-      rgba(0,0,0,.06) 4px
-    )!important;
-  opacity:.45!important;
-  box-shadow:inset 0 0 70px rgba(0,0,0,.45)!important;
-}
-
-/* the only decorative animation: a terminal cursor */
-.terminal-titlebar span:first-child::after{
-  content:"█"!important;
-  display:inline-block!important;
-  margin-left:4px!important;
-  color:#7ee787!important;
-  animation:terminalCursor .9s steps(1,end) infinite!important;
-}
-@keyframes terminalCursor{
-  0%,49%{opacity:1}
-  50%,100%{opacity:0}
-}
 
 
-/* 0.31.1 — restore thin native chess glyphs */
-.piece{
-  font-family:"Noto Sans Symbols 2","Segoe UI Symbol",serif!important;
-  font-size:clamp(29px,8vw,70px)!important;
-  font-weight:400!important;
-  line-height:1!important;
-  letter-spacing:normal!important;
-  text-shadow:none!important;
-  filter:drop-shadow(0 3px 2px rgba(40,34,48,.17))!important;
-}
-.piece.white-piece{
-  color:#edf5ef!important;
-  text-shadow:0 1px 0 #55645b,0 0 2px #55645b!important;
-}
-.piece.black-piece{
-  color:#172019!important;
-  text-shadow:0 1px 0 rgba(255,255,255,.2)!important;
-}
-.promo{
-  font-family:"Noto Sans Symbols 2","Segoe UI Symbol",serif!important;
-  font-weight:400!important;
-  letter-spacing:normal!important;
-  text-shadow:none!important;
-  filter:none!important;
-}
-
-
-/* 0.31.5 — force horizontal CRT scanlines, no diagonal gradients */
-body::before{
-  content:""!important;
+/* 0.31.6 — isolated CRT overlay; never rotate the screen */
+.crt-overlay{
   position:fixed!important;
   inset:0!important;
-  z-index:9999!important;
-  width:auto!important;
-  height:auto!important;
+  width:100vw!important;
+  height:100vh!important;
   margin:0!important;
   padding:0!important;
+  overflow:hidden!important;
   pointer-events:none!important;
-  border:0!important;
-  border-radius:0!important;
+  z-index:2147483647!important;
   transform:none!important;
-  background-image:
+  rotate:none!important;
+  scale:1!important;
+  translate:none!important;
+  background:
     repeating-linear-gradient(
       to bottom,
       transparent 0px,
       transparent 1px,
-      rgba(18,16,16,.34) 2px,
-      rgba(18,16,16,.34) 3px
+      rgba(18,16,16,.30) 2px,
+      rgba(18,16,16,.30) 3px
     )!important;
   background-size:100% 4px!important;
   background-repeat:repeat!important;
-  box-shadow:none!important;
-  opacity:1!important;
-  animation:none!important;
-}
-body::after{
-  content:""!important;
-  position:fixed!important;
-  inset:0!important;
-  z-index:10000!important;
-  width:auto!important;
-  height:auto!important;
-  pointer-events:none!important;
-  background:none!important;
-  border:0!important;
   box-shadow:inset 0 0 90px rgba(0,0,0,.42)!important;
-  opacity:1!important;
-  animation:none!important;
+}
+.crt-overlay::after{
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(255,0,0,.025),
+      rgba(0,255,0,.012),
+      rgba(0,0,255,.025)
+    )!important;
+  background-size:3px 100%!important;
+  pointer-events:none!important;
+}
+body::before,body::after{
+  content:none!important;
+  display:none!important;
 }
