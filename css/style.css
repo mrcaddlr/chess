@@ -155,3 +155,20 @@ html[data-board-theme="mono"] .square.light{background:#eeeeef} html[data-board-
 .theme-settings{min-height:38px;padding:7px 12px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);box-shadow:var(--soft-shadow);font-size:9px;font-weight:1000}
 .settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.settings-grid .field{margin-top:0}
 @media(max-width:560px){.theme-settings{min-width:38px;padding:7px 9px}.theme-settings{font-size:8px}}
+
+html[data-ui-theme="ocean"] body{background:radial-gradient(700px 420px at -8% -8%,#c8f2ff 0,transparent 62%),radial-gradient(620px 420px at 108% 3%,#d8e0ff 0,transparent 62%),#f3fbff}
+html[data-ui-theme="mint"] body{background:radial-gradient(700px 420px at -8% -8%,#c8f7e7 0,transparent 62%),radial-gradient(620px 420px at 108% 3%,#dff7e9 0,transparent 62%),#f3fcf8}
+html[data-ui-theme="lavender"] body{background:radial-gradient(700px 420px at -8% -8%,#e7ddff 0,transparent 62%),radial-gradient(620px 420px at 108% 3%,#f2ddf4 0,transparent 62%),#f8f6ff}
+html[data-ui-theme="sunset"] body{background:radial-gradient(700px 420px at -8% -8%,#ffd8c7 0,transparent 62%),radial-gradient(620px 420px at 108% 3%,#ffe8b7 0,transparent 62%),#fff8f2}
+html[data-ui-theme="mono"] body{background:linear-gradient(135deg,#f7f7f8,#ededf0)}
+html[data-ui-theme="catppuccin"] body{background:radial-gradient(700px 420px at -8% -8%,#f5c2e7 0,transparent 62%),radial-gradient(620px 420px at 108% 3%,#cba6f7 0,transparent 62%),#eff1f5}
+html[data-ui-theme="sakura"] body{background:radial-gradient(700px 420px at -8% -8%,#ffc6df 0,transparent 62%),radial-gradient(620px 420px at 108% 3%,#d9d2ff 0,transparent 62%),#fff8fc}
+html[data-ui-theme] .board-card,html[data-ui-theme] .status-card,html[data-ui-theme] .panel,html[data-ui-theme] .player-card{background:var(--card)}
+html[data-ui-theme] .btn,html[data-ui-theme] .theme-settings,html[data-ui-theme] .pill{background:var(--card);color:var(--ink)}
+html[data-ui-theme] select,html[data-ui-theme] input[type=number],html[data-ui-theme] input[type=url]{background:var(--input);color:var(--ink);border-color:var(--line)}
+html[data-ui-theme] .stat{background:var(--stat);border-color:var(--line)}html[data-ui-theme] .move{background:var(--move)}html[data-ui-theme] .modal-box{background:var(--card)}
+html[data-ui-theme] .panel-head:after{background:linear-gradient(90deg,var(--pink),var(--yellow),var(--cyan))}
+html[data-ui-theme] .badge{background:color-mix(in srgb,var(--purple) 12%,var(--card));color:var(--purple);border-color:var(--line)}
+html[data-ui-theme] .btn.primary{background:linear-gradient(135deg,var(--pink),var(--purple));color:#fff}
+html[data-ui-theme] .btn.green{background:var(--mint-soft);color:var(--ink)}
+html[data-ui-theme] .theme-pulse{animation:themePulse .18s ease-out}@keyframes themePulse{from{opacity:.82;transform:translateY(2px)}to{opacity:1;transform:none}}
