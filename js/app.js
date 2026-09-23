@@ -1,25 +1,5 @@
-/* Application bootstrap and event wiring */
+/* Application bootstrap + event wiring */
 'use strict';
-const PIECES={wp:'♙',wn:'♘',wb:'♗',wr:'♖',wq:'♕',wk:'♔',bp:'♟',bn:'♞',bb:'♝',br:'♜',bq:'♛',bk:'♚'};
-const FILES='abcdefgh';
-const CONFIG={version:'0.7.0',architecture:'ml-policy-value-v1',input:832,hidden1:96,hidden2:64,policy:4352,replayMax:2500,lr:0.0015,valueWeight:.55,policyWeight:1.0,rlBatch:64,trainPlies:160};
-let game=new Chess(), flipped=false, selected=null, legalMoves=[], lastMove=null, busy=false, botWhite='learner', botBlack='learner', training=false, trainTimer=null, cancelRequested=false;
-const ENGINE_CONFIGS={'sf19-full-single':{label:'Stockfish 19 · Full · Single-threaded',url:'stockfish/stockfish-19-single.js',multi:false},'sf19-full-multi':{label:'Stockfish 19 · Full · Multi-threaded',url:'stockfish/stockfish-19.js',multi:true},'sf19-lite-single':{label:'Stockfish 19 · Lite · Single-threaded',url:'stockfish/stockfish-19-lite-single.js',multi:false},'sf18-full-single':{label:'Stockfish 18 · Full · Single-threaded',url:'stockfish/stockfish-18-single.js',multi:false},'sf18-full-multi':{label:'Stockfish 18 · Full · Multi-threaded',url:'stockfish/stockfish-18.js',multi:true},'sf18-lite-single':{label:'Stockfish 18 · Lite · Single-threaded',url:'stockfish/stockfish-18-lite-single.js',multi:false}};
-let selectedEngine='sf19-full-single';
-let repetition=new Map(), replay=[], games=0, steps=0, generation=0, evalRecord=null, points=0, repetitionDetections=0;
-let brain=null, matchBrainWhite=null, matchBrainBlack=null, stockfishWorker=null, stockfishReady=false, stockfishLoading=false, stockfishQueue=[], matchEpoch=0, matchNonce=0;
-let moveRecords=[], reviewState=null, reviewRunning=false, lastReviewedEpoch=-1, analysisActive=null, stockfishActiveResolve=null;
-
-window.addEventListener('error',e=>log('ERROR: '+(e.message||'unknown error')+' @ '+(e.filename||'inline')+':'+(e.lineno||'?')));window.addEventListener('unhandledrejection',e=>log('ERROR: unhandled promise rejection: '+(e.reason?.message||String(e.reason||'unknown'))));
-
-let repetitionForcedDraw=false;
-
-let fastWorkers=[]; let fastBatchAbort=null;
-
-let brainDBPromise=null;
-
-document.getElementById('fileInput').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=async()=>{try{const o=JSON.parse(rd.result);brain=TinyNet.fromJSON(o.brain||o);replay=o.replay||[];await saveBrain(false);renderStats();toast('neural network imported');log('neural network imported')}catch(err){toast('invalid brain file');log('import failed: '+err.message)}};rd.readAsText(f)};
-
 document.getElementById('clearLog').onclick=()=>{document.getElementById('log').textContent='';log('log cleared')};
 document.getElementById('startTraining').type='button';document.getElementById('playMatch').type='button';document.getElementById('simulateMove').type='button';document.getElementById('newGame').type='button';document.getElementById('flip').type='button';document.getElementById('stopTrain').type='button';document.getElementById('startTraining').onclick=()=>{trainBatch().catch(e=>{log('training launch error: '+e.message);setStatus('error','training failed to start',0)})};document.getElementById('playMatch').onclick=()=>{playMatch().catch(e=>{busy=false;log('Play error: '+e.message);setStatus('error',e.message,0);renderAll()})};document.getElementById('simulateMove').onclick=()=>{simulateOneMove().catch(e=>{busy=false;log('1 move error: '+e.message);setStatus('error',e.message,0);renderAll()})};document.getElementById('newGame').onclick=()=>newGame();document.getElementById('flip').onclick=()=>{flipped=!flipped;renderBoard()};document.getElementById('stopTrain').onclick=()=>{cancelEngine();training=false;busy=false;setStatus('paused','stopped');renderAll();toast('stopped')};document.getElementById('matchType').onchange=()=>{const type=document.getElementById('matchType').value;document.getElementById('engineField').style.display=type==='learner-engine'?'grid':'none';updateMatchBadge();setStatus('ready','press Play to randomize sides and start the match',0)};
 document.getElementById('engineSelect').onchange=async()=>{selectedEngine=document.getElementById('engineSelect').value;document.getElementById('customEngineField').style.display=selectedEngine==='custom-wasm'?'grid':'none';matchEpoch++;await createStockfish(true);updateMatchBadge();setStatus('ready',engineDisplayLabel()+' selected · press Play',0)};
