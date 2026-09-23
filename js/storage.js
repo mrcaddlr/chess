@@ -12,7 +12,7 @@ function openBrainDB(){
 async function saveBrain(show=true){
   try{
     const db=await openBrainDB();
-    const state={version:CONFIG.version,architecture:CONFIG.architecture,brain:{version:CONFIG.version,input:CONFIG.input,hidden1:CONFIG.hidden1,hidden2:CONFIG.hidden2,policy:CONFIG.policy,generation,steps,games,w1:brain.w1,b1:brain.b1,w2:brain.w2,b2:brain.b2,wp:brain.wp,bp:brain.bp,wv:brain.wv,bv:brain.bv},replay:replay.slice(-CONFIG.replayMax)};
+    const state={version:CONFIG.version,architecture:CONFIG.architecture,brain:brain.toJSON(),replay:replay.slice(-CONFIG.replayMax)};
     await new Promise((resolve,reject)=>{const tx=db.transaction('state','readwrite');tx.objectStore('state').put(state,'learner');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('IndexedDB write failed'))});
     try{localStorage.removeItem('chess-learning-brain');localStorage.removeItem('chess-learning-replay')}catch(e){}
     if(show){toast('brain saved');log('neural network saved to IndexedDB')}
