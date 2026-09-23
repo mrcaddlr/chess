@@ -1,7 +1,7 @@
 /* Chess Learning Lab · application state + chess-rule helpers */
 const PIECES={wp:'♙',wn:'♘',wb:'♗',wr:'♖',wq:'♕',wk:'♔',bp:'♟',bn:'♞',bb:'♝',br:'♜',bq:'♛',bk:'♚'};
 const FILES='abcdefgh';
-const CONFIG={version:'0.12.0',architecture:'residual-policy-value-v4',input:832,hidden1:384,hidden2:384,residualBlocks:8,policy:4352,replayMax:2500,lr:0.0015,valueWeight:.55,policyWeight:1.0,rlBatch:64,trainPlies:160};
+const CONFIG={version:'0.12.1',architecture:'residual-policy-value-v4',input:832,hidden1:384,hidden2:384,residualBlocks:8,policy:4352,replayMax:2500,lr:0.0015,valueWeight:.55,policyWeight:1.0,rlBatch:64,trainPlies:160};
 let game=new Chess(), flipped=false, selected=null, legalMoves=[], lastMove=null, busy=false, botWhite='learner', botBlack='learner', training=false, trainTimer=null, cancelRequested=false;
 const ENGINE_CONFIGS={'sf19-full-single':{label:'Stockfish 19 · Full · Single-threaded',url:'stockfish/stockfish-19-single.js',multi:false},'sf19-full-multi':{label:'Stockfish 19 · Full · Multi-threaded',url:'stockfish/stockfish-19.js',multi:true},'sf19-lite-single':{label:'Stockfish 19 · Lite · Single-threaded',url:'stockfish/stockfish-19-lite-single.js',multi:false},'sf18-full-single':{label:'Stockfish 18 · Full · Single-threaded',url:'stockfish/stockfish-18-single.js',multi:false},'sf18-full-multi':{label:'Stockfish 18 · Full · Multi-threaded',url:'stockfish/stockfish-18.js',multi:true},'sf18-lite-single':{label:'Stockfish 18 · Lite · Single-threaded',url:'stockfish/stockfish-18-lite-single.js',multi:false},'lozza':{label:'Lozza · JavaScript',url:'stockfish/lozza.js',multi:false}};
 let selectedEngine='sf19-lite-single';
@@ -110,6 +110,7 @@ class TinyNet{
     return loss;
   }
   train(x,target,value,legal,lr=CONFIG.lr){return this._train(x,target,value,legal,lr)}
+  trainPolicyValue(x,policyPairs,value,legal,lr=CONFIG.lr){const target=Object.create(null);for(const pair of (policyPairs||[]))target[pair[0]]=pair[1];return this._train(x,target,value,legal,lr)}
   trainRL(x,action,reward,legal,lr=CONFIG.lr){return this._train(x,null,0,legal,lr,action,reward)}
   toJSON(){
     const o={version:CONFIG.version,input:CONFIG.input,hidden1:CONFIG.hidden1,hidden2:CONFIG.hidden2,residualBlocks:CONFIG.residualBlocks,policy:CONFIG.policy,generation,steps,games};
