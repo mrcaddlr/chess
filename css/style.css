@@ -1,5 +1,5 @@
 /* KWII — Kawaii Design Language · Chess Learning Lab
-   Purpose-built interface: clear utility + playful color + tactile controls. */
+   Cute, colorful, clean, tactile, and function-first. */
 :root{
  --bg:#f7f8fc;--ink:#242330;--muted:#7d7a8b;--line:#e7e6ee;--white:#fff;
  --pink:#ff5fa2;--pink-soft:#fff0f7;--purple:#7c68ff;--purple-soft:#f0edff;
@@ -69,3 +69,70 @@ select,input[type=number],input[type=url]{width:100%;min-height:42px;padding:8px
 @media(max-width:560px){.topbar{margin-bottom:11px}.brand-mark{width:40px;height:40px;border-radius:14px}.brand h1{font-size:19px}.brand p{display:none}.pill{padding:8px 9px;font-size:8px}.board-card{padding:7px;border-radius:22px}.board{border-width:5px;border-radius:20px}.players{gap:6px}.player-card{min-height:55px;padding:8px 10px}.player-card .player-name{font-size:11px;max-width:120px}.player-card .piece-dot{width:30px;height:30px;font-size:17px}.controls{grid-template-columns:repeat(4,1fr);gap:6px}.controls #newGame{grid-column:span 2}.controls #stopTrain{grid-column:span 2}.btn{min-height:43px;padding:7px 5px;font-size:9px}.side{grid-template-columns:1fr}.status-card,.side .review-panel,.side .log-panel{grid-column:auto}.panel,.status-card{padding:12px;border-radius:20px}.stats{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:350px){.controls{grid-template-columns:1fr 1fr}.controls #newGame,.controls #stopTrain,.controls #playMatch{grid-column:auto}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+
+
+/* --- KWII cute theme layer --- */
+:root{
+ --bg:#fff8fc;--ink:#292638;--muted:#898397;--line:#ece5f0;--white:#fff;
+ --pink:#ff62a6;--pink-soft:#fff0f7;--purple:#806cff;--purple-soft:#f0edff;
+ --cyan:#54cde1;--cyan-soft:#e8fbff;--mint:#59cda3;--mint-soft:#e8faf3;
+ --yellow:#ffd866;--yellow-soft:#fff8df;--coral:#ff927b;--dark:#292638;
+ --card:rgba(255,255,255,.84);--input:#fff;--stat:#fcfaff;--move:#f8f5fa;
+ --shadow:0 22px 60px rgba(81,54,105,.12);--soft-shadow:0 8px 24px rgba(81,54,105,.08);
+}
+body:before,body:after{content:"";position:fixed;z-index:-1;width:180px;height:180px;border-radius:42% 58% 62% 38%;filter:blur(4px);opacity:.48;pointer-events:none}
+body:before{top:8%;left:-65px;background:#ffc6df;transform:rotate(24deg)}
+body:after{right:-70px;bottom:5%;background:#c9c2ff;transform:rotate(-22deg)}
+.topbar{padding:5px 2px}
+.top-actions{display:flex;align-items:center;gap:9px}
+.theme-toggle{display:flex;align-items:center;gap:6px;min-height:38px;padding:7px 11px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);box-shadow:var(--soft-shadow);font-size:9px;font-weight:1000}
+.theme-toggle span:first-child{font-size:15px;line-height:1}
+.theme-toggle:hover{transform:translateY(-1px)}
+.brand-mark{position:relative;overflow:hidden}
+.brand-mark:after{content:"✦";position:absolute;right:4px;top:2px;font-size:9px;color:#fff;opacity:.9}
+.brand p{font-size:10px;letter-spacing:.015em}
+.board-card{position:relative;overflow:hidden;background:var(--card)}
+.board-card:before{content:"";position:absolute;top:-36px;right:12%;width:90px;height:48px;border-radius:0 0 25px 25px;background:#ffe17b;transform:rotate(4deg);opacity:.7}
+.board-card:after{content:"♡";position:absolute;right:22px;bottom:78px;color:#ff9cc5;font-size:24px;opacity:.7;transform:rotate(12deg)}
+.player-card{background:var(--card)}
+.player-card.active{background:linear-gradient(135deg,var(--card),var(--purple-soft))}
+.board{border-color:var(--card);box-shadow:0 25px 60px rgba(68,47,82,.18)}
+.square.light{background:#fff9ee}.square.dark{background:#c994ac}
+.legal{background:rgba(128,108,255,.72);box-shadow:0 0 0 4px rgba(255,255,255,.18)}
+.capture{border-color:rgba(255,98,166,.8)}
+.btn{background:var(--card);color:var(--ink)}
+.status-card,.panel{background:var(--card)}
+select,input[type=number],input[type=url]{background:var(--input);color:var(--ink)}
+.stat{background:var(--stat)}
+.move{background:var(--move)}
+.modal-box{background:var(--card)}
+@media(max-width:560px){.theme-toggle{min-width:38px;padding:7px 9px}.theme-toggle span:last-child{display:none}}
+
+/* dark KWII */
+html[data-theme="dark"]{
+ --bg:#171521;--ink:#f7f2fa;--muted:#aaa3b5;--line:#393344;--white:#211e2c;
+ --pink:#ff72ae;--pink-soft:#392231;--purple:#9585ff;--purple-soft:#29243f;
+ --cyan:#62d9e9;--cyan-soft:#20343a;--mint:#62d3aa;--mint-soft:#20382f;
+ --yellow:#ffd96d;--yellow-soft:#3b3521;--coral:#ff9b85;--dark:#f4eff8;
+ --card:rgba(34,31,45,.88);--input:#242130;--stat:#252231;--move:#272331;
+ --shadow:0 22px 60px rgba(0,0,0,.30);--soft-shadow:0 8px 24px rgba(0,0,0,.22);
+}
+html[data-theme="dark"] body{
+ background:radial-gradient(700px 420px at -8% -8%,#392034 0,transparent 62%),radial-gradient(620px 420px at 108% 3%,#29244a 0,transparent 62%),radial-gradient(600px 420px at 85% 110%,#19382f 0,transparent 58%),var(--bg);
+}
+html[data-theme="dark"] body:before{background:#703957}
+html[data-theme="dark"] body:after{background:#514a92}
+html[data-theme="dark"] .brand-mark{box-shadow:0 10px 30px rgba(149,133,255,.28)}
+html[data-theme="dark"] .pill,html[data-theme="dark"] .theme-toggle{color:var(--ink)}
+html[data-theme="dark"] .player-card{border-color:var(--line)}
+html[data-theme="dark"] .player-card.white .piece-dot{background:#2c2936;border-color:#4a4455}
+html[data-theme="dark"] .player-card.black .piece-dot{background:#f4eff8;color:#282532}
+html[data-theme="dark"] .board{border-color:#292633}
+html[data-theme="dark"] .square.light{background:#4a4050}
+html[data-theme="dark"] .square.dark{background:#93617d}
+html[data-theme="dark"] .white-piece{color:#fff;text-shadow:0 2px 0 #51495a,0 0 4px #51495a}
+html[data-theme="dark"] .black-piece{color:#211e28;text-shadow:0 1px 0 rgba(255,255,255,.35)}
+html[data-theme="dark"] .selected{box-shadow:inset 0 0 0 4px var(--purple),inset 0 0 0 999px rgba(149,133,255,.15)}
+html[data-theme="dark"] .panel-head:after{opacity:.8}
+html[data-theme="dark"] .log{background:#100e16}
+html[data-theme="dark"] .modal{background:rgba(5,4,9,.64)}
