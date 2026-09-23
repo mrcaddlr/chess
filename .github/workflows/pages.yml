@@ -43,9 +43,8 @@ jobs:
               test -s "stockfish/$file"
             done
           }
-          download_engine "19.0.0" "stockfish-19-lite-single.js stockfish-19-lite-single.wasm stockfish-19-single.js stockfish-19-single.wasm"
-          download_engine "18.0.8" "stockfish-18-lite-single.js stockfish-18-lite-single.wasm"
-          download_engine "17.1.0" "stockfish-17.1-lite-single.js stockfish-17.1-lite-single.wasm"
+          download_engine "19.0.0" "stockfish-19.js stockfish-19.wasm stockfish-19-lite.js stockfish-19-lite.wasm stockfish-19-single.js stockfish-19-single.wasm stockfish-19-lite-single.js stockfish-19-lite-single.wasm"
+          download_engine "18.0.8" "stockfish-18.js stockfish-18.wasm stockfish-18-lite.js stockfish-18-lite.wasm stockfish-18-single.js stockfish-18-single.wasm stockfish-18-lite-single.js stockfish-18-lite-single.wasm"
           cp /tmp/stockfish-19.0.0/package/Copying.txt stockfish/Copying.txt
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
