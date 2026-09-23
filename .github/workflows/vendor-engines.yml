@@ -1,0 +1,80 @@
+name: Vendor chess engines
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Stockfish 19 and 18
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p stockfish
+
+          download_stockfish() {
+            version="$1"
+            shift
+            archive="/tmp/stockfish-\${version}.tgz"
+            work="/tmp/stockfish-\${version}"
+            curl -fL --retry 5 --retry-delay 2 \
+              "https://registry.npmjs.org/stockfish/-/stockfish-\${version}.tgz" \
+              -o "$archive"
+            rm -rf "$work"
+            mkdir -p "$work"
+            tar -xzf "$archive" -C "$work"
+
+            for file in "$@"; do
+              cp "$work/package/bin/$file" "stockfish/$file"
+              test -s "stockfish/$file"
+            done
+
+            if [ ! -f stockfish/Copying.txt ]; then
+              cp "$work/package/Copying.txt" stockfish/Copying.txt
+            fi
+          }
+
+          download_stockfish "19.0.0" \
+            stockfish-19.js stockfish-19.wasm \
+            stockfish-19-single.js stockfish-19-single.wasm \
+            stockfish-19-lite.js stockfish-19-lite.wasm \
+            stockfish-19-lite-single.js stockfish-19-lite-single.wasm
+
+          download_stockfish "18.0.8" \
+            stockfish-18.js stockfish-18.wasm \
+            stockfish-18-single.js stockfish-18-single.wasm \
+            stockfish-18-lite.js stockfish-18-lite.wasm \
+            stockfish-18-lite-single.js stockfish-18-lite-single.wasm
+
+      - name: Download Lozza
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p stockfish
+          curl -fL --retry 5 --retry-delay 2 \
+            https://raw.githubusercontent.com/namanthanki/lozza/master/lozza.js \
+            -o stockfish/lozza.js
+          test -s stockfish/lozza.js
+
+      - name: Commit bundled engines
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add stockfish/
+          if git diff --cached --quiet; then
+            echo "Engine files are already bundled."
+            exit 0
+          fi
+          git commit -m "Bundle Stockfish 18/19 and Lozza engines"
+          git push
