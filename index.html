@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f7fb">
+<title>Chess Learning Lab 0.6.7</title>
+<style>
+:root{
+  --bg:#f6f7fb; --surface:#fff; --surface-2:#f1f3f8; --text:#202331; --muted:#73788a;
+  --line:#dfe3ed; --pink:#ff6fae; --rose:#ff8d9d; --orange:#ffad72; --yellow:#ffd86b;
+  --mint:#6edbc0; --cyan:#63cfe8; --blue:#75a8ff; --purple:#a987ff; --green:#73d38a;
+  --light:#fff; --dark:#7d6c78; --sq-light:#fff0d9; --sq-dark:#d79a9f;
+  --shadow:0 10px 30px rgba(45,48,70,.10),0 2px 7px rgba(45,48,70,.07);
+  --shadow-sm:0 4px 14px rgba(45,48,70,.08); --radius:22px; --radius-sm:15px;
+}
+*{box-sizing:border-box} html{min-height:100%;background:var(--bg)} body{margin:0;color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100%;background:
+ radial-gradient(circle at 8% 5%,rgba(255,111,174,.14),transparent 22rem),
+ radial-gradient(circle at 95% 20%,rgba(99,207,232,.13),transparent 22rem),var(--bg)}
+button,input,select{font:inherit} button{border:0;cursor:pointer;color:inherit} button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid rgba(117,168,255,.45);outline-offset:2px}
+.app{width:min(1040px,100%);margin:auto;padding:8px max(8px,env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom))}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px}.brand{display:flex;align-items:center;gap:11px;min-width:0}.brand-mark{width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,var(--pink),var(--purple));box-shadow:var(--shadow-sm);display:grid;place-items:center;color:#fff;font-weight:900;font-size:18px}.brand h1{font-size:clamp(17px,4.5vw,23px);line-height:1.05;margin:0;letter-spacing:-.03em}.brand p{margin:2px 0 0;color:var(--muted);font-size:10px}.pill{display:inline-flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 8px;font-size:10px;font-weight:800;box-shadow:var(--shadow-sm);white-space:nowrap}.dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.layout{display:grid;gap:6px}.board-card,.panel,.status-card{background:rgba(255,255,255,.88);border:1px solid rgba(223,227,237,.9);border-radius:18px;box-shadow:var(--shadow);backdrop-filter:blur(14px)}.board-card{padding:6px}.board-wrap{width:100%;max-width:420px;margin:auto}.board{width:100%;aspect-ratio:1/1;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));overflow:hidden;border-radius:13px;box-shadow:0 8px 18px rgba(75,55,70,.18);touch-action:manipulation}.square{position:relative;width:100%;height:100%;display:grid;place-items:center;padding:0;background:none;user-select:none;-webkit-user-select:none}.square.light{background:var(--sq-light)}.square.dark{background:var(--sq-dark)}.square.selected{box-shadow:inset 0 0 0 4px var(--blue)}.square.last{background-image:linear-gradient(rgba(255,216,107,.36),rgba(255,216,107,.36))}.square.check{box-shadow:inset 0 0 0 5px var(--pink)}.piece{font-family:"Noto Sans Symbols 2","Segoe UI Symbol",serif;font-size:clamp(30px,9.5vw,58px);line-height:1;filter:drop-shadow(0 2px 1px rgba(0,0,0,.12));pointer-events:none}.white-piece{color:#fff;text-shadow:0 2px 0 #6f6470,0 0 2px #6f6470}.black-piece{color:#34313a;text-shadow:0 1px 0 rgba(255,255,255,.28)}.legal{position:absolute;width:20%;height:20%;border-radius:50%;background:rgba(117,168,255,.65)}.capture{position:absolute;inset:7%;border:4px solid rgba(255,111,174,.58);border-radius:18%}.coord{position:absolute;font-size:9px;font-weight:900;opacity:.55;left:4px;bottom:2px;pointer-events:none}.dark .coord{color:#fff}.light .coord{color:#514a52}
+.controls{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:6px}.btn{min-height:34px;border-radius:11px;padding:7px 8px;font-size:11px;background:var(--surface-2);font-weight:850;border:1px solid var(--line);transition:transform .12s,box-shadow .12s,background .12s}.btn:active{transform:translateY(1px)}.btn.primary{background:linear-gradient(135deg,var(--pink),var(--rose));color:#fff;border-color:transparent}.btn.secondary{background:linear-gradient(135deg,#edf5ff,#eef0ff)}.btn.green{background:linear-gradient(135deg,#e6fff5,#e7faff)}.btn.danger{background:#fff0f3;color:#b93d64}.btn:disabled{opacity:.5;cursor:not-allowed}
+.side{display:grid;gap:6px}.panel{padding:8px}.panel-head{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:5px}.panel h2{font-size:13px;margin:0;letter-spacing:-.01em}.tiny{font-size:11px;color:var(--muted)}.status-card{padding:8px}.status-main{font-weight:900;font-size:14px}.status-sub{color:var(--muted);font-size:10px;margin-top:4px;min-height:17px}.bar{height:5px;background:#e9ecf3;border-radius:99px;overflow:hidden;margin-top:11px}.bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--pink),var(--purple),var(--cyan));border-radius:inherit;transition:width .2s}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.stat{padding:6px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line)}.stat b{display:block;font-size:14px}.stat span{font-size:8px;color:var(--muted);font-weight:800}.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}.field{display:grid;gap:3px;margin-top:3px}.field label{font-size:9px;font-weight:850;color:var(--muted)}select,input[type=number]{width:100%;min-height:32px;border-radius:10px;border:1px solid var(--line);background:#fff;padding:8px 10px;color:var(--text)}.toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.toggle:last-child{border-bottom:0}.toggle label{font-size:12px;font-weight:800}.switch{width:46px;height:27px;border-radius:99px;background:#dfe3ed;padding:3px;transition:.2s}.switch i{display:block;width:21px;height:21px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.16);transition:.2s}.switch.on{background:var(--mint)}.switch.on i{transform:translateX(19px)}
+.review-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px}.review-item{padding:6px 7px;background:var(--surface-2);border-radius:8px;text-align:center}.review-item b{display:block;font-size:12px}.review-item span{font-size:9px;color:var(--muted)}.move-list{max-height:130px;overflow:auto;display:grid;grid-template-columns:repeat(2,1fr);gap:4px}.move{padding:7px 8px;background:var(--surface-2);border-radius:9px;font-size:11px}.move b{color:var(--muted);margin-right:5px}.log{max-height:100px;overflow:auto;font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:#191a22;color:#dfe3ed;border-radius:13px;padding:10px;white-space:pre-wrap}.badge{display:inline-flex;padding:4px 7px;border-radius:999px;background:#f0ecff;color:#6e50b5;font-size:10px;font-weight:900}.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translate(-50%,20px);opacity:0;pointer-events:none;background:#20222c;color:#fff;border-radius:14px;padding:10px 13px;font-size:12px;font-weight:800;box-shadow:var(--shadow);transition:.2s;z-index:20}.toast.show{opacity:1;transform:translate(-50%,0)}.modal{position:fixed;inset:0;background:rgba(24,25,33,.45);display:none;align-items:flex-end;justify-content:center;z-index:30;padding:10px}.modal.open{display:flex}.modal-box{width:min(600px,100%);background:#fff;border-radius:24px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.25)}.modal-box h3{margin:0 0 8px}.modal-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:13px}.promo{font-size:24px;min-height:52px}
+@media(min-width:760px){.app{padding:10px}.layout{grid-template-columns:minmax(420px,1fr) 300px;align-items:start}.board-card{padding:8px}.controls{grid-template-columns:repeat(5,1fr)}.side{grid-template-columns:1fr 1fr}.status-card{grid-column:1/-1}.panel{min-width:0}.modal{align-items:center}}
+@media(min-width:1050px){.layout{grid-template-columns:minmax(480px,620px) 300px}.side{grid-template-columns:1fr}.topbar{margin-bottom:8px}}
+@media(max-width:759px){.move-panel{display:none}.side{grid-template-columns:1fr}.brand p{display:none}.board-card{padding:5px}.status-card{margin-top:0}}
+@media(max-width:380px){.controls{grid-template-columns:repeat(2,1fr)}.controls #newGame{grid-column:span 2}.brand p{display:none}.piece{font-size:clamp(30px,12vw,52px)}.board-card{padding:8px}.panel{padding:12px}.btn{padding:9px 8px;font-size:12px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
+/* KWII compact refresh 0.2.6 */
+:root{--bg:#f8f9fc;--surface:#ffffff;--surface-2:#f4f5f9;--text:#171923;--muted:#747887;--line:#e5e7ee;--accent:#ff5fa2;--accent2:#7b68ff;--cyan:#48c9e8;--green:#58c98a;--shadow:0 5px 18px rgba(26,30,45,.08);--radius:14px;--radius-sm:10px}
+body{background:var(--bg);background-image:radial-gradient(circle at 12% 0%,rgba(255,95,162,.09),transparent 24rem),radial-gradient(circle at 100% 15%,rgba(72,201,232,.08),transparent 24rem);overflow-x:hidden}
+.app{width:min(900px,100%);padding:6px max(7px,env(safe-area-inset-left)) calc(7px + env(safe-area-inset-bottom))}
+.topbar{margin-bottom:5px}.brand{gap:8px}.brand-mark{width:30px;height:30px;border-radius:9px;font-size:15px;box-shadow:none}.brand h1{font-size:17px}.brand p{font-size:9px}.pill{padding:5px 7px;font-size:9px;box-shadow:none}
+.layout{gap:5px}.board-card,.panel,.status-card{border-radius:var(--radius);box-shadow:var(--shadow);backdrop-filter:none}.board-card{padding:5px}.board-wrap{max-width:390px}.board{border-radius:10px;box-shadow:0 5px 14px rgba(25,25,35,.13)}.piece{font-size:clamp(28px,8.7vw,54px)}
+.controls{gap:4px;margin-top:5px}.btn{min-height:30px;border-radius:9px;padding:5px 6px;font-size:10px;box-shadow:none}.btn.primary{background:var(--accent)}.btn.green{background:#e9fbf3}.btn.secondary{background:#f0f2fa}
+.side{gap:5px}.status-card,.panel{padding:7px}.status-main{font-size:12px}.status-sub{font-size:9px;margin-top:2px;min-height:14px}.bar{height:4px;margin-top:6px}.panel-head{margin-bottom:4px}.panel h2{font-size:12px}.badge{padding:3px 6px;font-size:9px}.field{gap:2px}.field label{font-size:8px}select,input[type=number]{min-height:29px;border-radius:8px;padding:5px 7px;font-size:10px}.stats{gap:4px}.stat{padding:5px;border-radius:8px}.stat b{font-size:12px}.stat span{font-size:7px}.move-list{max-height:90px}.move{padding:5px 6px;font-size:10px}.log{max-height:75px;padding:7px;font-size:9px;border-radius:9px}
+@media(min-width:760px){.app{padding:7px}.layout{grid-template-columns:minmax(360px,1fr) 250px}.board-wrap{max-width:390px}.side{gap:5px}.panel{padding:7px}}
+@media(min-width:1050px){.layout{grid-template-columns:minmax(390px,520px) 250px}.app{width:min(790px,100%)}}
+@media(max-width:759px){.app{max-width:470px}.layout{grid-template-columns:1fr}.board-wrap{max-width:min(360px,calc(100vw - 22px))}.side{display:grid;grid-template-columns:1fr 1fr;gap:5px}.status-card{grid-column:1/-1}.panel:nth-of-type(2){grid-column:1/-1}.move-panel{display:none}.controls{grid-template-columns:repeat(5,1fr)}.controls .btn{min-width:0}}
+@media(max-width:380px){.side{grid-template-columns:1fr}.controls{grid-template-columns:repeat(5,1fr)}.btn{font-size:9px;padding:5px 3px}.board-wrap{max-width:calc(100vw - 18px)}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><div class="brand-mark">K</div><div><h1>Chess Learning Lab</h1><p>self-play · search · learn</p></div></div>
+    <div class="pill"><i class="dot" id="onlineDot"></i><span id="enginePill">learner ready</span></div>
+  </header>
+
+  <main class="layout">
+    <section class="board-card">
+      <div class="board-wrap"><div class="board" id="board" aria-label="Chess board"></div></div>
+      <div class="controls">
+        <button class="btn primary" id="newGame">New game</button>
+        <button class="btn secondary" id="flip">Flip board</button>
+        <button class="btn green" id="playMatch">Play</button>
+        <button class="btn secondary" id="simulateMove">1 move</button>
+        <button class="btn" id="stopTrain">Stop</button>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="status-card">
+        <div class="status-main" id="statusMain">your move</div>
+        <div class="status-sub" id="statusSub">the learner starts from random weights</div>
+        <div class="bar"><i id="progressBar"></i></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>match</h2><span class="badge" id="modeBadge">learner vs learner</span></div>
+        <div class="field"><label>matchup</label><select id="matchType"><option value="learner-learner" selected>Learner vs Learner</option><option value="learner-stockfish">Learner vs Stockfish 19</option><option value="learner-human">Learner vs Human</option></select></div>
+        <div class="field"><label>learner search simulations</label><input id="sims" type="number" min="1" max="250" step="1" value="4"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>training</h2><span class="badge" id="generationBadge">gen 0</span></div><button class="btn green" id="startTraining" style="width:100%;margin-bottom:6px;font-weight:900">Start training</button>
+        <div class="stats">
+          <div class="stat"><b id="gamesStat">0</b><span>self-play games</span></div>
+          <div class="stat"><b id="stepsStat">0</b><span>training steps</span></div>
+          <div class="stat"><b id="replayStat">0</b><span>replay positions</span></div>
+          <div class="stat"><b id="evalStat">—</b><span>last evaluation</span></div><div class="stat"><b id="pointsStat">0</b><span>learner points</span></div>
+        </div>
+        <div class="field"><label>training source</label><select id="trainOpponent"><option value="self" selected>self-play only</option></select></div>
+        <div class="field"><label>generations</label><input id="batchGames" type="number" min="1" max="100" value="4"></div>
+        <div class="field"><label>mutations per generation</label><input id="parallelGames" type="number" min="2" max="32" value="8"></div><div class="field"><label>matches per mutation</label><input id="evalMatches" type="number" min="1" max="8" value="2"></div><div class="field"><label>mutation rate</label><input id="mutationRate" type="number" min="0.0001" max="1" step="0.0001" value="0.02"></div><div class="field"><label>mutation strength</label><input id="mutationStrength" type="number" min="0.0001" max="2" step="0.0001" value="0.08"></div><div class="field"><label>search simulations</label><input id="trainSims" type="number" min="1" max="64" value="4"></div><div class="tiny" style="margin-top:5px">evolutionary training: every mutation is the learner with small weight mutations. Mutations play the current best, and the strongest result, including the learner's reward points, becomes the new best.</div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>brain</h2><span class="tiny" id="brainState">unsaved</span></div>
+        <div class="row"><button class="btn" id="saveBrain">Save</button><button class="btn" id="loadBrain">Load</button><button class="btn danger" id="resetBrain">Reset</button></div>
+        <div class="row" style="margin-top:8px"><button class="btn" id="exportBrain">Export JSON</button><button class="btn" id="importBrain">Import JSON</button></div>
+        <input id="fileInput" type="file" accept="application/json" hidden>
+      </section>
+
+      <section class="panel move-panel">
+        <div class="panel-head"><h2>moves</h2><span class="tiny" id="moveCount">0 plies</span></div>
+        <div class="move-list" id="moveList"></div>
+      </section>
+      <section class="panel review-panel">
+        <div class="panel-head"><h2>game review</h2><span class="badge" id="reviewBadge">not reviewed</span></div>
+        <div class="tiny" id="reviewSummary">when a game ends, the system checks the moves and feeds the feedback back into the learner.</div>
+        <div class="review-grid" id="reviewGrid"></div>
+      </section>
+
+      <section class="panel log-panel">
+        <div class="panel-head"><h2>system log</h2><span class="tiny">events + errors</span><button class="btn" id="clearLog" type="button">Clear</button></div>
+        <pre class="log" id="log" aria-live="polite"></pre>
+      </section>
+    </aside>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<div class="modal" id="promoModal"><div class="modal-box"><h3>choose promotion</h3><div class="tiny">pick the piece for your pawn</div><div class="modal-actions" id="promoActions"></div></div></div>
+
+<script>
+'use strict';
+const PIECES={wp:'♙',wn:'♘',wb:'♗',wr:'♖',wq:'♕',wk:'♔',bp:'♟',bn:'♞',bb:'♝',br:'♜',bq:'♛',bk:'♚'};
+const FILES='abcdefgh';
+const CONFIG={version:'0.6.9',input:832,hidden1:96,hidden2:64,policy:4352,replayMax:12000,lr:0.0025,valueWeight:.55,policyWeight:1.0};
+let game=new Chess(), flipped=false, selected=null, legalMoves=[], lastMove=null, busy=false, botWhite='learner', botBlack='learner', training=false, trainTimer=null, cancelRequested=false;
+let repetition=new Map(), replay=[], games=0, steps=0, generation=0, evalRecord=null, points=0, repetitionDetections=0;
+let brain=null, matchBrainWhite=null, matchBrainBlack=null, stockfishWorker=null, stockfishReady=false, stockfishLoading=false, stockfishQueue=[], matchEpoch=0, matchNonce=0;
+let moveRecords=[], reviewState=null, reviewRunning=false, lastReviewedEpoch=-1, analysisActive=null;
+
+function log(msg){const line=new Date().toLocaleTimeString()+'  '+String(msg);const el=document.getElementById('log');if(el)el.textContent=(line+'\n'+el.textContent).slice(0,24000)}
+window.addEventListener('error',e=>log('ERROR: '+(e.message||'unknown error')+' @ '+(e.filename||'inline')+':'+(e.lineno||'?')));window.addEventListener('unhandledrejection',e=>log('ERROR: unhandled promise rejection: '+(e.reason?.message||String(e.reason||'unknown'))));
+function toast(msg){const e=document.getElementById('toast');e.textContent=msg;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),1800)}
+function setStatus(a,b,progress=null){document.getElementById('statusMain').textContent=a;document.getElementById('statusSub').textContent=b;if(progress!==null)document.getElementById('progressBar').style.width=Math.max(0,Math.min(100,progress))+'%'}
+function positionKey(c){const p=c.fen().split(' ');return [p[0],p[1],p[2],p[3]].join(' ')}
+function isCheckmate(c){return typeof c.isCheckmate==='function'?c.isCheckmate():typeof c.in_checkmate==='function'?c.in_checkmate():false}
+function isStalemate(c){return typeof c.isStalemate==='function'?c.isStalemate():typeof c.in_stalemate==='function'?c.in_stalemate():false}
+function isInsufficientMaterial(c){return typeof c.isInsufficientMaterial==='function'?c.isInsufficientMaterial():typeof c.insufficient_material==='function'?c.insufficient_material():false}
+function isGameOver(c){if(isCheckmate(c)||isStalemate(c)||isInsufficientMaterial(c))return true;const f=c.fen().split(' ');return Number(f[4])>=100||repetitionForcedDraw}
+function isInCheck(c){return typeof c.isCheck==='function'?c.isCheck():typeof c.in_check==='function'?c.in_check():false}
+function recordPosition(c){const k=positionKey(c),n=(repetition.get(k)||0)+1;repetition.set(k,n);return n}
+function resetRepetition(){repetition=new Map();repetitionForcedDraw=false;repetitionDetections=0;recordPosition(game)}
+let repetitionForcedDraw=false;
+function drawReason(c){if(repetitionForcedDraw)return 'repetition';if(isStalemate(c))return 'stalemate';if(isInsufficientMaterial(c))return 'insufficient material';const f=c.fen().split(' ');if(Number(f[4])>=100)return '50-move rule';return null}
+function result(c){if(isCheckmate(c))return c.turn()==='w'?-1:1;const d=drawReason(c);return d?0:null}
+function terminalText(c){if(isCheckmate(c))return 'checkmate';const d=drawReason(c);if(d)return 'draw · '+d;return null}
+function positionStatus(c){if(terminalText(c))return terminalText(c);if(isInCheck(c))return 'check';return null}
+function terminalPosition(c,hist){if(isCheckmate(c)||isStalemate(c)||isInsufficientMaterial(c))return true;const f=c.fen().split(' ');if(Number(f[4])>=100)return true;return false}
+function moveCreatesRepetitionBreak(c,m,hist){if(!hist)return false;const mv=c.move({from:m.from,to:m.to,promotion:m.promotion});if(!mv)return true;const k=positionKey(c),would=(hist.get(k)||0)+1;c.undo();return would>=4}
+function safeRepetitionMove(c,proposed,learnerBrain,hist){const legal=c.moves({verbose:true});if(!legal.length)return {move:null,forcedDraw:false,detected:false};if(proposed&&!moveCreatesRepetitionBreak(c,proposed,hist))return {move:proposed,forcedDraw:false,detected:false};const safe=legal.filter(m=>!moveCreatesRepetitionBreak(c,m,hist));if(!safe.length)return {move:null,forcedDraw:true,detected:true};if(!learnerBrain)return {move:safe[Math.floor(Math.random()*safe.length)],forcedDraw:false,detected:true};const pred=learnerBrain.predict(encode(c),safe.map(actionIndex));let best=safe[0],bs=-Infinity;for(let i=0;i<safe.length;i++){const sc=pred.policy[actionIndex(safe[i])];if(sc>bs){bs=sc;best=safe[i]}}return {move:best,forcedDraw:false,detected:true}}
+
+class RNG{constructor(seed=Date.now()){this.s=seed>>>0}next(){let x=this.s;x^=x<<13;x^=x>>>17;x^=x<<5;this.s=x>>>0;return this.s/4294967296}gauss(){let a=Math.max(1e-9,this.next()),b=this.next();return Math.sqrt(-2*Math.log(a))*Math.cos(Math.PI*2*b)}}
+function zeros(n){return new Float32Array(n)}
+function randArr(n,rng,scale){const a=new Float32Array(n);for(let i=0;i<n;i++)a[i]=rng.gauss()*scale;return a}
+class TinyNet{
+  constructor(seed){this.rng=new RNG(seed);this.w1=randArr(CONFIG.hidden1*CONFIG.input,this.rng,Math.sqrt(2/CONFIG.input));this.b1=zeros(CONFIG.hidden1);this.w2=randArr(CONFIG.hidden2*CONFIG.hidden1,this.rng,Math.sqrt(2/CONFIG.hidden1));this.b2=zeros(CONFIG.hidden2);this.wp=randArr(CONFIG.policy*CONFIG.hidden2,this.rng,Math.sqrt(2/CONFIG.hidden2));this.bp=zeros(CONFIG.policy);this.wv=randArr(CONFIG.hidden2,this.rng,Math.sqrt(2/CONFIG.hidden2));this.bv=0}
+  trunk(x){const z1=zeros(CONFIG.hidden1),h1=zeros(CONFIG.hidden1),z2=zeros(CONFIG.hidden2),h2=zeros(CONFIG.hidden2);for(let j=0;j<CONFIG.hidden1;j++){let s=this.b1[j],off=j*CONFIG.input;for(let i=0;i<CONFIG.input;i++)s+=this.w1[off+i]*x[i];z1[j]=s;h1[j]=Math.max(0,s)}for(let j=0;j<CONFIG.hidden2;j++){let s=this.b2[j],off=j*CONFIG.hidden1;for(let i=0;i<CONFIG.hidden1;i++)s+=this.w2[off+i]*h1[i];z2[j]=s;h2[j]=Math.max(0,s)}let v=this.bv;for(let i=0;i<CONFIG.hidden2;i++)v+=this.wv[i]*h2[i];return {h1,z1,h2,z2,v:Math.tanh(v)}}
+  legalLogits(h2,legal){const logits=new Float32Array(legal.length);for(let k=0;k<legal.length;k++){const a=legal[k],off=a*CONFIG.hidden2;let z=this.bp[a];for(let i=0;i<CONFIG.hidden2;i++)z+=this.wp[off+i]*h2[i];logits[k]=z}return logits}
+  predict(x,legal){const o=this.trunk(x),logits=this.legalLogits(o.h2,legal);let max=-Infinity;for(const z of logits)if(z>max)max=z;const vals=new Float32Array(logits.length);let sum=0;for(let i=0;i<logits.length;i++){vals[i]=Math.exp(Math.max(-30,logits[i]-max));sum+=vals[i]}if(sum)for(let i=0;i<vals.length;i++)vals[i]/=sum;const probs=new Float32Array(CONFIG.policy);for(let i=0;i<legal.length;i++)probs[legal[i]]=vals[i];return {policy:probs,value:o.v,cache:o}}
+  train(x,target,value,legal,lr=CONFIG.lr){const o=this.trunk(x),logits=this.legalLogits(o.h2,legal),p=new Float32Array(legal.length);let max=-Infinity;for(const z of logits)max=Math.max(max,z);let sum=0;for(let i=0;i<logits.length;i++){p[i]=Math.exp(Math.max(-30,logits[i]-max));sum+=p[i]}for(let i=0;i<p.length;i++)p[i]/=sum||1;
+    const d2=zeros(CONFIG.hidden2),d1=zeros(CONFIG.hidden1);let dv=2*(o.v-value)*CONFIG.valueWeight*(1-o.v*o.v);for(let i=0;i<CONFIG.hidden2;i++)d2[i]+=dv*this.wv[i];this.bv-=lr*dv;for(let i=0;i<CONFIG.hidden2;i++)this.wv[i]-=lr*dv*o.h2[i];
+    for(let k=0;k<legal.length;k++){const a=legal[k],dl=(p[k]-(target[a]||0))*CONFIG.policyWeight,off=a*CONFIG.hidden2;this.bp[a]-=lr*dl;for(let i=0;i<CONFIG.hidden2;i++){d2[i]+=dl*this.wp[off+i];this.wp[off+i]-=lr*dl*o.h2[i]}}
+    for(let i=0;i<CONFIG.hidden2;i++){if(o.z2[i]<=0)d2[i]=0;this.b2[i]-=lr*d2[i];const off=i*CONFIG.hidden1;for(let j=0;j<CONFIG.hidden1;j++){d1[j]+=d2[i]*this.w2[off+j];this.w2[off+j]-=lr*d2[i]*o.h1[j]}}
+    for(let j=0;j<CONFIG.hidden1;j++){if(o.z1[j]<=0)d1[j]=0;this.b1[j]-=lr*d1[j];const off=j*CONFIG.input;for(let i=0;i<CONFIG.input;i++)this.w1[off+i]-=lr*d1[j]*x[i]}
+    return {loss:Math.abs(o.v-value)}
+  }
+  toJSON(){const o={version:CONFIG.version,input:CONFIG.input,hidden1:CONFIG.hidden1,hidden2:CONFIG.hidden2,policy:CONFIG.policy,generation,steps,games};for(const k of ['w1','b1','w2','b2','wp','bp','wv'])o[k]=Array.from(this[k]);o.bv=this.bv;return o}
+  static fromJSON(o){if(!o||o.version!==CONFIG.version||o.input!==undefined&&o.input!==CONFIG.input||o.policy!==undefined&&o.policy!==CONFIG.policy)throw new Error('incompatible brain architecture');if(!o.wp||o.wp.length!==CONFIG.policy*CONFIG.hidden2)throw new Error('brain uses an older policy encoding; reset or retrain');const n=new TinyNet(1);for(const k of ['w1','b1','w2','b2','wp','bp','wv'])n[k]=Float32Array.from(o[k]);n.bv=o.bv||0;generation=o.generation||0;steps=o.steps||0;games=o.games||0;return n}
+}
+
+function encode(c){const x=new Float32Array(CONFIG.input);const b=c.board();for(let r=0;r<8;r++)for(let f=0;f<8;f++){const p=b[r][f];if(p){const pi='pnbrqk'.indexOf(p.type),base=(p.color==='w'?0:6)+pi;x[base*64+r*64+f]=1}}let o=12*64;x[o++]=c.turn()==='w'?1:0;const cast=c.fen().split(' ')[2];x[o++]=cast.includes('K')?1:0;x[o++]=cast.includes('Q')?1:0;x[o++]=cast.includes('k')?1:0;x[o++]=cast.includes('q')?1:0;const ep=c.fen().split(' ')[3];if(ep!=='-'){const file=FILES.indexOf(ep[0]),rank=Number(ep[1])-1;if(file>=0&&rank>=0)x[o+rank*8+file]=1}return x}
+function actionIndex(m){const a=(Number(m.from[1])-1)*8+(m.from.charCodeAt(0)-97),b=(Number(m.to[1])-1)*8+(m.to.charCodeAt(0)-97);return m.promotion?4096+a*4+({q:0,r:1,b:2,n:3}[m.promotion]):a*64+b}
+function legalActions(c){return c.moves({verbose:true}).map(actionIndex)}
+function moveFromAction(c,idx){const moves=c.moves({verbose:true});return moves.find(m=>actionIndex(m)===idx)||null}
+function softmaxLegal(c,temperature=1,learnerBrain=brain){const legal=c.moves({verbose:true});if(!legal.length)return null;if(!learnerBrain)return legal[Math.floor(Math.random()*legal.length)];const pred=learnerBrain.predict(encode(c),legal.map(actionIndex));if(temperature<=0){let best=legal[0],bs=-Infinity;for(const m of legal){const s=pred.policy[actionIndex(m)];if(s>bs){bs=s;best=m}}return best}const vals=legal.map(m=>Math.pow(Math.max(1e-8,pred.policy[actionIndex(m)]),1/temperature));let z=vals.reduce((a,b)=>a+b,0),r=Math.random()*z;for(let i=0;i<legal.length;i++){r-=vals[i];if(r<=0)return legal[i]}return legal.at(-1)}
+
+class Node{constructor(prior=1,move=null){this.prior=prior;this.move=move;this.visits=0;this.valueSum=0;this.children=new Map();this.expanded=false;this.value=0}}
+function terminalValue(c){if(isCheckmate(c))return c.turn()==='w'?-1:1;if(isStalemate(c)||isInsufficientMaterial(c))return 0;const f=c.fen().split(' ');if(Number(f[4])>=100)return 0;return null}
+function expandNode(node,c,learnerBrain=brain){const moves=c.moves({verbose:true});if(!moves.length){node.expanded=true;node.value=terminalValue(c)??0;return node.value}const pred=learnerBrain.predict(encode(c),moves.map(actionIndex));for(const m of moves){const a=actionIndex(m);node.children.set(a,new Node(pred.policy[a],m))}node.expanded=true;node.value=pred.value;return pred.value}
+async function mcts(c,sims,learnerBrain=brain,detailed=false){if(!learnerBrain){const ms=c.moves({verbose:true});const move=ms.length?ms[Math.floor(Math.random()*ms.length)]:null;return detailed?{move,policy:move?[{a:actionIndex(move),p:1}]:[],legal:ms.map(actionIndex)}:move}const root=new Node(1);const count=Math.max(1,Math.min(64,Number(sims)||1));for(let sim=0;sim<count;sim++){const state=new Chess(c.fen());let node=root,path=[],value=null;while(true){value=terminalValue(state);if(value!==null)break;if(!node.expanded){value=expandNode(node,state,learnerBrain);break}let best=null,bestScore=-Infinity;for(const ch of node.children.values()){const q=ch.visits?ch.valueSum/ch.visits:0,u=1.35*ch.prior*Math.sqrt(Math.max(1,node.visits))/(1+ch.visits),score=q+u;if(score>bestScore){bestScore=score;best=ch}}if(!best)break;if(!state.move({from:best.move.from,to:best.move.to,promotion:best.move.promotion}))break;path.push(best);node=best}if(value===null)value=0;for(let i=path.length-1;i>=0;i--){path[i].visits++;path[i].valueSum+=value;value=-value}root.visits++;root.valueSum+=value;if((sim&7)===7)await new Promise(r=>setTimeout(r,0))}let best=null,bestN=-1,bestTie=-Infinity;for(const ch of root.children.values()){const tie=Math.random();if(ch.visits>bestN||(ch.visits===bestN&&tie>bestTie)){bestN=ch.visits;bestTie=tie;best=ch.move}}if(!best)best=softmaxLegal(c,0,learnerBrain);if(!detailed)return best;const total=[...root.children.values()].reduce((a,ch)=>a+ch.visits,0)||1;const policy=[...root.children.values()].filter(ch=>ch.visits>0).map(ch=>({a:actionIndex(ch.move),p:ch.visits/total}));return {move:best,policy,legal:[...root.children.keys()]}}
+async function learnerMove(c,sims,learnerBrain=brain,hist=repetition){const legal=c.moves({verbose:true});if(!legal.length)return null;try{let m;if(!learnerBrain)m=legal[Math.floor(Math.random()*legal.length)];else{const safeSims=Math.max(1,Math.min(16,Number(sims)||4));m=await mcts(c,safeSims,learnerBrain)}const safe=safeRepetitionMove(c,m,learnerBrain,hist);if(safe.forcedDraw)return null;return safe.move}catch(e){log('Learner search error: '+e.message);const safe=safeRepetitionMove(c,null,learnerBrain,hist);return safe.move}}
+
+function randomMove(c){const ms=c.moves({verbose:true});return ms.length?ms[Math.floor(Math.random()*ms.length)]:null}
+function addReplay(c,policy,value,legal){if(replay.length>=CONFIG.replayMax)replay.shift();replay.push({x:Array.from(encode(c)),policy,legal,value})}
+function trainReplay(n=16){if(!brain||!replay.length)return 0;let total=0,used=0;for(let i=0;i<n;i++){const s=replay[Math.floor(Math.random()*replay.length)];if(!s||!Array.isArray(s.legal)||!s.legal.length)continue;const target=new Float32Array(CONFIG.policy);for(const q of s.policy||[])if(q&&Number.isInteger(q.a))target[q.a]=q.p;total+=brain.train(Float32Array.from(s.x),target,s.value,s.legal,CONFIG.lr).loss;used++}if(used)steps+=used;return used?total/used:0}
+
+async function selfPlayGame(sims=1){let c=new Chess(),samples=[],moveNo=0;const hist=new Map([[positionKey(c),1]]);while(!terminalPosition(c,hist)&&moveNo<1000&&!cancelRequested){const legal=c.moves({verbose:true});if(!legal.length)break;const side=c.turn(),x=Array.from(encode(c)),sr=await mcts(c,sims,brain,true);const safe=safeRepetitionMove(c,sr&&sr.move,brain,hist);if(safe.forcedDraw)break;const move=safe.move;if(!move)break;samples.push({x,policy:sr&&sr.policy?sr.policy:[],legal:legal.map(actionIndex),turn:side});if(!c.move({from:move.from,to:move.to,promotion:move.promotion}))break;moveNo++;const k=positionKey(c),n=(hist.get(k)||0)+1;hist.set(k,n)}let r=terminalValue(c);if(r===null)r=0;for(const s of samples)s.value=s.turn==='w'?r:-r;return {samples,moves:moveNo,result:r}}
+
+const FAST_WORKER_SOURCE = evalWorkerSource();
+function evalWorkerSource(){
+  return `importScripts('https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js');
+const FILES='abcdefgh', POLICY=4352, INPUT=832, H1=96, H2=64;
+function key(c){const p=c.fen().split(' ');return [p[0],p[1],p[2],p[3]].join(' ')}
+function action(m){const a=(+m.from[1]-1)*8+(m.from.charCodeAt(0)-97),b=(+m.to[1]-1)*8+(m.to.charCodeAt(0)-97);return m.promotion?4096+a*4+({q:0,r:1,b:2,n:3}[m.promotion]):a*64+b}
+function encode(c){const x=new Float32Array(INPUT),b=c.board();for(let r=0;r<8;r++)for(let f=0;f<8;f++){const p=b[r][f];if(p){const pi='pnbrqk'.indexOf(p.type),base=(p.color==='w'?0:6)+pi;x[base*64+r*64+f]=1}}let o=768;x[o++]=c.turn()==='w'?1:0;const cast=c.fen().split(' ')[2];x[o++]=cast.includes('K')?1:0;x[o++]=cast.includes('Q')?1:0;x[o++]=cast.includes('k')?1:0;x[o++]=cast.includes('q')?1:0;const ep=c.fen().split(' ')[3];if(ep!=='-'){const f=FILES.indexOf(ep[0]),r=+ep[1]-1;if(f>=0&&r>=0)x[o+r*8+f]=1}return x}
+function dot(w,off,x,n){let z=0;for(let i=0;i<n;i++)z+=w[off+i]*x[i];return z}
+function predict(brain,x,legal){const h1=new Float32Array(H1),h2=new Float32Array(H2);for(let j=0;j<H1;j++)h1[j]=Math.max(0,dot(brain.w1,j*INPUT,x,INPUT)+(brain.b1[j]||0));for(let j=0;j<H2;j++)h2[j]=Math.max(0,dot(brain.w2,j*H1,h1,H1)+(brain.b2[j]||0));const vals=new Float32Array(legal.length);let max=-Infinity;for(let k=0;k<legal.length;k++){const a=legal[k],off=a*H2;let z=brain.bp[a]||0;for(let i=0;i<H2;i++)z+=brain.wp[off+i]*h2[i];vals[k]=z;if(z>max)max=z}let sum=0;for(let i=0;i<vals.length;i++){vals[i]=Math.exp(Math.max(-30,vals[i]-max));sum+=vals[i]}if(sum)for(let i=0;i<vals.length;i++)vals[i]/=sum;let v=brain.bv||0;for(let i=0;i<H2;i++)v+=(brain.wv[i]||0)*h2[i];return {probs:vals,value:Math.tanh(v)}}
+function terminal(c){const cm=typeof c.isCheckmate==='function'?c.isCheckmate():typeof c.in_checkmate==='function'?c.in_checkmate():false;const sm=typeof c.isStalemate==='function'?c.isStalemate():typeof c.in_stalemate==='function'?c.in_stalemate():false;const im=typeof c.isInsufficientMaterial==='function'?c.isInsufficientMaterial():typeof c.insufficient_material==='function'?c.insufficient_material():false;if(cm)return c.turn()==='w'?-1:1;if(sm||im)return 0;const f=c.fen().split(' ');if(+f[4]>=100)return 0;return null}
+function search(c,brain,sims){const root={visits:0,children:new Map(),expanded:false,value:0};function expand(node,state){const moves=state.moves({verbose:true}),acts=moves.map(action),pred=predict(brain,encode(state),acts);for(let i=0;i<moves.length;i++)node.children.set(acts[i],{move:moves[i],prior:pred.probs[i],visits:0,valueSum:0});node.expanded=true;node.value=pred.value;return pred.value}
+let rootValue=0;for(let sim=0;sim<sims;sim++){const state=new Chess(c.fen());let node=root,path=[];let value=terminal(state);if(value!==null){rootValue=value;continue}while(true){value=terminal(state);if(value!==null)break;if(!node.expanded){value=expand(node,state);break}let best=null,bs=-Infinity;for(const ch of node.children.values()){const q=ch.visits?ch.valueSum/ch.visits:0,u=1.35*ch.prior*Math.sqrt(Math.max(1,node.visits))/(1+ch.visits),score=q+u;if(score>bs){bs=score;best=ch}}if(!best||!state.move({from:best.move.from,to:best.move.to,promotion:best.move.promotion}))break;path.push(best);node=best}for(let i=path.length-1;i>=0;i--){path[i].visits++;path[i].valueSum+=value;value=-value}root.visits++;root.valueSum+=value}
+let best=null,bn=-1;for(const ch of root.children.values())if(ch.visits>bn){bn=ch.visits;best=ch}if(!best){const ms=c.moves({verbose:true});return {move:ms[0]||null,policy:[],legal:ms.map(action),result:terminal(c)||0}}const total=[...root.children.values()].reduce((a,ch)=>a+ch.visits,0)||1;const policy=[];for(const ch of root.children.values())policy.push({a:action(ch.move),p:ch.visits/total});return {move:best.move,policy,legal:[...root.children.keys()],result:null}}
+function runGame(whiteBrain,blackBrain,sims){let c=new Chess(),hist=new Map([[key(c),1]]),plies=0,repetitionDetections=0,pointsWhite=0,pointsBlack=0;while(plies<300){const t=terminal(c);if(t!==null)break;const legal=c.moves({verbose:true});if(!legal.length)break;const b=c.turn()==='w'?whiteBrain:blackBrain;const sr=search(c,b,sims);let move=sr.move;function repeats(m){const mv=c.move({from:m.from,to:m.to,promotion:m.promotion});if(!mv)return true;const k=key(c),would=(hist.get(k)||0)+1;c.undo();return would>=4}if(repeats(move)){repetitionDetections++;if(repetitionDetections>=3){pointsWhite-=3;pointsBlack-=3;break}const safe=legal.filter(m=>!repeats(m));if(!safe.length)break;const pred=predict(b,encode(c),safe.map(action));let bi=0;for(let i=1;i<safe.length;i++)if(pred.probs[i]>pred.probs[bi])bi=i;move=safe[bi];if(c.turn()==='w')pointsWhite-=2;else pointsBlack-=2}if(!move||!c.move({from:move.from,to:move.to,promotion:move.promotion}))break;if(move.promotion){if(c.turn()==='b')pointsWhite+=3;else pointsBlack+=3}plies++;const k=key(c);hist.set(k,(hist.get(k)||0)+1)}let r=terminal(c);if(r===null)r=0;if(r===1)pointsWhite+=20;else if(r===-1)pointsBlack+=20;else if(r===0){pointsWhite+=2;pointsBlack+=2}return {moves:plies,result:r,pointsWhite,pointsBlack,repetitionDetections}}
+function runMatch(whiteBrain,blackBrain,sims){return runGame(whiteBrain,blackBrain,sims)}
+onmessage=e=>{if(e.data.type==='match'){const out=[];for(let i=0;i<e.data.count;i++){const white=e.data.flip&&i%2?e.data.mutant:e.data.best;const black=e.data.flip&&i%2?e.data.best:e.data.mutant;out.push(runMatch(white,black,Math.max(1,Math.min(32,e.data.sims||4))))}let score=0;for(let i=0;i<out.length;i++){const mutantWhite=(e.data.flip&&i%2);const g=out[i],r=g.result;const resultScore=r===0?.5:(mutantWhite?(r===1?1:0):(r===-1?1:0));const mutantPoints=mutantWhite?g.pointsWhite:g.pointsBlack;score+=resultScore+mutantPoints*0.02}postMessage({type:'matchDone',id:e.data.id,results:out,score})}}`;
+}
+
+function makeFastWorker(){return new Worker(URL.createObjectURL(new Blob([FAST_WORKER_SOURCE],{type:'application/javascript'})))}
+let fastWorkers=[];
+let fastBatchAbort=null;
+function stopFastWorkers(){for(const w of fastWorkers){try{w.terminate()}catch(e){}}fastWorkers=[]}
+function cloneBrainData(n){return JSON.parse(JSON.stringify(n.toJSON()))}
+function mutateBrain(base,rate,strength,seed){
+  const n=TinyNet.fromJSON(JSON.parse(JSON.stringify(base)));
+  const rng=new RNG(seed||Date.now());
+  for(const k of ['w1','b1','w2','b2','wp','bp','wv']){
+    const a=n[k];
+    for(let i=0;i<a.length;i++){
+      if(rng.next()<rate)a[i]+=rng.gauss()*strength;
+    }
+  }
+  if(rng.next()<rate)n.bv+=rng.gauss()*strength;
+  return n;
+}
+async function evaluateMutations(candidates,best,sims,matches){
+  const cores=navigator.hardwareConcurrency||4;
+  const workerCount=Math.min(candidates.length,Math.max(1,Math.min(12,cores)));
+  stopFastWorkers();
+  const bestData=cloneBrainData(best);
+  return await new Promise(resolve=>{
+    let next=0,done=0,finished=false,results=new Array(candidates.length);
+    const finish=()=>{if(finished)return;finished=true;fastBatchAbort=null;stopFastWorkers();resolve(results.filter(Boolean))};
+    fastBatchAbort=()=>finish();
+    const launch=(w)=>{
+      if(finished)return;
+      const index=next++;
+      if(index>=candidates.length){return;}
+      const worker=makeFastWorker();fastWorkers.push(worker);
+      const mutationData=cloneBrainData(candidates[index]);
+      worker.onmessage=e=>{
+        if(e.data.type!=='matchDone')return;
+        results[index]={index,score:e.data.score,results:e.data.results,brain:candidates[index]};
+        done++;try{worker.terminate()}catch(err){}
+        if(done>=candidates.length){finish();return;}
+        launch(worker);
+      };
+      worker.onerror=err=>{
+        log('mutation worker failed: '+(err.message||'unknown worker error'));
+        done++;try{worker.terminate()}catch(e){}
+        if(done>=candidates.length)finish();else launch(worker);
+      };
+      worker.postMessage({type:'match',id:index,best:bestData,mutant:mutationData,count:matches,sims,flip:true});
+    };
+    for(let i=0;i<workerCount;i++)launch(null);
+  });
+}
+async function trainBatch(){
+  if(training)return;
+  cancelRequested=false;training=true;busy=false;
+  const requested=Math.max(1,Math.min(100,Number(document.getElementById('batchGames').value)||4));
+  const candidateCount=Math.max(2,Math.min(32,Number(document.getElementById('parallelGames').value)||8));
+  const matches=Math.max(1,Math.min(8,Number(document.getElementById('evalMatches').value)||2));
+  const sims=Math.max(1,Math.min(16,Number(document.getElementById('trainSims').value)||4));
+  const rate=Math.max(.0001,Math.min(1,Number(document.getElementById('mutationRate').value)||.02));
+  const strength=Math.max(.0001,Math.min(2,Number(document.getElementById('mutationStrength').value)||.08));
+  let completed=0;
+  setStatus('training','creating mutations from generation '+generation+' · '+candidateCount+' candidates',5);
+  try{
+    while(completed<requested&&!cancelRequested){
+      const candidates=[];
+      for(let i=0;i<candidateCount;i++)candidates.push(mutateBrain(brain,rate,strength,(generation+1)*100000+i));
+      const results=await evaluateMutations(candidates,brain,sims,matches);
+      if(cancelRequested)break;
+      if(!results.length)throw new Error('mutation evaluation produced no results');
+      results.sort((a,b)=>b.score-a.score);
+      const winner=results[0];
+      brain=winner.brain;
+      generation++;games+=candidateCount*matches;completed++;
+      const wins=winner.results.filter((g,i)=>{const mw=(matches>1&&i%2===1);return mw?(g.result===-1):(g.result===1)}).length;
+      const draws=winner.results.filter(g=>g.result===0).length;
+      steps+=winner.results.reduce((a,g)=>a+g.moves,0);
+      renderStats();
+      const winnerPoints=winner.results.reduce((sum,g,i)=>sum+(i%2?g.pointsWhite:g.pointsBlack),0);points+=winnerPoints;evalRecord=winner.score.toFixed(2);setStatus('training','generation '+generation+' · best score '+winner.score.toFixed(2)+' · '+wins+' wins · '+draws+' draws · '+completed+' / '+requested+' generations',Math.min(96,8+88*(completed/requested)));
+      log('generation '+generation+' selected mutation '+winner.index+' · score '+winner.score.toFixed(2)+' / '+matches+' · rate '+rate+' · strength '+strength);
+      saveBrain(false);
+      await new Promise(r=>setTimeout(r,0));
+    }
+    if(!cancelRequested&&completed){toast('evolution complete · gen '+generation);log('evolution complete · '+completed+' generations')}
+    else if(cancelRequested)log('evolution cancelled after '+completed+' generations');
+  }catch(e){log('training error: '+e.message);setStatus('error','training failed · '+e.message,0);toast('training failed')}
+  finally{fastBatchAbort=null;stopFastWorkers();training=false;busy=false;renderStats();if(!isGameOver(game))setStatus(cancelRequested?'paused':'ready',cancelRequested?'training stopped':'generation '+generation+' · '+games+' matches',100)}
+}
+async function createStockfish(){
+  if(stockfishWorker||stockfishLoading)return;
+  stockfishLoading=true;
+  if(location.protocol==='file:'||location.origin==='null'){
+    stockfishLoading=false;
+    stockfishReady=false;
+    document.getElementById('enginePill').textContent='Stockfish needs web mode';
+    document.getElementById('onlineDot').style.background='var(--rose)';
+    log('Stockfish unavailable · this HTML is running from file:// (origin null)');
+    log('Stockfish 19 browser workers cannot be started from this file context');
+    log('Open the HTML through a local HTTP server, then reload the page');
+    return;
+  }
+  const urls=[
+    'https://unpkg.com/stockfish@19.0.0/bin/stockfish-19-asm.js',
+    'https://cdn.jsdelivr.net/npm/stockfish@19.0.0/bin/stockfish-19-asm.js',
+    'https://unpkg.com/stockfish@19.0.0/bin/stockfish-19-lite-single.js',
+    'https://cdn.jsdelivr.net/npm/stockfish@19.0.0/bin/stockfish-19-lite-single.js'
+  ];
+  for(const url of urls){
+    let worker=null;
+    try{
+      const file=url.split('/').pop();
+      log('loading Stockfish 19: '+file);
+      // Stockfish's browser builds are already worker scripts. Do not wrap
+      // them in a Blob worker + importScripts: that creates the exact
+      // cross-origin failure seen in the terminal and breaks relative WASM.
+      worker=new Worker(url);
+      stockfishWorker=worker;
+      let settled=false;
+      const readyTimer=setTimeout(()=>{
+        if(settled)return;
+        settled=true;
+        log('Stockfish timeout waiting for uciok: '+file);
+        try{worker.terminate()}catch(e){}
+        if(stockfishWorker===worker)stockfishWorker=null;
+      },15000);
+      worker.onmessage=e=>{
+        const d=typeof e.data==='string'?e.data:'';
+        if(d.includes('uciok')){
+          settled=true;
+          clearTimeout(readyTimer);
+          stockfishReady=true;
+          stockfishLoading=false;
+          document.getElementById('enginePill').textContent='Stockfish ready';
+          document.getElementById('onlineDot').style.background='var(--green)';
+          log('Stockfish 19 ready · '+file);
+          try{worker.postMessage('isready')}catch(err){log('Stockfish isready error: '+err.message)}
+          return;
+        }
+        if(analysisActive){
+          if(d.startsWith('info ')){
+            const m=d.match(/score\s+(cp|mate)\s+(-?\d+)/);
+            if(m){const n=Number(m[2]);analysisActive.score=m[1]==='mate'?(n>0?100000:-100000):n;}
+          }
+          if(d.startsWith('bestmove')){
+            const a=analysisActive;analysisActive=null;
+            a.resolve({score:a.score??0,best:d.split(/\s+/)[1]||null});
+          }
+        }
+        if(d.startsWith('bestmove')){
+          const m=d.split(/\s+/)[1];
+          const q=stockfishQueue.shift();
+          stockfishActiveResolve=null;
+          if(q)q(m);
+        }
+      };
+      worker.onerror=e=>{
+        clearTimeout(readyTimer);
+        if(!settled){settled=true;log('Stockfish worker error for '+file+': '+(e.message||'worker failed'));}
+        stockfishReady=false;
+        try{worker.terminate()}catch(err){}
+        if(stockfishWorker===worker)stockfishWorker=null;
+      };
+      worker.postMessage('uci');
+      await new Promise(r=>setTimeout(r,350));
+      if(stockfishReady&&stockfishWorker===worker)return;
+      if(stockfishWorker===worker&&!stockfishReady){try{worker.terminate()}catch(e){}stockfishWorker=null;}
+    }catch(e){
+      log('Stockfish source failed for '+url+': '+e.message);
+      try{if(worker)worker.terminate()}catch(err){}
+      if(stockfishWorker===worker)stockfishWorker=null;
+    }
+  }
+  stockfishLoading=false;
+  stockfishReady=false;
+  document.getElementById('enginePill').textContent='Stockfish unavailable';
+  document.getElementById('onlineDot').style.background='var(--rose)';
+  log('Stockfish unavailable · all remote engine workers failed to load');
+}
+function expectedPoints(cp){const x=Math.max(-1200,Math.min(1200,cp))/180;return 1/(1+Math.exp(-x))}
+function pieceValue(t){return ({p:1,n:3,b:3,r:5,q:9,k:0})[t]||0}
+function materialScore(c,color){let n=0;for(const row of c.board())for(const p of row)if(p&&p.color===color)n+=pieceValue(p.type);return n}
+function classifyMove(beforeCp,afterCp,bestUci,rec,bestAfterCp,bestMove,bestAfterFen){const moverWhite=rec.side==='w';const before=moverWhite?beforeCp:-beforeCp,after=moverWhite?afterCp:-afterCp;const bestAfter=moverWhite?bestAfterCp:-bestAfterCp;const loss=Math.max(0,expectedPoints(before)-expectedPoints(after));const bestGain=expectedPoints(bestAfter)-expectedPoints(before);const isBest=bestUci===rec.uci;const delta=after-before;let quality;if(isBest&&Math.abs(delta)<8)quality='Best';else if(!isBest&&bestGain>=0.12&&loss<0.20)quality='Miss';else if(loss<0.02)quality='Excellent';else if(loss<0.05)quality='Good';else if(loss<0.10)quality='Inaccuracy';else if(loss<0.20)quality='Mistake';else quality='Blunder';let brilliant=false,great=false;if(isBest&&bestMove&&bestAfterFen){const beforeBoard=new Chess(rec.fen),afterBest=new Chess(bestAfterFen);const ownBefore=materialScore(beforeBoard,rec.side),ownAfter=materialScore(afterBest,rec.side);const sacrificed=ownAfter<ownBefore;const stillPlayable=bestAfter>-100;if(sacrificed&&stillPlayable&&before<250){brilliant=true;quality='Brilliant'}}if(!brilliant&&isBest&&bestGain>=0.12&&before<250){great=true;quality='Great'}return {quality,loss,isBest,bestGain,brilliant,great};}
+function stockfishAnalyze(fen,depth=7){return new Promise(resolve=>{if(!stockfishReady||!stockfishWorker){resolve(null);return}analysisActive={resolve,score:null};stockfishWorker.postMessage('position fen '+fen);stockfishWorker.postMessage('go depth '+Math.max(4,Math.min(12,depth)));});}
+async function finishGameReview(epoch=matchEpoch){if(reviewRunning||lastReviewedEpoch===epoch||!moveRecords.length||epoch!==matchEpoch)return;lastReviewedEpoch=epoch;reviewRunning=true;reviewState={running:true,text:'checking each move against the engine…'};renderReview();if(!stockfishReady){reviewRunning=false;reviewState={running:false,accuracy:'—',text:'Stockfish was not ready, so this game could not be reviewed yet.',counts:{}};renderReview();log('game review skipped: Stockfish not ready');return}const counts={Brilliant:0,Great:0,Best:0,Excellent:0,Good:0,Inaccuracy:0,Mistake:0,Blunder:0,Miss:0};let totalLoss=0,reviewed=0;for(let i=0;i<moveRecords.length;i++){if(epoch!==matchEpoch)break;const rec=moveRecords[i];const before=await stockfishAnalyze(rec.fen,7);const c=new Chess(rec.fen);const mv=c.move({from:rec.uci.slice(0,2),to:rec.uci.slice(2,4),promotion:rec.uci[4]});if(!mv||!before)continue;const after=await stockfishAnalyze(c.fen(),7);if(!after)continue;let bestAfterCp=after.score,bestMove=null,bestAfterFen=null;if(before.best){const bc=new Chess(rec.fen());const bm=bc.move({from:before.best.slice(0,2),to:before.best.slice(2,4),promotion:before.best[4]});if(bm){bestMove=bm;bestAfterFen=bc.fen();const ba=await stockfishAnalyze(bestAfterFen,7);if(ba)bestAfterCp=ba.score}}const cls=classifyMove(before.score,after.score,before.best,rec,bestAfterCp,bestMove,bestAfterFen);rec.quality=cls.quality;rec.pointDelta=({Brilliant:12,Great:9,Best:6,Excellent:3,Good:1,Inaccuracy:0,Mistake:-5,Blunder:-10,Miss:-7}[cls.quality]??0);if(isCheckmate(c))rec.pointDelta+=20;if(mv.promotion)rec.pointDelta+=3;counts[cls.quality]++;totalLoss+=cls.loss;reviewed++;if((i&3)===3){reviewState.text='reviewing move '+(i+1)+' / '+moveRecords.length;renderReview();}}const accuracy=Math.max(0,Math.min(100,Math.round(100*(1-(totalLoss/Math.max(1,reviewed))))));reviewState={running:false,accuracy,text:'engine feedback has been recorded for the learner. This is Chess.com-inspired classification, not an exact copy of Chess.com’s private scoring system.',counts};reviewRunning=false;renderMoves();renderReview();log('game review complete · '+accuracy+'% · '+reviewed+' moves classified');feedReviewToLearner();}
+function feedReviewToLearner(){if(!brain)return;const weights={Brilliant:12,Great:9,Best:6,Excellent:3,Good:1,Inaccuracy:0,Mistake:-5,Blunder:-10,Miss:-7};let delta=0,signal=0,n=0;for(const r of moveRecords){if(!r.quality||r.actor!=='learner')continue;const p=r.pointDelta??(weights[r.quality]??0);delta+=p;signal+=p/12;n++;}if(isCheckmate(game)){const winner=game.turn()==='w'?'black':'white';const learnerSide=(botWhite==='learner'&&winner==='white')||(botBlack==='learner'&&winner==='black');if(learnerSide)delta+=20;else if(botWhite==='learner'||botBlack==='learner')delta-=20;}if(repetitionDetections)delta-=2*repetitionDetections;if(drawReason(game)&&!repetitionDetections)delta+=2;points+=delta;brain.reviewSignal=(brain.reviewSignal||0)*.9+signal/Math.max(1,n);brain.rewardHistory=(brain.rewardHistory||[]).concat([{points:delta,accuracy:reviewState?.accuracy??0,generation}]).slice(-200);steps+=n;evalRecord=(brain.reviewSignal).toFixed(2);renderStats();saveBrain(false);log('learner received move-quality feedback · '+(delta>=0?'+':'')+delta+' points · signal '+brain.reviewSignal.toFixed(2));}
+function stockfishMove(c,depth=8){return new Promise(resolve=>{if(!stockfishReady||!stockfishWorker){log('Stockfish is not ready');resolve(null);return}const done=(uci)=>{const ms=c.moves({verbose:true}),m=ms.find(x=>x.from+x.to+(x.promotion||'')===uci);resolve(m||ms[0]||null)};stockfishQueue.push(done);stockfishActiveResolve=()=>{const i=stockfishQueue.indexOf(done);if(i>=0)stockfishQueue.splice(i,1);resolve(null)};stockfishWorker.postMessage('ucinewgame');stockfishWorker.postMessage('position fen '+c.fen());stockfishWorker.postMessage('go depth '+depth)})}
+function cancelEngine(){cancelRequested=true;if(fastBatchAbort){const abort=fastBatchAbort;fastBatchAbort=null;abort()}else stopFastWorkers();if(stockfishWorker&&stockfishReady){try{stockfishWorker.postMessage('stop')}catch(e){}}if(stockfishActiveResolve){const r=stockfishActiveResolve;stockfishActiveResolve=null;r()}if(analysisActive){const a=analysisActive;analysisActive=null;a.resolve(null)}stockfishQueue.length=0;busy=false;}
+function renderBoard(){const el=document.getElementById('board');el.innerHTML='';const b=game.board();for(let dr=0;dr<8;dr++)for(let df=0;df<8;df++){const r=flipped?7-dr:dr,f=flipped?7-df:df,p=b[r][f],sq=FILES[f]+(8-r),cell=document.createElement('button');cell.className='square '+(((r+f)%2===0)?'light':'dark');cell.dataset.square=sq;cell.setAttribute('aria-label',sq+(p?' '+p.color+' '+p.type:''));if(selected===sq)cell.classList.add('selected');if(lastMove&&(lastMove.from===sq||lastMove.to===sq))cell.classList.add('last');if(p&&p.type==='k'&&p.color===game.turn()&&game.in_check()&&game.square_color)cell.classList.add('check');if(legalMoves.some(m=>m.to===sq)){const mark=document.createElement('i');mark.className=game.get(sq)?'capture':'legal';cell.appendChild(mark)}if(p){const s=document.createElement('span');s.className='piece '+(p.color==='w'?'white-piece':'black-piece');s.textContent=PIECES[p.color+p.type];cell.appendChild(s)}if(df===0){const c=document.createElement('span');c.className='coord';c.textContent=8-r;cell.appendChild(c)}if(dr===7){const c=document.createElement('span');c.className='coord';c.style.left='auto';c.style.right='4px';c.textContent=FILES[f];cell.appendChild(c)}cell.onclick=()=>onSquare(sq);el.appendChild(cell)}}
+function onSquare(sq){if(busy||training||isGameOver(game))return;if((game.turn()==='w'?botWhite:botBlack)!=='human')return;const p=game.get(sq);if(selected){const m=legalMoves.find(x=>x.to===sq);if(m){if(m.promotion)openPromotion(m);else playHuman(m);return}if(p&&p.color===game.turn()){selectSquare(sq);return}selected=null;legalMoves=[];renderBoard();return}if(p&&p.color===game.turn())selectSquare(sq)}
+function selectSquare(sq){selected=sq;legalMoves=game.moves({square:sq,verbose:true});renderBoard()}
+function openPromotion(m){const modal=document.getElementById('promoModal'),actions=document.getElementById('promoActions');actions.innerHTML='';for(const p of ['q','r','b','n']){const b=document.createElement('button');b.className='btn promo';b.textContent=PIECES[game.turn()+p];b.onclick=()=>{modal.classList.remove('open');playHuman({...m,promotion:p})};actions.appendChild(b)}modal.classList.add('open')}
+function playHuman(m){const epoch=matchEpoch;if(moveCreatesRepetitionBreak(game,m,repetition)){repetitionDetections++;points-=2;if(repetitionDetections>=3){repetitionForcedDraw=true;renderAll();setStatus('draw · repetition','three repetition detections · points '+points);return}setStatus('choose a different move','repetition detected · choose a different move');return}const fenBefore=game.fen(),mv=game.move({from:m.from,to:m.to,promotion:m.promotion});if(!mv)return;lastMove={from:mv.from,to:mv.to};recordMove(fenBefore,mv,'human');recordPosition(game);selected=null;legalMoves=[];renderAll();if(terminalText(game))finishGameReview(epoch);else continueMatch(epoch)}
+function botForTurn(){return game.turn()==='w'?botWhite:botBlack}
+function cloneLearnerForMatch(){return brain?TinyNet.fromJSON(JSON.parse(JSON.stringify(brain.toJSON()))):null}
+function learnerBrainForTurn(){return game.turn()==='w'?matchBrainWhite:matchBrainBlack}
+function repetitionSafeMoves(c,hist){return c.moves({verbose:true}).filter(m=>!moveCreatesRepetitionBreak(c,m,hist))}
+function botLabel(kind){return kind==='stockfish'?'Stockfish':kind==='human'?'Human':'Learner'}
+function updateMatchBadge(){const type=document.getElementById('matchType').value;const labels={'learner-learner':'learner vs learner','learner-stockfish':'learner vs stockfish 19','learner-human':'learner vs human'};document.getElementById('modeBadge').textContent=labels[type]||'learner vs learner';document.getElementById('modeBadge').title='sides are randomized when Play is pressed'}
+async function continueMatch(epoch=matchEpoch){if(epoch!==matchEpoch||training||busy)return;if(isGameOver(game)){renderAll();return}const actor=botForTurn();if(actor==='human'){selected=null;legalMoves=[];renderAll();setStatus('your move','playing as '+(game.turn()==='w'?'White':'Black'));return}busy=true;selected=null;legalMoves=[];setStatus('thinking',botLabel(actor)+' is searching');renderBoard();await new Promise(r=>setTimeout(r,30));if(cancelRequested||epoch!==matchEpoch){busy=false;renderAll();return}let m=actor==='stockfish'?await stockfishMove(game,8):await learnerMove(game,Number(document.getElementById('sims').value)||32,learnerBrainForTurn(),repetition);if(m&&moveCreatesRepetitionBreak(game,m,repetition)){repetitionDetections++;points-=2;if(repetitionDetections>=3){repetitionForcedDraw=true;busy=false;renderAll();setStatus('draw · repetition','three repetition detections · points '+points);finishGameReview(epoch);return}const safe=repetitionSafeMoves(game,repetition);if(safe.length){if(actor==='stockfish'){m=safe[Math.floor(Math.random()*safe.length)]}else{const pick=safeRepetitionMove(game,m,learnerBrainForTurn(),repetition);m=pick.move}}else m=null}if(!m){const anySafe=repetitionSafeMoves(game,repetition).length;busy=false;if(!anySafe){repetitionForcedDraw=true;renderAll();setStatus('draw · repetition','all legal moves would create another repetition');}else{renderAll();setStatus('engine unavailable',actor==='stockfish'?'Stockfish is not ready':'Learner could not choose a legal move')}return}const fenBefore=game.fen(),mv=game.move({from:m.from,to:m.to,promotion:m.promotion});if(!mv){busy=false;renderAll();setStatus('move failed',botLabel(actor)+' returned an invalid move');return}lastMove={from:mv.from,to:mv.to};recordMove(fenBefore,mv,actor);recordPosition(game);busy=false;renderAll();const t=terminalText(game);if(t){setStatus(t,'game finished');finishGameReview(epoch);return}if(isInCheck(game))setStatus('check',botLabel(botForTurn())+' is in check');await new Promise(r=>setTimeout(r,60));if(cancelRequested||epoch!==matchEpoch){busy=false;renderAll();return}continueMatch(epoch)}
+async function simulateOneMove(){if(training||busy||isGameOver(game))return;const actor=botForTurn();if(actor==='human'){setStatus('your move','the current side is set to Human');return}busy=true;selected=null;legalMoves=[];setStatus('thinking',botLabel(actor)+' · simulating one move',20);renderBoard();await new Promise(r=>setTimeout(r,30));if(cancelRequested){busy=false;renderAll();return}let m=actor==='stockfish'?await stockfishMove(game,8):await learnerMove(game,Number(document.getElementById('sims').value)||4,learnerBrainForTurn(),repetition);if(m&&moveCreatesRepetitionBreak(game,m,repetition)){repetitionDetections++;points-=2;if(repetitionDetections>=3){repetitionForcedDraw=true;busy=false;renderAll();setStatus('draw · repetition','three repetition detections · points '+points);finishGameReview(matchEpoch);return}const safe=repetitionSafeMoves(game,repetition);if(safe.length)m=safe[Math.floor(Math.random()*safe.length)];else m=null}if(!m){busy=false;if(!repetitionSafeMoves(game,repetition).length){repetitionForcedDraw=true;renderAll();setStatus('draw · repetition','all legal moves would create another repetition');}else{renderAll();setStatus('engine unavailable',actor==='stockfish'?'Stockfish is not ready':'Learner could not choose a legal move')}return}const fenBefore=game.fen(),mv=game.move({from:m.from,to:m.to,promotion:m.promotion});if(!mv){busy=false;renderAll();setStatus('move failed',botLabel(actor)+' returned an invalid move');return}lastMove={from:mv.from,to:mv.to};recordMove(fenBefore,mv,actor);recordPosition(game);busy=false;renderAll();if(terminalPosition(game,repetition)){renderAll();finishGameReview(matchEpoch)}else setStatus(isInCheck(game)?'check':'ready',isInCheck(game)?botLabel(botForTurn())+' is in check':botLabel(actor)+' made one move',0)}
+async function playMatch(){
+  if(training||busy)return;
+  const epoch=++matchEpoch;
+  matchNonce=(Math.random()*0x100000000)>>>0;
+  cancelRequested=false;
+  const type=document.getElementById('matchType').value;
+  if(type==='learner-learner'){
+    botWhite='learner'; botBlack='learner';
+  }else if(type==='learner-stockfish'){
+    if(Math.random()<0.5){botWhite='learner';botBlack='stockfish';}
+    else{botWhite='stockfish';botBlack='learner';}
+  }else if(type==='learner-human'){
+    if(Math.random()<0.5){botWhite='learner';botBlack='human';}
+    else{botWhite='human';botBlack='learner';}
+  }
+  matchBrainWhite=null; matchBrainBlack=null;
+  if(type==='learner-learner'){
+    // Both sides receive independent copies of the exact same learner snapshot.
+    // No training or weight mutation occurs during the match.
+    matchBrainWhite=cloneLearnerForMatch();
+    matchBrainBlack=cloneLearnerForMatch();
+  }else if(type==='learner-stockfish'){
+    if(botWhite==='learner') matchBrainWhite=cloneLearnerForMatch();
+    if(botBlack==='learner') matchBrainBlack=cloneLearnerForMatch();
+  }else if(type==='learner-human'){
+    if(botWhite==='learner') matchBrainWhite=cloneLearnerForMatch();
+    if(botBlack==='learner') matchBrainBlack=cloneLearnerForMatch();
+  }
+  game=new Chess();selected=null;legalMoves=[];lastMove=null;moveRecords=[];reviewState=null;lastReviewedEpoch=-1;resetRepetition();busy=false;
+  renderAll();renderReview();
+  setStatus('ready','starting one match · '+botLabel(botWhite)+' vs '+botLabel(botBlack)+(type==='learner-learner'?' · identical learner snapshots':'') ,5);
+  log('match '+epoch+' started · move-selection seed '+matchNonce);
+  await new Promise(r=>setTimeout(r,60));
+  if(!isGameOver(game))continueMatch(epoch);
+}
+function newGame(){
+  const nextEpoch=matchEpoch+1;
+  matchNonce=(Math.random()*0x100000000)>>>0;
+  matchEpoch=nextEpoch;
+  cancelRequested=true;
+  try{cancelEngine()}catch(e){log('engine cancellation during new game: '+e.message)}
+  training=false;
+  busy=false;
+  cancelRequested=false;
+  repetitionForcedDraw=false;
+  points=0;repetitionDetections=0;
+  game=new Chess();
+  selected=null;
+  legalMoves=[];
+  lastMove=null;
+  moveRecords=[];
+  reviewState=null;
+  reviewRunning=false;
+  lastReviewedEpoch=-1;
+  matchBrainWhite=null;
+  matchBrainBlack=null;
+  resetRepetition();
+  document.getElementById('promoModal').classList.remove('open');
+  renderAll();
+  renderReview();
+  setStatus('ready','new board ready · press Play to start',0);
+  log('new game created · match '+matchEpoch+' · fresh move-selection seed '+matchNonce);
+}
+function renderMoves(){const list=document.getElementById('moveList'),hist=game.history();list.innerHTML='';for(let i=0;i<hist.length;i++){const d=document.createElement('div');d.className='move';const q=moveRecords[i]?.quality||'';const pd=moveRecords[i]?.pointDelta;d.innerHTML='<b>'+((i>>1)+1)+(i%2?'...':'.')+'</b>'+hist[i]+(q?' <span style="float:right;font-weight:900">'+q+(Number.isFinite(pd)?' '+(pd>=0?'+':'')+pd:'')+'</span>':'');list.appendChild(d)}document.getElementById('moveCount').textContent=hist.length+' plies'}
+function renderReview(){const b=document.getElementById('reviewBadge'),s=document.getElementById('reviewSummary'),g=document.getElementById('reviewGrid');if(!reviewState){b.textContent='not reviewed';s.textContent='when a game ends, the system checks the moves and feeds the feedback back into the learner.';g.innerHTML='';return}if(reviewState.running){b.textContent='reviewing';s.textContent=reviewState.text||'checking the finished game with Stockfish…';g.innerHTML='';return}b.textContent=reviewState.accuracy+'% accuracy';s.textContent=reviewState.text;g.innerHTML='';for(const [k,v] of Object.entries(reviewState.counts)){const d=document.createElement('div');d.className='review-item';d.innerHTML='<b>'+v+'</b><span>'+k+'</span>';g.appendChild(d)}}
+function recordMove(fenBefore,mv,actor){moveRecords.push({fen:fenBefore,uci:mv.from+mv.to+(mv.promotion||''),san:mv.san||game.history().at(-1)||'',side:fenBefore.split(' ')[1],actor,quality:null});}
+function renderStats(){document.getElementById('gamesStat').textContent=games;document.getElementById('stepsStat').textContent=steps;document.getElementById('replayStat').textContent=replay.length;document.getElementById('generationBadge').textContent='gen '+generation;document.getElementById('evalStat').textContent=evalRecord??'—';document.getElementById('pointsStat').textContent=points;document.getElementById('brainState').textContent='gen '+generation+' · '+brain.w1.length+' weights'}
+function renderAll(){renderBoard();renderMoves();renderStats();renderReview();const t=terminalText(game);if(t)setStatus(t,'game finished');else if(!busy&&!training){const inCheck=isInCheck(game);setStatus(inCheck?'check':(botForTurn()==='human'?'your move':'ready'),inCheck?(botLabel(botForTurn())+' is in check'):'generation '+generation+' · '+replay.length+' replay positions')}}
+function saveBrain(show=true){try{localStorage.setItem('chess-learning-brain',JSON.stringify(brain.toJSON()));localStorage.setItem('chess-learning-replay',JSON.stringify(replay.slice(-1200)));if(show){toast('brain saved');log('brain saved locally')}}catch(e){log('save failed: '+e.message)}}
+function loadBrain(){try{const raw=localStorage.getItem('chess-learning-brain');if(!raw){toast('no saved brain');return}brain=TinyNet.fromJSON(JSON.parse(raw));const rp=localStorage.getItem('chess-learning-replay');if(rp){const parsed=JSON.parse(rp);replay=Array.isArray(parsed)?parsed.filter(s=>s&&Array.isArray(s.x)&&Array.isArray(s.legal)&&Array.isArray(s.policy)&&s.policy.every(q=>q&&typeof q.a==='number')).slice(-CONFIG.replayMax):[]}renderStats();toast('brain loaded');log('brain loaded from local storage')}catch(e){brain=new TinyNet(Date.now());replay=[];toast('old brain ignored');log('saved brain is from an older architecture; started a fresh learner')}}
+function resetBrain(){if(!confirm('reset the learner to random weights?'))return;brain=new TinyNet(Date.now());generation=0;steps=0;games=0;replay=[];localStorage.removeItem('chess-learning-brain');localStorage.removeItem('chess-learning-replay');renderStats();toast('new random brain');log('learner reset to random weights')}
+function exportBrain(){const blob=new Blob([JSON.stringify({app:'Chess Learning Lab',version:CONFIG.version,brain:brain.toJSON(),replay:replay.slice(-1200)})],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='chess-learning-brain-gen-'+generation+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function importBrain(){document.getElementById('fileInput').click()}
+document.getElementById('fileInput').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const o=JSON.parse(rd.result);brain=TinyNet.fromJSON(o.brain||o);replay=o.replay||[];renderStats();toast('brain imported');log('brain imported')}catch(err){toast('invalid brain file');log('import failed: '+err.message)}};rd.readAsText(f)};
+
+document.getElementById('clearLog').onclick=()=>{document.getElementById('log').textContent='';log('log cleared')};
+document.getElementById('startTraining').type='button';document.getElementById('playMatch').type='button';document.getElementById('simulateMove').type='button';document.getElementById('newGame').type='button';document.getElementById('flip').type='button';document.getElementById('stopTrain').type='button';document.getElementById('startTraining').onclick=()=>{trainBatch().catch(e=>{log('training launch error: '+e.message);setStatus('error','training failed to start',0)})};document.getElementById('playMatch').onclick=()=>{playMatch().catch(e=>{busy=false;log('Play error: '+e.message);setStatus('error',e.message,0);renderAll()})};document.getElementById('simulateMove').onclick=()=>{simulateOneMove().catch(e=>{busy=false;log('1 move error: '+e.message);setStatus('error',e.message,0);renderAll()})};document.getElementById('newGame').onclick=()=>newGame();document.getElementById('flip').onclick=()=>{flipped=!flipped;renderBoard()};document.getElementById('stopTrain').onclick=()=>{cancelEngine();training=false;busy=false;setStatus('paused','stopped');renderAll();toast('stopped')};document.getElementById('matchType').onchange=()=>{updateMatchBadge();setStatus('ready','press Play to randomize sides and start the match',0)};document.getElementById('saveBrain').onclick=()=>saveBrain();document.getElementById('loadBrain').onclick=loadBrain;document.getElementById('resetBrain').onclick=resetBrain;document.getElementById('exportBrain').onclick=exportBrain;document.getElementById('importBrain').onclick=importBrain;document.getElementById('promoModal').onclick=e=>{if(e.target.id==='promoModal')e.currentTarget.classList.remove('open')};
+
+brain=new TinyNet(Date.now());loadBrain();createStockfish();resetRepetition();updateMatchBadge();renderAll();log('Chess Learning Lab '+CONFIG.version+' initialized');log('learner uses only chess rules from the environment; strategy starts random and is learned from experience');updateMatchBadge();
+</script>
+</body>
+</html>
