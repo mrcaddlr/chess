@@ -57,12 +57,12 @@ export function playLearnerGame(brain,{maxPlies=48,temperature=1}={}) {
     if(!legal.length)break;
     const move=choosePolicyMove(c,brain,temperature);
     if(!move)break;
-    const sample={x:Array.from(encode(c)),action:actionIndex(move),legal:legal.map(actionIndex)};
+    const sample={x:Array.from(encode(c)),action:actionIndex(move),legal:legal.map(actionIndex),side:c.turn()};
     if(!c.move({from:move.from,to:move.to,promotion:move.promotion}))break;
     samples.push(sample);
   }
   let result=terminalValue(c);
   if(result===null)result=0;
-  for(const s of samples)s.reward=result;
+  for(const s of samples)s.reward=s.side==='w'?result:-result;
   return {samples,result,moves:c.history().length};
 }
