@@ -2,8 +2,6 @@ name: Vendor chess engines
 
 on:
   workflow_dispatch:
-  push:
-    branches: ["main"]
 
 permissions:
   contents: write
@@ -17,11 +15,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download Stockfish 19 and 18
+      - name: Download and split chess engines
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p stockfish
+          rm -f stockfish/*.wasm.part* stockfish/engine-manifest.json
 
           download_stockfish() {
             version="$1"
@@ -57,15 +56,42 @@ jobs:
             stockfish-18-lite.js stockfish-18-lite.wasm \
             stockfish-18-lite-single.js stockfish-18-lite-single.wasm
 
-      - name: Download Lozza
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p stockfish
           curl -fL --retry 5 --retry-delay 2 \
             https://raw.githubusercontent.com/namanthanki/lozza/master/lozza.js \
             -o stockfish/lozza.js
           test -s stockfish/lozza.js
+
+          manifest='{'$'\n'
+          first=1
+          for wasm in stockfish/*.wasm; do
+            [ -f "$wasm" ] || continue
+            size=$(stat -c%s "$wasm")
+            if [ "$size" -gt $((90*1024*1024)) ]; then
+              base=$(basename "$wasm")
+              rm -f "stockfish/${base}.part"*
+              split -b 20M -d -a 3 "$wasm" "stockfish/${base}.part"
+              rm "$wasm"
+              parts=$(find stockfish -maxdepth 1 -type f -name "${base}.part*" | sort)
+              if [ "$first" -eq 0 ]; then manifest+=','$'\n'; fi
+              manifest+="  \"${base}\": ["
+              pfirst=1
+              while IFS= read -r part; do
+                pname=$(basename "$part")
+                if [ "$pfirst" -eq 0 ]; then manifest+=','; fi
+                manifest+="\"${pname}\""
+                pfirst=0
+              done <<< "$parts"
+              manifest+="]"
+              first=0
+            fi
+          done
+          manifest+=$'\n}\n'
+          printf '%s' "$manifest" > stockfish/engine-manifest.json
+
+          echo "Bundled engine files:"
+          ls -lh stockfish/
+          echo "Chunk manifest:"
+          cat stockfish/engine-manifest.json
 
       - name: Commit bundled engines
         shell: bash
@@ -78,5 +104,5 @@ jobs:
             echo "Engine files are already bundled."
             exit 0
           fi
-          git commit -m "Bundle Stockfish 18/19 and Lozza engines"
+          git commit -m "Bundle chunked Stockfish engines"
           git push
