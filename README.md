@@ -175,3 +175,20 @@ The long-term goal is to experiment with increasingly strong learning systems, n
 ## License
 
 Check the repository's license and the licenses of bundled third-party engine components before redistributing builds.
+
+
+## Stockfish.js 19 browser engines
+
+Stockfish.js is currently updated to Stockfish 19.
+
+This edition of Stockfish.js comes in five flavors:
+
+- **The large multi-threaded engine:** The strongest version of the engine, but it is very large (≈94MB) and requires the proper CORS headers for browser multi-threading. Files: `stockfish-19.js` & `stockfish-19.wasm`.
+- **The large single-threaded engine:** Also large, but runs without the multi-threading CORS requirement. It cannot use multiple threads via the UCI `Threads` option. Files: `stockfish-19-single.js` & `stockfish-19-single.wasm`.
+- **The lite multi-threaded engine:** The same multi-threaded build in a much smaller package (≈1.6MB) and considerably weaker than the large build. Files: `stockfish-19-lite.js` & `stockfish-19-lite.wasm`.
+- **The lite single-threaded engine:** The small single-threaded build (≈1.6MB), intended for simple browser deployment. Files: `stockfish-19-lite-single.js` & `stockfish-19-lite-single.wasm`.
+- **The ASM-JS engine:** Compiled to JavaScript rather than WASM, compatible with browsers that support JavaScript. It is very slow and weak and should only be used as a last resort. File: `stockfish-19-asm.js`.
+
+The project currently exposes the Stockfish 19 variants in the engine selector. The browser build keeps the large engines available while using the single-threaded/lite variants when a smaller mobile download is preferable.
+
+Source: [Stockfish.js](https://github.com/nmrugg/stockfish.js/).
