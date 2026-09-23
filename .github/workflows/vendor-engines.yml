@@ -62,9 +62,17 @@ jobs:
           rm -rf "$fairy_work"
           mkdir -p "$fairy_work"
           tar -xzf "$fairy_archive" -C "$fairy_work"
-          cp "$fairy_work/package/bin/stockfish.js" stockfish/fairy-stockfish.js
-          cp "$fairy_work/package/bin/stockfish.wasm" stockfish/fairy-stockfish.wasm
-          cp "$fairy_work/package/bin/stockfish.worker.js" stockfish/fairy-stockfish.worker.js
+          fairy_js=$(find "$fairy_work/package" -type f -name 'stockfish.js' -print -quit)
+          fairy_wasm=$(find "$fairy_work/package" -type f -name 'stockfish.wasm' -print -quit)
+          fairy_worker=$(find "$fairy_work/package" -type f -name 'stockfish.worker.js' -print -quit)
+
+          test -n "$fairy_js"
+          test -n "$fairy_wasm"
+          test -n "$fairy_worker"
+
+          cp "$fairy_js" stockfish/fairy-stockfish.js
+          cp "$fairy_wasm" stockfish/fairy-stockfish.wasm
+          cp "$fairy_worker" stockfish/fairy-stockfish.worker.js
           test -s stockfish/fairy-stockfish.js
           test -s stockfish/fairy-stockfish.wasm
           test -s stockfish/fairy-stockfish.worker.js
