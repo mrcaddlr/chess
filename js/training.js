@@ -14,9 +14,12 @@ function trainReplay(n=CONFIG.rlBatch,lr=CONFIG.lr){
     // 70% prioritized, 20% recent, 10% uniform.
     const mode=i%10;
     if(mode<7){
-      let sum=0;for(let j=0;j<len;j++)sum+=replayPriority(replay[j]);
-      let r=Math.random()*sum;
-      for(let j=0;j<len;j++){r-=replayPriority(replay[j]);if(r<=0){s=replay[j];break}}
+      // Approximate prioritized sampling with a small weighted candidate pool.
+      // This avoids an O(replaySize) scan for every gradient update on phones.
+      const candidates=[];let sum=0;
+      for(let j=0;j<24;j++){const candidate=replay[(Math.random()*len)|0];if(candidate){const w=replayPriority(candidate);candidates.push([candidate,w]);sum+=w}}
+      let r=Math.random()*Math.max(sum,.0001);for(const pair of candidates){r-=pair[1];if(r<=0){s=pair[0];break}}
+      if(!s&&candidates.length)s=candidates[0][0];
     }else if(mode<9){
       s=replay[recentStart+((Math.random()*Math.max(1,len-recentStart))|0)];
     }else s=replay[(Math.random()*len)|0];
@@ -25,7 +28,7 @@ function trainReplay(n=CONFIG.rlBatch,lr=CONFIG.lr){
     const oldValue=brain.predictLegal(x,s.legal).value;
     const loss=s.policy?.length?brain.trainPolicyValue(x,s.policy,s.reward,s.legal,lr):brain.trainRL(x,s.action,s.reward,s.legal,lr);
     const newValue=brain.predictLegal(x,s.legal).value;
-    s.tdError=Math.abs(Number(s.reward)||0-newValue);
+    s.tdError=Math.abs((Number(s.reward)||0)-newValue);
     s.priority=Math.min(8,Math.max(0.05,loss+Math.abs(oldValue-newValue)));
     total+=loss;used++;
   }
@@ -78,7 +81,7 @@ async function runParallelSelfPlay(gameCount,maxPlies){
           const gamesForWorker=Math.min(per,Math.max(0,requested-i*per));
           if(!gamesForWorker)continue;
           expected++;
-          const w=new Worker('js/training-worker.js?v=0.14.0');
+          const w=new Worker('js/training-worker.js?v=0.15.0');
           fastWorkers.push(w);
           let finished=false;
           const cleanup=()=>{try{w.terminate()}catch(e){}};
