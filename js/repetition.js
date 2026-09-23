@@ -1,0 +1,11 @@
+/* Custom repetition rules · shared by matches and training */
+let repetition=new Map(),repetitionForcedDraw=false,repetitionDetections=0;
+function positionKey(c){const p=c.fen().split(' ');return [p[0],p[1],p[2],p[3]].join(' ')}
+function newRepetitionHistory(c){return new Map([[positionKey(c),1]])}
+function resetRepetition(c=game){repetition=newRepetitionHistory(c);repetitionForcedDraw=false;repetitionDetections=0}
+function recordPosition(c,hist=repetition){const k=positionKey(c),n=(hist.get(k)||0)+1;hist.set(k,n);return n}
+function countPosition(c,hist=repetition){return hist.get(positionKey(c))||0}
+function moveCreatesRepetitionBreak(c,m,hist){if(!hist||!m)return false;const mv=c.move({from:m.from,to:m.to,promotion:m.promotion});if(!mv)return true;const would=(hist.get(positionKey(c))||0)+1;c.undo();return would>=4}
+function safeRepetitionMoves(c,hist=repetition){return c.moves({verbose:true}).filter(m=>!moveCreatesRepetitionBreak(c,m,hist))}
+function registerRepetitionViolation(){repetitionDetections++;points-=2;if(repetitionDetections>=3)repetitionForcedDraw=true;return repetitionForcedDraw}
+function safeRepetitionMove(c,proposed,learnerBrain,hist=repetition){const legal=c.moves({verbose:true});if(!legal.length)return {move:null,forcedDraw:false,detected:false};if(proposed&&!moveCreatesRepetitionBreak(c,proposed,hist))return {move:proposed,forcedDraw:false,detected:false};const safe=safeRepetitionMoves(c,hist);if(proposed){if(registerRepetitionViolation())return {move:null,forcedDraw:true,detected:true}}if(!safe.length)return {move:null,forcedDraw:true,detected:true};if(!learnerBrain)return {move:safe[Math.floor(Math.random()*safe.length)],forcedDraw:false,detected:true};const pred=learnerBrain.predict(encode(c),safe.map(actionIndex));let best=safe[0],bs=-Infinity;for(const m of safe){const sc=pred.policy[actionIndex(m)];if(sc>bs){bs=sc;best=m}}return {move:best,forcedDraw:false,detected:true}}
