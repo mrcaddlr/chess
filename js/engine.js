@@ -1,5 +1,5 @@
 /* UCI engine bridge · Stockfish / custom WASM */
-async function engineDisplayLabel(){
+function engineDisplayLabel(){
   if(selectedEngine==='custom-wasm')return 'Custom UCI WASM engine';
   return ENGINE_CONFIGS[selectedEngine]?.label||'Chess Engine';
 }
