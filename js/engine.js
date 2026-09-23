@@ -83,7 +83,7 @@ async function createNativeEngine(cfg){
   const kind=cfg?.native;
   if(!kind)return false;
   if(kind==='tonnetto'){
-    const mod=await import('https://esm.sh/gh/marcobuontempo/tonnetto@main');
+    const mod=await import('https://esm.sh/tonnetto@1.0.2?target=es2020');
     nativeEngine={kind,Engine:mod.default||mod.TonnettoEngine||mod};
   }else if(kind==='jce'){
     const mod=await import('https://esm.sh/js-chess-engine@2.4.6');
