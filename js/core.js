@@ -7,7 +7,7 @@ const ENGINE_CONFIGS={'sf19-full-single':{label:'Stockfish 19 · Full · Single-
 let selectedEngine='sf19-lite-single';
 let replay=[], games=0, steps=0, generation=0, evalRecord=null, evaluationHistory=[], bestEvalScore=-1, championGeneration=0, points=0, estimatedElo=400, trainingTargetElo=1000, trainingStartedAt=0, trainingSpeed=0;
 let brain=null, matchBrainWhite=null, matchBrainBlack=null, stockfishWorker=null, stockfishReady=false, stockfishLoading=false, stockfishQueue=[];
-let trainingLiveState={phase:'idle',detail:'start training to watch the learner learn',game:0,totalGames:0,ply:0,maxPlies:0,updates:0};
+let trainingLiveState={phase:'idle',detail:'start training to watch the learner learn',game:0,totalGames:0,ply:0,maxPlies:0,updates:0,workers:0,sims:0};
 let brainDBPromise=null, matchEpoch=0, matchNonce=0;
 // Optional fast-training worker hooks. Keep them defined even when the fast path is unused.
 let fastBatchAbort=null, fastWorkers=[];
