@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#fff8fc">
 <title>Chess Learning Lab 0.11.7 · KWII</title>
-<link rel="stylesheet" href="css/style.css?v=0.11.7">
-<script src="js/chess.js?v=0.11.7"></script>
+<link rel="stylesheet" href="css/style.css?v=0.11.8">
+<script src="js/chess.js?v=0.11.8"></script>
 </head>
 <body>
 <div class="app">
@@ -57,7 +57,7 @@
         <div class="panel-head"><h2>training controls</h2></div><div class="stats"><div class="stat"><b id="trainingElo">—</b><span>estimated Elo</span></div><div class="stat"><b id="trainingTarget">—</b><span>target Elo</span></div><div class="stat"><b id="trainingSpeed">—</b><span>games/min</span></div><div class="stat"><b id="gamesStat">0</b><span>self-play games</span></div><div class="stat"><b id="stepsStat">0</b><span>training steps</span></div></div><div class="row" style="margin-bottom:8px"><button class="btn green" id="startTraining" style="flex:2;font-weight:900">Start training</button><button class="btn danger" id="stopTraining" style="flex:1;font-weight:900">Stop training</button></div>
         <div class="field"><label>training mode</label><select id="trainingMode"><option value="games" selected>Train for a set number of games</option><option value="target">Train until target Elo estimate</option></select></div><div class="field" id="targetEloField" style="display:none"><label>target Elo</label><input id="targetElo" type="number" min="400" max="2400" step="50" value="1000"></div><div class="field"><label>training source</label><select id="trainOpponent"><option value="self" selected>parallel self-play only</option><option value="stockfish">train against Stockfish</option><option value="mix">mixed: self-play + Stockfish</option></select></div>
         <div class="field" id="mixRatioField" style="display:none"><label>Stockfish share in mixed training</label><input id="mixRatio" type="number" min="10" max="90" step="5" value="50"></div><div class="field"><label>self-play games</label><input id="batchGames" type="number" min="1" max="1000" value="32"></div>
-        <div class="field"><label>games per training batch</label><input id="parallelGames" type="number" min="2" max="256" value="64"></div><div class="field"><label>learning rate</label><input id="mutationRate" type="number" min="0.0001" max="0.01" step="0.0001" value="0.0015"></div><div class="field"><label>gradient updates per game</label><input id="evalMatches" type="number" min="1" max="256" value="64"></div><div class="field"><label>training plies per game</label><input id="trainSims" type="number" min="40" max="500" value="160"></div><div class="tiny" style="margin-top:5px">parallel workers: self-play games are distributed across browser Web Workers; engine curriculum uses the local UCI engine worker. machine learning: a policy-and-value neural network plays self-play games, stores positions in replay memory, then uses gradient descent with reinforcement learning rewards to update its weights. No opening book, piece values, or hand-written chess strategy is used.</div>
+        <div class="field"><label>games per training batch</label><input id="parallelGames" type="number" min="2" max="256" value="64"></div><div class="field"><label>learning rate</label><input id="mutationRate" type="number" min="0.0001" max="0.01" step="0.0001" value="0.0015"></div><div class="field"><label>gradient updates per game</label><input id="evalMatches" type="number" min="1" max="256" value="64"></div><div class="field"><label>training plies per game</label><input id="trainSims" type="number" min="24" max="240" value="80"></div><div class="tiny" style="margin-top:5px">parallel workers: self-play games are distributed across browser Web Workers; engine curriculum uses the local UCI engine worker. machine learning: a policy-and-value neural network plays self-play games, stores positions in replay memory, then uses gradient descent with reinforcement learning rewards to update its weights. No opening book, piece values, or hand-written chess strategy is used.</div>
       </section></div>
         <div class="training-view">      <section class="panel training-visual-panel">
         <div class="panel-head"><h2>training live view</h2><span class="badge" id="trainingLiveBadge">idle</span></div>
@@ -94,16 +94,16 @@
 <div class="toast" id="toast"></div>
 <div class="modal" id="themeModal"><div class="modal-box"><h3>theme settings</h3><div class="tiny">ui theme and chess board theme are independent.</div><div class="settings-grid"><div class="field"><label>ui theme</label><select id="uiThemeSelect"><option value="sakura">KWII Sakura</option><option value="pink">KWII Pink</option><option value="catppuccin">Catppuccin</option><option value="ocean">Ocean</option><option value="mint">Mint</option><option value="lavender">Lavender</option><option value="sunset">Sunset</option><option value="mono">Monochrome</option></select></div><div class="field"><label>board theme</label><select id="boardThemeSelect"><option value="classic">Classic</option><option value="catppuccin">Catppuccin</option><option value="rose">Rose</option><option value="ocean">Ocean</option><option value="mint">Mint</option><option value="lavender">Lavender</option><option value="mono">Monochrome</option></select></div></div><div class="row" style="margin-top:14px"><button class="btn" id="themeLight">Light</button><button class="btn secondary" id="themeDark">Dark</button><button class="btn primary" id="closeThemeSettings">Done</button></div></div></div><div class="modal" id="promoModal"><div class="modal-box"><h3>choose promotion</h3><div class="tiny">pick the piece for your pawn</div><div class="modal-actions" id="promoActions"></div></div></div>
 
-<script src="js/repetition.js?v=0.11.7"></script>
-<script src="js/core.js?v=0.11.7"></script>
-<script src="js/learner.js?v=0.11.7"></script>
-<script src="js/training.js?v=0.11.7"></script>
-<script src="js/engine.js?v=0.11.7"></script>
-<script src="js/review.js?v=0.11.7"></script>
-<script src="js/board.js?v=0.11.7"></script>
-<script src="js/match.js?v=0.11.7"></script>
-<script src="js/ui.js?v=0.11.7"></script>
-<script src="js/storage.js?v=0.11.7"></script>
-<script src="js/app.js?v=0.11.7"></script>
+<script src="js/repetition.js?v=0.11.8"></script>
+<script src="js/core.js?v=0.11.8"></script>
+<script src="js/learner.js?v=0.11.8"></script>
+<script src="js/training.js?v=0.11.8"></script>
+<script src="js/engine.js?v=0.11.8"></script>
+<script src="js/review.js?v=0.11.8"></script>
+<script src="js/board.js?v=0.11.8"></script>
+<script src="js/match.js?v=0.11.8"></script>
+<script src="js/ui.js?v=0.11.8"></script>
+<script src="js/storage.js?v=0.11.8"></script>
+<script src="js/app.js?v=0.11.8"></script>
 </body>
 </html>
