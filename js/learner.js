@@ -46,12 +46,17 @@ async function mcts(c,sims,learnerBrain=brain,detailed=false){
   }
   const root=cachedRootFor(c);
   const count=Math.max(1,Math.min(64,Number(sims)||1));
+  // Reuse the caller's chess position and undo simulation moves instead of
+  // rebuilding a full Chess instance from FEN for every MCTS simulation.
+  // This preserves the exact rules/search behavior while removing a large
+  // amount of allocation and FEN parsing on mobile browsers.
+  const played=[];
   for(let sim=0;sim<count;sim++){
-    const state=new Chess(c.fen());let node=root,path=[],value=null;
+    let node=root,path=[],value=null,depth=0;
     while(true){
-      value=terminalValue(state);
+      value=terminalValue(c);
       if(value!==null)break;
-      if(!node.expanded){value=expandNode(node,state,learnerBrain);break}
+      if(!node.expanded){value=expandNode(node,c,learnerBrain);break}
       let best=null,bestScore=-Infinity;
       for(const ch of node.children.values()){
         const q=ch.visits?ch.valueSum/ch.visits:0;
@@ -60,12 +65,14 @@ async function mcts(c,sims,learnerBrain=brain,detailed=false){
         if(score>bestScore){bestScore=score;best=ch}
       }
       if(!best)break;
-      if(!state.move({from:best.move.from,to:best.move.to,promotion:best.move.promotion}))break;
-      path.push(best);node=best;
+      if(!c.move({from:best.move.from,to:best.move.to,promotion:best.move.promotion}))break;
+      played.push(1);depth++;path.push(best);node=best;
     }
     if(value===null)value=0;
     for(let i=path.length-1;i>=0;i--){path[i].visits++;path[i].valueSum+=value;value=-value}
     root.visits++;root.valueSum+=value;
+    while(depth-->0)c.undo();
+    played.length=0;
     if((sim&7)===7)await new Promise(r=>setTimeout(r,0));
   }
   let best=null,bestN=-1,bestTie=-Infinity;
