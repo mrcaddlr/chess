@@ -1,0 +1,6 @@
+{
+  "stockfish-18-single.wasm": ["stockfish-18-single.wasm.part000","stockfish-18-single.wasm.part001","stockfish-18-single.wasm.part002","stockfish-18-single.wasm.part003","stockfish-18-single.wasm.part004","stockfish-18-single.wasm.part005"],
+  "stockfish-18.wasm": ["stockfish-18.wasm.part000","stockfish-18.wasm.part001","stockfish-18.wasm.part002","stockfish-18.wasm.part003","stockfish-18.wasm.part004","stockfish-18.wasm.part005"],
+  "stockfish-19-single.wasm": ["stockfish-19-single.wasm.part000","stockfish-19-single.wasm.part001","stockfish-19-single.wasm.part002","stockfish-19-single.wasm.part003","stockfish-19-single.wasm.part004"],
+  "stockfish-19.wasm": ["stockfish-19.wasm.part000","stockfish-19.wasm.part001","stockfish-19.wasm.part002","stockfish-19.wasm.part003","stockfish-19.wasm.part004"]
+}
