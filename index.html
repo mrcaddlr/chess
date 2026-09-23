@@ -64,6 +64,15 @@ button:focus-visible,select:focus-visible,input:focus-visible{
 }
 .board-card{padding:10px}
 .board-wrap{width:100%;max-width:440px;margin:auto}
+.players{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px}
+.player-card{min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:14px;background:var(--surface-soft);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.player-card.active{background:linear-gradient(135deg,var(--pink-soft),var(--purple-soft));border-color:#dcd4ff}
+.player-card .side-name{font-size:9px;color:var(--muted);font-weight:850;text-transform:uppercase;letter-spacing:.06em}
+.player-card .player-name{font-size:11px;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.player-card .piece-dot{width:24px;height:24px;border-radius:9px;display:grid;place-items:center;font-size:16px;flex:0 0 auto}
+.player-card.white .piece-dot{background:#fff;border:1px solid #ddd9e3;color:#514b55}
+.player-card.black .piece-dot{background:#34313a;color:#fff}
+@media(max-width:430px){.players{gap:5px}.player-card{padding:7px 8px}.player-card .player-name{font-size:10px}}
 .board{
   width:100%;height:auto;aspect-ratio:1 / 1;display:grid;
   grid-template-columns:repeat(8,minmax(0,1fr));
@@ -183,6 +192,10 @@ select,input[type=number]{
 
   <main class="layout">
     <section class="board-card">
+      <div class="players" aria-label="Players">
+        <div class="player-card white" id="whitePlayerCard"><div><div class="side-name">White</div><div class="player-name" id="whitePlayerName">Learner</div></div><div class="piece-dot">♔</div></div>
+        <div class="player-card black" id="blackPlayerCard"><div><div class="side-name">Black</div><div class="player-name" id="blackPlayerName">Learner</div></div><div class="piece-dot">♚</div></div>
+      </div>
       <div class="board-wrap"><div class="board" id="board" aria-label="Chess board"></div></div>
       <div class="controls">
         <button class="btn primary" id="newGame">New game</button>
@@ -517,6 +530,15 @@ async function finishGameReview(epoch=matchEpoch){if(reviewRunning||lastReviewed
 function feedReviewToLearner(){if(!brain)return;const weights={Brilliant:12,Great:9,Best:6,Excellent:3,Good:1,Inaccuracy:0,Mistake:-5,Blunder:-10,Miss:-7};let delta=0,signal=0,n=0;for(const r of moveRecords){if(!r.quality||r.actor!=='learner')continue;const p=r.pointDelta??(weights[r.quality]??0);delta+=p;signal+=p/12;n++;}if(isCheckmate(game)){const winner=game.turn()==='w'?'black':'white';const learnerSide=(botWhite==='learner'&&winner==='white')||(botBlack==='learner'&&winner==='black');if(learnerSide)delta+=20;else if(botWhite==='learner'||botBlack==='learner')delta-=20;}if(repetitionDetections)delta-=2*repetitionDetections;if(drawReason(game)&&!repetitionDetections)delta+=2;points+=delta;brain.reviewSignal=(brain.reviewSignal||0)*.9+signal/Math.max(1,n);brain.rewardHistory=(brain.rewardHistory||[]).concat([{points:delta,accuracy:reviewState?.accuracy??0,generation}]).slice(-200);steps+=n;evalRecord=(brain.reviewSignal).toFixed(2);renderStats();saveBrain(false);log('learner received move-quality feedback · '+(delta>=0?'+':'')+delta+' points · signal '+brain.reviewSignal.toFixed(2));}
 function stockfishMove(c,depth=8){return new Promise(resolve=>{if(!stockfishReady||!stockfishWorker){log('Stockfish is not ready');resolve(null);return}const done=(uci)=>{const ms=c.moves({verbose:true}),m=ms.find(x=>x.from+x.to+(x.promotion||'')===uci);resolve(m||ms[0]||null)};stockfishQueue.push(done);stockfishActiveResolve=()=>{const i=stockfishQueue.indexOf(done);if(i>=0)stockfishQueue.splice(i,1);resolve(null)};stockfishWorker.postMessage('ucinewgame');stockfishWorker.postMessage('position fen '+c.fen());stockfishWorker.postMessage('go depth '+depth)})}
 function cancelEngine(){cancelRequested=true;if(fastBatchAbort){const abort=fastBatchAbort;fastBatchAbort=null;abort()}else stopFastWorkers();if(stockfishWorker&&stockfishReady){try{stockfishWorker.postMessage('stop')}catch(e){}}if(stockfishActiveResolve){const r=stockfishActiveResolve;stockfishActiveResolve=null;r()}if(analysisActive){const a=analysisActive;analysisActive=null;a.resolve(null)}stockfishQueue.length=0;busy=false;}
+function renderPlayers(){
+  const wn=document.getElementById('whitePlayerName'),bn=document.getElementById('blackPlayerName');
+  const wc=document.getElementById('whitePlayerCard'),bc=document.getElementById('blackPlayerCard');
+  if(!wn||!bn||!wc||!bc)return;
+  wn.textContent=botLabel(botWhite);
+  bn.textContent=botLabel(botBlack);
+  wc.classList.toggle('active',game.turn()==='w');
+  bc.classList.toggle('active',game.turn()==='b');
+}
 function renderBoard(){const el=document.getElementById('board');el.innerHTML='';const b=game.board();for(let dr=0;dr<8;dr++)for(let df=0;df<8;df++){const r=flipped?7-dr:dr,f=flipped?7-df:df,p=b[r][f],sq=FILES[f]+(8-r),cell=document.createElement('button');cell.className='square '+(((r+f)%2===0)?'light':'dark');cell.dataset.square=sq;cell.setAttribute('aria-label',sq+(p?' '+p.color+' '+p.type:''));if(selected===sq)cell.classList.add('selected');if(lastMove&&(lastMove.from===sq||lastMove.to===sq))cell.classList.add('last');if(p&&p.type==='k'&&p.color===game.turn()&&game.in_check()&&game.square_color)cell.classList.add('check');if(legalMoves.some(m=>m.to===sq)){const mark=document.createElement('i');mark.className=game.get(sq)?'capture':'legal';cell.appendChild(mark)}if(p){const s=document.createElement('span');s.className='piece '+(p.color==='w'?'white-piece':'black-piece');s.textContent=PIECES[p.color+p.type];cell.appendChild(s)}if(df===0){const c=document.createElement('span');c.className='coord';c.textContent=8-r;cell.appendChild(c)}if(dr===7){const c=document.createElement('span');c.className='coord';c.style.left='auto';c.style.right='4px';c.textContent=FILES[f];cell.appendChild(c)}cell.onclick=()=>onSquare(sq);el.appendChild(cell)}}
 function onSquare(sq){if(busy||training||isGameOver(game))return;if((game.turn()==='w'?botWhite:botBlack)!=='human')return;const p=game.get(sq);if(selected){const m=legalMoves.find(x=>x.to===sq);if(m){if(m.promotion)openPromotion(m);else playHuman(m);return}if(p&&p.color===game.turn()){selectSquare(sq);return}selected=null;legalMoves=[];renderBoard();return}if(p&&p.color===game.turn())selectSquare(sq)}
 function selectSquare(sq){selected=sq;legalMoves=game.moves({square:sq,verbose:true});renderBoard()}
@@ -560,7 +582,8 @@ async function playMatch(){
   }
   game=new Chess();selected=null;legalMoves=[];lastMove=null;moveRecords=[];reviewState=null;lastReviewedEpoch=-1;resetRepetition();busy=false;
   renderAll();renderReview();
-  setStatus('ready','starting one match · '+botLabel(botWhite)+' vs '+botLabel(botBlack)+(type==='learner-learner'?' · identical learner snapshots':'') ,5);
+  renderPlayers();
+  setStatus('ready','White: '+botLabel(botWhite)+' · Black: '+botLabel(botBlack)+(type==='learner-learner'?' · identical learner snapshots':'') ,5);
   log('match '+epoch+' started · move-selection seed '+matchNonce);
   await new Promise(r=>setTimeout(r,60));
   if(!isGameOver(game))continueMatch(epoch);
@@ -590,7 +613,8 @@ function newGame(){
   document.getElementById('promoModal').classList.remove('open');
   renderAll();
   renderReview();
-  setStatus('ready','new board ready · press Play to start',0);
+  renderPlayers();
+  setStatus('ready','White: '+botLabel(botWhite)+' · Black: '+botLabel(botBlack)+' · press Play to start',0);
   log('new game created · match '+matchEpoch+' · fresh move-selection seed '+matchNonce);
 }
 function renderMoves(){const list=document.getElementById('moveList'),hist=game.history();list.innerHTML='';for(let i=0;i<hist.length;i++){const d=document.createElement('div');d.className='move';const q=moveRecords[i]?.quality||'';const pd=moveRecords[i]?.pointDelta;d.innerHTML='<b>'+((i>>1)+1)+(i%2?'...':'.')+'</b>'+hist[i]+(q?' <span style="float:right;font-weight:900">'+q+(Number.isFinite(pd)?' '+(pd>=0?'+':'')+pd:'')+'</span>':'');list.appendChild(d)}document.getElementById('moveCount').textContent=hist.length+' plies'}
@@ -600,7 +624,7 @@ function recordMove(fenBefore,mv,actor){
   moveRecords.push({fen,uci:mv.from+mv.to+(mv.promotion||''),san:mv.san||game.history().at(-1)||'',side:fen.split(' ')[1]||game.turn(),actor,quality:null});
 }
 function renderStats(){document.getElementById('gamesStat').textContent=games;document.getElementById('stepsStat').textContent=steps;document.getElementById('replayStat').textContent=replay.length;document.getElementById('generationBadge').textContent='gen '+generation;document.getElementById('evalStat').textContent=evalRecord??'—';document.getElementById('pointsStat').textContent=points;document.getElementById('brainState').textContent='gen '+generation+' · '+brain.w1.length+' weights'}
-function renderAll(){renderBoard();renderMoves();renderStats();renderReview();const t=terminalText(game);if(t)setStatus(t,'game finished');else if(!busy&&!training){const inCheck=isInCheck(game);setStatus(inCheck?'check':(botForTurn()==='human'?'your move':'ready'),inCheck?(botLabel(botForTurn())+' is in check'):'generation '+generation+' · '+replay.length+' replay positions')}}
+function renderAll(){renderPlayers();renderPlayers();renderBoard();renderMoves();renderStats();renderReview();const t=terminalText(game);if(t)setStatus(t,'game finished');else if(!busy&&!training){const inCheck=isInCheck(game);setStatus(inCheck?'check':(botForTurn()==='human'?'your move':'ready'),inCheck?(botLabel(botForTurn())+' is in check'):'generation '+generation+' · '+replay.length+' replay positions')}}
 function saveBrain(show=true){try{localStorage.setItem('chess-learning-brain',JSON.stringify(brain.toJSON()));localStorage.setItem('chess-learning-replay',JSON.stringify(replay.slice(-1200)));if(show){toast('brain saved');log('brain saved locally')}}catch(e){log('save failed: '+e.message)}}
 function loadBrain(){try{const raw=localStorage.getItem('chess-learning-brain');if(!raw){toast('no saved brain');return}brain=TinyNet.fromJSON(JSON.parse(raw));const rp=localStorage.getItem('chess-learning-replay');if(rp){const parsed=JSON.parse(rp);replay=Array.isArray(parsed)?parsed.filter(s=>s&&Array.isArray(s.x)&&Array.isArray(s.legal)&&Array.isArray(s.policy)&&s.policy.every(q=>q&&typeof q.a==='number')).slice(-CONFIG.replayMax):[]}renderStats();toast('brain loaded');log('brain loaded from local storage')}catch(e){brain=new TinyNet(Date.now());replay=[];toast('old brain ignored');log('saved brain is from an older architecture; started a fresh learner')}}
 function resetBrain(){if(!confirm('reset the learner to random weights?'))return;brain=new TinyNet(Date.now());generation=0;steps=0;games=0;replay=[];localStorage.removeItem('chess-learning-brain');localStorage.removeItem('chess-learning-replay');renderStats();toast('new random brain');log('learner reset to random weights')}
@@ -611,7 +635,7 @@ document.getElementById('fileInput').onchange=e=>{const f=e.target.files[0];if(!
 document.getElementById('clearLog').onclick=()=>{document.getElementById('log').textContent='';log('log cleared')};
 document.getElementById('startTraining').type='button';document.getElementById('playMatch').type='button';document.getElementById('simulateMove').type='button';document.getElementById('newGame').type='button';document.getElementById('flip').type='button';document.getElementById('stopTrain').type='button';document.getElementById('startTraining').onclick=()=>{trainBatch().catch(e=>{log('training launch error: '+e.message);setStatus('error','training failed to start',0)})};document.getElementById('playMatch').onclick=()=>{playMatch().catch(e=>{busy=false;log('Play error: '+e.message);setStatus('error',e.message,0);renderAll()})};document.getElementById('simulateMove').onclick=()=>{simulateOneMove().catch(e=>{busy=false;log('1 move error: '+e.message);setStatus('error',e.message,0);renderAll()})};document.getElementById('newGame').onclick=()=>newGame();document.getElementById('flip').onclick=()=>{flipped=!flipped;renderBoard()};document.getElementById('stopTrain').onclick=()=>{cancelEngine();training=false;busy=false;setStatus('paused','stopped');renderAll();toast('stopped')};document.getElementById('matchType').onchange=()=>{updateMatchBadge();setStatus('ready','press Play to randomize sides and start the match',0)};document.getElementById('saveBrain').onclick=()=>saveBrain();document.getElementById('loadBrain').onclick=loadBrain;document.getElementById('resetBrain').onclick=resetBrain;document.getElementById('exportBrain').onclick=exportBrain;document.getElementById('importBrain').onclick=importBrain;document.getElementById('promoModal').onclick=e=>{if(e.target.id==='promoModal')e.currentTarget.classList.remove('open')};
 
-brain=new TinyNet(Date.now());loadBrain();createStockfish();resetRepetition();updateMatchBadge();renderAll();log('Chess Learning Lab '+CONFIG.version+' initialized');log('learner uses only chess rules from the environment; strategy starts random and is learned from experience');updateMatchBadge();
+brain=new TinyNet(Date.now());loadBrain();createStockfish();resetRepetition();updateMatchBadge();renderPlayers();renderAll();log('Chess Learning Lab '+CONFIG.version+' initialized');log('learner uses only chess rules from the environment; strategy starts random and is learned from experience');updateMatchBadge();
 </script>
 </body>
 </html>
