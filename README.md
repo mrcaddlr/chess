@@ -110,7 +110,7 @@ Use **Export JSON** before clearing browser data or moving to another device.
 
 ## Stockfish
 
-Stockfish runs locally through the bundled browser engine worker.
+Stockfish runs locally through the bundled browser engine worker. The engine selector also includes Fairy-Stockfish NNUE, a WebAssembly build derived from Stockfish with NNUE support.
 
 The engine is not a cloud service. A compatible browser needs to support Web Workers and WebAssembly for the bundled engine.
 
@@ -192,3 +192,8 @@ This edition of Stockfish.js comes in five flavors:
 The project currently exposes the Stockfish 19 variants in the engine selector. The browser build keeps the large engines available while using the single-threaded/lite variants when a smaller mobile download is preferable.
 
 Source: [Stockfish.js](https://github.com/nmrugg/stockfish.js/).
+
+
+### Fairy-Stockfish
+
+The engine selector includes **Fairy-Stockfish NNUE · WASM** as a separate local engine. The upstream project describes its WASM port as an in-browser Fairy-Stockfish build with NNUE support and notes that the WASM port is used for local analysis on pychess. urlFairy-Stockfish WASM repositoryhttps://github.com/fairy-stockfish/fairy-stockfish.wasm
