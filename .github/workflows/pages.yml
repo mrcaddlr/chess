@@ -11,7 +11,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: pages
   cancel-in-progress: true
 
 jobs:
@@ -23,9 +23,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Verify bundled chess engines
         run: |
-          set -e
+          set -euo pipefail
           test -s stockfish/engine-manifest.json
           for js in stockfish/stockfish-19.js stockfish/stockfish-19-single.js stockfish/stockfish-19-lite.js stockfish/stockfish-19-lite-single.js stockfish/stockfish-18.js stockfish/stockfish-18-single.js stockfish/stockfish-18-lite.js stockfish/stockfish-18-lite-single.js stockfish/lozza.js; do
             test -s "$js"
@@ -37,19 +38,40 @@ jobs:
           test "${#parts[@]}" -gt 0 || test "${#wasms[@]}" -gt 0
           for part in "${parts[@]}"; do test -s "$part"; done
           for wasm in "${wasms[@]}"; do test -s "$wasm"; done
+
       - name: Verify application JavaScript
         run: |
-          set -e
+          set -euo pipefail
           for js in js/repetition.js js/core.js js/learner.js js/training.js js/engine.js js/review.js js/board.js js/match.js js/ui.js js/storage.js js/app.js js/chess.js; do
             test -s "$js"
             node --check "$js"
           done
+
+      - name: Prepare Pages artifact
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site
+          cp -a index.html _site/
+          cp -a css _site/
+          cp -a js _site/
+          cp -a stockfish _site/
+          [ ! -e assets ] || cp -a assets _site/
+          [ ! -e favicon.ico ] || cp -a favicon.ico _site/
+          [ ! -e robots.txt ] || cp -a robots.txt _site/
+          touch _site/.nojekyll
+          test -s _site/index.html
+          du -sh _site
+          find _site -type f | wc -l
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
         with:
-          path: .
+          path: _site
+
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
