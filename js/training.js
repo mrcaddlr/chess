@@ -38,7 +38,7 @@ function trainReplay(n=CONFIG.rlBatch,lr=CONFIG.lr){
   return used?total/used:0;
 }
 async function trainingPolicyMove(c,hist,state,sims=4){const legal=safeRepetitionMoves(c,hist);if(!legal.length)return null;const result=await learnerMove(c,sims,brain,hist,true);if(!result?.move)return null;return result}
-async function trainAgainstEngineGame(maxPlies=120,depth=5){if(!stockfishReady)throw new Error('Stockfish is not ready. Load Stockfish first.');const c=new Chess(),hist=newRepetitionHistory(c),state={detections:0,forcedDraw:false},samples=[],learnerWhite=Math.random()<.5;let plies=0;while(!terminalPosition(c)&&!state.forcedDraw&&plies<maxPlies&&!cancelRequested){const learnerTurn=(c.turn()==='w')===learnerWhite;let choice=learnerTurn?await trainingPolicyMove(c,hist,state,Math.max(1,Math.min(16,Number(document.getElementById('sims')?.value)||4))):null;let move=learnerTurn?choice?.move:await stockfishMove(c,depth,safeRepetitionMoves(c,hist));if(!move)break;if(learnerTurn)samples.push({x:Array.from(encode(c)),action:actionIndex(move),policy:choice?.policy||[{a:actionIndex(move),p:1}],legal:safeRepetitionMoves(c,hist).map(actionIndex),side:c.turn()});if(moveCreatesRepetitionBreak(c,move,hist)){const safe=safeRepetitionMove(c,move,brain,hist,state);if(safe.forcedDraw)break;move=safe.move}if(!c.move({from:move.from,to:move.to,promotion:move.promotion}))break;plies++;recordPosition(c,hist);if((plies&15)===0)await new Promise(r=>setTimeout(r,0))}let result=terminalValue(c);if(result===null)result=0;const learnerResult=learnerWhite?result:-result;for(const s of samples)s.reward=learnerResult;return {samples,result:learnerResult,moves:plies,source:'stockfish'}}
+async function trainAgainstEngineGame(maxPlies=120,depth=5){if(!stockfishReady)throw new Error('Stockfish is not ready. Load Stockfish first.');const c=new Chess(),hist=newRepetitionHistory(c),state={detections:0,forcedDraw:false},samples=[],learnerWhite=Math.random()<.5;trainingLiveState.fen=c.fen();renderTrainingLive();let plies=0;while(!terminalPosition(c)&&!state.forcedDraw&&plies<maxPlies&&!cancelRequested){const learnerTurn=(c.turn()==='w')===learnerWhite;let choice=learnerTurn?await trainingPolicyMove(c,hist,state,Math.max(1,Math.min(16,Number(document.getElementById('sims')?.value)||4))):null;let move=learnerTurn?choice?.move:await stockfishMove(c,depth,safeRepetitionMoves(c,hist));if(!move)break;if(learnerTurn)samples.push({x:Array.from(encode(c)),action:actionIndex(move),policy:choice?.policy||[{a:actionIndex(move),p:1}],legal:safeRepetitionMoves(c,hist).map(actionIndex),side:c.turn()});if(moveCreatesRepetitionBreak(c,move,hist)){const safe=safeRepetitionMove(c,move,brain,hist,state);if(safe.forcedDraw)break;move=safe.move}if(!c.move({from:move.from,to:move.to,promotion:move.promotion}))break;plies++;trainingLiveState.fen=c.fen();recordPosition(c,hist);if((plies&15)===0)await new Promise(r=>setTimeout(r,0))}let result=terminalValue(c);if(result===null)result=0;const learnerResult=learnerWhite?result:-result;for(const s of samples)s.reward=learnerResult;return {samples,result:learnerResult,moves:plies,source:'stockfish'}}
 function invalidateTrainingSearch(){if(typeof resetMctsTree==='function')resetMctsTree()}
 
 function appendSamples(samples){
@@ -50,6 +50,7 @@ function trainingUiYield(){return new Promise(resolve=>requestAnimationFrame(()=
 
 async function browserSelfPlayGame(maxPlies=120){
   const c=new Chess(),hist=newRepetitionHistory(c),state={detections:0,forcedDraw:false},samples=[];
+  trainingLiveState.fen=c.fen();renderTrainingLive();
   let plies=0;
   while(!terminalPosition(c)&&!state.forcedDraw&&plies<maxPlies&&!cancelRequested){
     const legal=safeRepetitionMoves(c,hist);
@@ -63,6 +64,7 @@ async function browserSelfPlayGame(maxPlies=120){
     samples.push({x:Array.from(encode(c)),action:actionIndex(chosen),policy:choice.policy?.length?choice.policy:[{a:actionIndex(chosen),p:1}],legal:legal.map(actionIndex),side:c.turn()});
     if(!c.move({from:chosen.from,to:chosen.to,promotion:chosen.promotion}))break;
     plies++;
+    trainingLiveState.fen=c.fen();
     recordPosition(c,hist);
     if((plies&1)===0)await trainingUiYield();
   }
