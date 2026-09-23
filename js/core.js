@@ -8,6 +8,8 @@ let selectedEngine='sf19-full-single';
 let repetition=new Map(), replay=[], games=0, steps=0, generation=0, evalRecord=null, points=0, repetitionDetections=0;
 let brain=null, matchBrainWhite=null, matchBrainBlack=null, stockfishWorker=null, stockfishReady=false, stockfishLoading=false, stockfishQueue=[];
 let brainDBPromise=null, matchEpoch=0, matchNonce=0;
+// Optional fast-training worker hooks. Keep them defined even when the fast path is unused.
+let fastBatchAbort=null, fastWorkers=[];
 let moveRecords=[], reviewState=null, reviewRunning=false, lastReviewedEpoch=-1, analysisActive=null, stockfishActiveResolve=null;
 
 
