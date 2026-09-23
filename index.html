@@ -350,13 +350,13 @@ async function learnerMove(c,sims,learnerBrain=brain,hist=repetition){const lega
 
 function randomMove(c){const ms=c.moves({verbose:true});return ms.length?ms[Math.floor(Math.random()*ms.length)]:null}
 function addReplay(c,policy,value,legal){if(replay.length>=CONFIG.replayMax)replay.shift();replay.push({x:Array.from(encode(c)),policy,legal,value})}
-function trainReplay(n=CONFIG.rlBatch){
+function trainReplay(n=CONFIG.rlBatch,lr=CONFIG.lr){
   if(!brain||!replay.length)return 0;
   let total=0,used=0;
   for(let i=0;i<n;i++){
     const s=replay[(Math.random()*replay.length)|0];
     if(!s||!Array.isArray(s.legal)||!s.legal.length||!Number.isInteger(s.action))continue;
-    total+=brain.trainRL(Float32Array.from(s.x),s.action,s.reward,s.legal,CONFIG.lr);
+    total+=brain.trainRL(Float32Array.from(s.x),s.action,s.reward,s.legal,lr);
     used++;
   }
   if(used)steps+=used;
@@ -456,14 +456,17 @@ async async function trainBatch(){
   cancelRequested=false;training=true;busy=false;
   const requested=Math.max(1,Math.min(1000,Number(document.getElementById('batchGames').value)||16));
   const batch=Math.max(8,Math.min(256,Number(document.getElementById('parallelGames').value)||64));
+  const lr=Math.max(.0001,Math.min(.01,Number(document.getElementById('mutationRate').value)||CONFIG.lr));
+  const updates=Math.max(1,Math.min(256,Number(document.getElementById('evalMatches').value)||CONFIG.rlBatch));
+  const maxPlies=Math.max(40,Math.min(500,Number(document.getElementById('trainSims').value)||CONFIG.trainPlies));
   let completed=0,trained=0;
-  setStatus('training','neural reinforcement learning · generation '+generation,5);
+  setStatus('training','neural reinforcement learning · generation '+generation+' · lr '+lr.toFixed(4),5);
   try{
     while(completed<requested&&!cancelRequested){
       const gamesThisBatch=Math.min(batch,requested-completed);
       for(let g=0;g<gamesThisBatch&&!cancelRequested;g++){
         let c=new Chess(),hist=new Map([[positionKey(c),1]]),samples=[],plies=0;
-        while(!terminalPosition(c,hist)&&plies<CONFIG.trainPlies&&!cancelRequested){
+        while(!terminalPosition(c,hist)&&plies<maxPlies&&!cancelRequested){
           const legal=c.moves({verbose:true});if(!legal.length)break;
           const x=Array.from(encode(c));
           const pred=brain.predict(encode(c),legal.map(actionIndex));
@@ -477,7 +480,7 @@ async async function trainBatch(){
         let reward=terminalValue(c);if(reward===null)reward=0;
         for(let si=0;si<samples.length;si++){const s=samples[si];const sideReward=si%2===0?reward:-reward;replay.push({...s,reward:sideReward});}
         if(replay.length>CONFIG.replayMax)replay.splice(0,replay.length-CONFIG.replayMax);
-        const loss=trainReplay(Math.min(CONFIG.rlBatch,replay.length));
+        const loss=trainReplay(Math.min(updates,replay.length),lr);
         trained+=samples.length;completed++;
         if((completed&3)===0||completed===requested){generation++;setStatus('training','generation '+generation+' · RL games '+completed+' / '+requested+' · loss '+loss.toFixed(4),Math.min(96,5+91*(completed/requested)));}
         if((completed&7)===0){steps+=samples.length;games++;await saveBrain(false);renderStats();}
