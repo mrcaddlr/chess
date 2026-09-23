@@ -54,7 +54,7 @@ assert.ok(training.includes("mode==='target'?batch"),'target mode must use confi
 
 for(const file of ['js/core.js','js/learner.js','js/training.js','js/engine.js','js/review.js','js/board.js','js/match.js','js/ui.js','js/storage.js','js/app.js']){
   const text=fs.readFileSync(file,'utf8');
-  assert.ok(!text.includes('\\\\n'),`${file} contains a literal escaped newline sequence`);
+  assert.ok(!text.includes('\\n'),`${file} contains a literal escaped newline sequence`);
 }
 
 console.log('neural/training checks passed');
