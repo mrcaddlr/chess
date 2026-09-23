@@ -264,7 +264,7 @@ select,input[type=number]{
 'use strict';
 const PIECES={wp:'♙',wn:'♘',wb:'♗',wr:'♖',wq:'♕',wk:'♔',bp:'♟',bn:'♞',bb:'♝',br:'♜',bq:'♛',bk:'♚'};
 const FILES='abcdefgh';
-const CONFIG={version:'0.6.12.1',input:832,hidden1:96,hidden2:64,policy:4352,replayMax:12000,lr:0.0025,valueWeight:.55,policyWeight:1.0};
+const CONFIG={version:'0.7.0',architecture:'ml-policy-value-v1',input:832,hidden1:96,hidden2:64,policy:4352,replayMax:2500,lr:0.0015,valueWeight:.55,policyWeight:1.0,rlBatch:64,trainPlies:160};
 let game=new Chess(), flipped=false, selected=null, legalMoves=[], lastMove=null, busy=false, botWhite='learner', botBlack='learner', training=false, trainTimer=null, cancelRequested=false;
 const ENGINE_CONFIGS={'sf19-full-single':{label:'Stockfish 19 · Full · Single-threaded',url:'stockfish/stockfish-19-single.js',multi:false},'sf19-full-multi':{label:'Stockfish 19 · Full · Multi-threaded',url:'stockfish/stockfish-19.js',multi:true},'sf19-lite-single':{label:'Stockfish 19 · Lite · Single-threaded',url:'stockfish/stockfish-19-lite-single.js',multi:false},'sf18-full-single':{label:'Stockfish 18 · Full · Single-threaded',url:'stockfish/stockfish-18-single.js',multi:false},'sf18-full-multi':{label:'Stockfish 18 · Full · Multi-threaded',url:'stockfish/stockfish-18.js',multi:true},'sf18-lite-single':{label:'Stockfish 18 · Lite · Single-threaded',url:'stockfish/stockfish-18-lite-single.js',multi:false}};
 let selectedEngine='sf19-full-single';
@@ -308,6 +308,30 @@ class TinyNet{
     for(let j=0;j<CONFIG.hidden1;j++){if(o.z1[j]<=0)d1[j]=0;this.b1[j]-=lr*d1[j];const off=j*CONFIG.input;for(let i=0;i<CONFIG.input;i++)this.w1[off+i]-=lr*d1[j]*x[i]}
     return {loss:Math.abs(o.v-value)}
   }
+  trainRL(x,action,reward,legal,lr=CONFIG.lr){
+    const o=this.trunk(x),logits=this.legalLogits(o.h2,legal),p=new Float32Array(legal.length);
+    let max=-Infinity;for(const z of logits)if(z>max)max=z;let sum=0;
+    for(let i=0;i<logits.length;i++){p[i]=Math.exp(Math.max(-30,logits[i]-max));sum+=p[i]}
+    for(let i=0;i<p.length;i++)p[i]/=sum||1;
+    const d2=zeros(CONFIG.hidden2),d1=zeros(CONFIG.hidden1);
+    const r=Math.max(-1,Math.min(1,Number(reward)||0));
+    let loss=0;
+    for(let k=0;k<legal.length;k++){
+      const a=legal[k],target=a===action?1:0;
+      const grad=-r*((target?1:0)-p[k]);
+      if(target)loss=-r*Math.log(Math.max(1e-8,p[k]));
+      const off=a*CONFIG.hidden2;
+      this.bp[a]-=lr*grad;
+      for(let i=0;i<CONFIG.hidden2;i++){d2[i]+=grad*this.wp[off+i];this.wp[off+i]-=lr*grad*o.h2[i]}
+    }
+    const targetValue=r;
+    const dv=2*(o.v-targetValue)*CONFIG.valueWeight*(1-o.v*o.v);
+    for(let i=0;i<CONFIG.hidden2;i++)d2[i]+=dv*this.wv[i];
+    this.bv-=lr*dv;for(let i=0;i<CONFIG.hidden2;i++)this.wv[i]-=lr*dv*o.h2[i];
+    for(let i=0;i<CONFIG.hidden2;i++){if(o.z2[i]<=0)d2[i]=0;this.b2[i]-=lr*d2[i];const off=i*CONFIG.hidden1;for(let j=0;j<CONFIG.hidden1;j++){d1[j]+=d2[i]*this.w2[off+j];this.w2[off+j]-=lr*d2[i]*o.h1[j]}}
+    for(let j=0;j<CONFIG.hidden1;j++){if(o.z1[j]<=0)d1[j]=0;this.b1[j]-=lr*d1[j];const off=j*CONFIG.input;for(let i=0;i<CONFIG.input;i++)this.w1[off+i]-=lr*d1[j]*x[i]}
+    return loss+Math.abs(o.v-targetValue);
+  }
   toJSON(){const o={version:CONFIG.version,input:CONFIG.input,hidden1:CONFIG.hidden1,hidden2:CONFIG.hidden2,policy:CONFIG.policy,generation,steps,games};for(const k of ['w1','b1','w2','b2','wp','bp','wv'])o[k]=Array.from(this[k]);o.bv=this.bv;return o}
   static fromJSON(o){if(!o||o.version!==CONFIG.version||o.input!==undefined&&o.input!==CONFIG.input||o.policy!==undefined&&o.policy!==CONFIG.policy)throw new Error('incompatible brain architecture');if(!o.wp||o.wp.length!==CONFIG.policy*CONFIG.hidden2)throw new Error('brain uses an older policy encoding; reset or retrain');const n=new TinyNet(1);for(const k of ['w1','b1','w2','b2','wp','bp','wv'])n[k]=Float32Array.from(o[k]);n.bv=o.bv||0;generation=o.generation||0;steps=o.steps||0;games=o.games||0;return n}
 }
@@ -326,7 +350,18 @@ async function learnerMove(c,sims,learnerBrain=brain,hist=repetition){const lega
 
 function randomMove(c){const ms=c.moves({verbose:true});return ms.length?ms[Math.floor(Math.random()*ms.length)]:null}
 function addReplay(c,policy,value,legal){if(replay.length>=CONFIG.replayMax)replay.shift();replay.push({x:Array.from(encode(c)),policy,legal,value})}
-function trainReplay(n=16){if(!brain||!replay.length)return 0;let total=0,used=0;for(let i=0;i<n;i++){const s=replay[Math.floor(Math.random()*replay.length)];if(!s||!Array.isArray(s.legal)||!s.legal.length)continue;const target=new Float32Array(CONFIG.policy);for(const q of s.policy||[])if(q&&Number.isInteger(q.a))target[q.a]=q.p;total+=brain.train(Float32Array.from(s.x),target,s.value,s.legal,CONFIG.lr).loss;used++}if(used)steps+=used;return used?total/used:0}
+function trainReplay(n=CONFIG.rlBatch){
+  if(!brain||!replay.length)return 0;
+  let total=0,used=0;
+  for(let i=0;i<n;i++){
+    const s=replay[(Math.random()*replay.length)|0];
+    if(!s||!Array.isArray(s.legal)||!s.legal.length||!Number.isInteger(s.action))continue;
+    total+=brain.trainRL(Float32Array.from(s.x),s.action,s.reward,s.legal,CONFIG.lr);
+    used++;
+  }
+  if(used)steps+=used;
+  return used?total/used:0;
+}
 
 async function selfPlayGame(sims=1){let c=new Chess(),samples=[],moveNo=0;const hist=new Map([[positionKey(c),1]]);while(!terminalPosition(c,hist)&&moveNo<1000&&!cancelRequested){const legal=c.moves({verbose:true});if(!legal.length)break;const side=c.turn(),x=Array.from(encode(c)),sr=await mcts(c,sims,brain,true);const safe=safeRepetitionMove(c,sr&&sr.move,brain,hist);if(safe.forcedDraw)break;const move=safe.move;if(!move)break;samples.push({x,policy:sr&&sr.policy?sr.policy:[],legal:legal.map(actionIndex),turn:side});if(!c.move({from:move.from,to:move.to,promotion:move.promotion}))break;moveNo++;const k=positionKey(c),n=(hist.get(k)||0)+1;hist.set(k,n)}let r=terminalValue(c);if(r===null)r=0;for(const s of samples)s.value=s.turn==='w'?r:-r;return {samples,moves:moveNo,result:r}}
 
@@ -416,42 +451,44 @@ async function evaluateMutations(candidates,best,sims,matches){
   }
   return results;
 }
-async function trainBatch(){
+async async function trainBatch(){
   if(training)return;
   cancelRequested=false;training=true;busy=false;
-  const requested=Math.max(1,Math.min(100,Number(document.getElementById('batchGames').value)||4));
-  const candidateCount=Math.max(2,Math.min(32,Number(document.getElementById('parallelGames').value)||8));
-  const matches=Math.max(1,Math.min(8,Number(document.getElementById('evalMatches').value)||2));
-  const sims=Math.max(1,Math.min(16,Number(document.getElementById('trainSims').value)||4));
-  const rate=Math.max(.0001,Math.min(1,Number(document.getElementById('mutationRate').value)||.02));
-  const strength=Math.max(.0001,Math.min(2,Number(document.getElementById('mutationStrength').value)||.08));
-  let completed=0;
-  setStatus('training','creating mutations from generation '+generation+' · '+candidateCount+' candidates',5);
+  const requested=Math.max(1,Math.min(1000,Number(document.getElementById('batchGames').value)||16));
+  const batch=Math.max(8,Math.min(256,Number(document.getElementById('parallelGames').value)||64));
+  let completed=0,trained=0;
+  setStatus('training','neural reinforcement learning · generation '+generation,5);
   try{
     while(completed<requested&&!cancelRequested){
-      const candidates=[];
-      for(let i=0;i<candidateCount;i++)candidates.push(mutateBrain(brain,rate,strength,(generation+1)*100000+i));
-      const results=await evaluateMutations(candidates,brain,sims,matches);
-      if(cancelRequested)break;
-      if(!results.length)throw new Error('mutation evaluation produced no results');
-      results.sort((a,b)=>b.score-a.score);
-      const winner=results[0];
-      brain=winner.brain;
-      generation++;games+=candidateCount*matches;completed++;
-      const wins=winner.results.filter((g,i)=>{const mw=(matches>1&&i%2===1);return mw?(g.result===-1):(g.result===1)}).length;
-      const draws=winner.results.filter(g=>g.result===0).length;
-      steps+=winner.results.reduce((a,g)=>a+g.moves,0);
-      renderStats();
-      const winnerPoints=winner.results.reduce((sum,g,i)=>sum+(i%2?g.pointsWhite:g.pointsBlack),0);points+=winnerPoints;evalRecord=winner.score.toFixed(2);setStatus('training','generation '+generation+' · best score '+winner.score.toFixed(2)+' · '+wins+' wins · '+draws+' draws · '+completed+' / '+requested+' generations',Math.min(96,8+88*(completed/requested)));
-      log('generation '+generation+' selected mutation '+winner.index+' · score '+winner.score.toFixed(2)+' / '+matches+' · rate '+rate+' · strength '+strength);
-      saveBrain(false);
-      await new Promise(r=>setTimeout(r,0));
+      const gamesThisBatch=Math.min(batch,requested-completed);
+      for(let g=0;g<gamesThisBatch&&!cancelRequested;g++){
+        let c=new Chess(),hist=new Map([[positionKey(c),1]]),samples=[],plies=0;
+        while(!terminalPosition(c,hist)&&plies<CONFIG.trainPlies&&!cancelRequested){
+          const legal=c.moves({verbose:true});if(!legal.length)break;
+          const x=Array.from(encode(c));
+          const pred=brain.predict(encode(c),legal.map(actionIndex));
+          let r=Math.random(),chosen=legal[0];
+          for(const m of legal){r-=pred.policy[actionIndex(m)];if(r<=0){chosen=m;break}}
+          samples.push({x,action:actionIndex(chosen),legal:legal.map(actionIndex)});
+          if(!c.move({from:chosen.from,to:chosen.to,promotion:chosen.promotion}))break;
+          plies++;const k=positionKey(c);hist.set(k,(hist.get(k)||0)+1);
+          if((plies&15)===0)await new Promise(r=>setTimeout(r,0));
+        }
+        let reward=terminalValue(c);if(reward===null)reward=0;
+        for(let si=0;si<samples.length;si++){const s=samples[si];const sideReward=si%2===0?reward:-reward;replay.push({...s,reward:sideReward});}
+        if(replay.length>CONFIG.replayMax)replay.splice(0,replay.length-CONFIG.replayMax);
+        const loss=trainReplay(Math.min(CONFIG.rlBatch,replay.length));
+        trained+=samples.length;completed++;
+        if((completed&3)===0||completed===requested){generation++;setStatus('training','generation '+generation+' · RL games '+completed+' / '+requested+' · loss '+loss.toFixed(4),Math.min(96,5+91*(completed/requested)));}
+        if((completed&7)===0){steps+=samples.length;games++;await saveBrain(false);renderStats();}
+      }
     }
-    if(!cancelRequested&&completed){toast('evolution complete · gen '+generation);log('evolution complete · '+completed+' generations')}
-    else if(cancelRequested)log('evolution cancelled after '+completed+' generations');
+    if(!cancelRequested&&completed){await saveBrain(false);toast('neural training complete');log('neural training complete · '+completed+' games · '+trained+' positions · gradient updates');}
+    else if(cancelRequested)log('neural training cancelled after '+completed+' games');
   }catch(e){log('training error: '+e.message);setStatus('error','training failed · '+e.message,0);toast('training failed')}
-  finally{fastBatchAbort=null;stopFastWorkers();training=false;busy=false;renderStats();if(!isGameOver(game))setStatus(cancelRequested?'paused':'ready',cancelRequested?'training stopped':'generation '+generation+' · '+games+' matches',100)}
+  finally{fastBatchAbort=null;stopFastWorkers();training=false;busy=false;renderStats();if(!isGameOver(game))setStatus(cancelRequested?'paused':'ready',cancelRequested?'training stopped':'generation '+generation+' · '+games+' training games',100)}
 }
+
 async function engineDisplayLabel(){
   if(selectedEngine==='custom-wasm')return 'Custom UCI WASM engine';
   return ENGINE_CONFIGS[selectedEngine]?.label||'Chess Engine';
@@ -646,19 +683,46 @@ function recordMove(fenBefore,mv,actor){
 }
 function renderStats(){document.getElementById('gamesStat').textContent=games;document.getElementById('stepsStat').textContent=steps;document.getElementById('replayStat').textContent=replay.length;document.getElementById('generationBadge').textContent='gen '+generation;document.getElementById('evalStat').textContent=evalRecord??'—';document.getElementById('pointsStat').textContent=points;document.getElementById('brainState').textContent='gen '+generation+' · '+brain.w1.length+' weights'}
 function renderAll(){renderPlayers();renderPlayers();renderBoard();renderMoves();renderStats();renderReview();const t=terminalText(game);if(t)setStatus(t,'game finished');else if(!busy&&!training){const inCheck=isInCheck(game);setStatus(inCheck?'check':(botForTurn()==='human'?'your move':'ready'),inCheck?(botLabel(botForTurn())+' is in check'):'generation '+generation+' · '+replay.length+' replay positions')}}
-function saveBrain(show=true){try{localStorage.setItem('chess-learning-brain',JSON.stringify(brain.toJSON()));localStorage.setItem('chess-learning-replay',JSON.stringify(replay.slice(-1200)));if(show){toast('brain saved');log('brain saved locally')}}catch(e){log('save failed: '+e.message)}}
-function loadBrain(){try{const raw=localStorage.getItem('chess-learning-brain');if(!raw){toast('no saved brain');return}brain=TinyNet.fromJSON(JSON.parse(raw));const rp=localStorage.getItem('chess-learning-replay');if(rp){const parsed=JSON.parse(rp);replay=Array.isArray(parsed)?parsed.filter(s=>s&&Array.isArray(s.x)&&Array.isArray(s.legal)&&Array.isArray(s.policy)&&s.policy.every(q=>q&&typeof q.a==='number')).slice(-CONFIG.replayMax):[]}renderStats();toast('brain loaded');log('brain loaded from local storage')}catch(e){brain=new TinyNet(Date.now());replay=[];toast('old brain ignored');log('saved brain is from an older architecture; started a fresh learner')}}
-function resetBrain(){if(!confirm('reset the learner to random weights?'))return;brain=new TinyNet(Date.now());generation=0;steps=0;games=0;replay=[];localStorage.removeItem('chess-learning-brain');localStorage.removeItem('chess-learning-replay');renderStats();toast('new random brain');log('learner reset to random weights')}
-function exportBrain(){const blob=new Blob([JSON.stringify({app:'Chess Learning Lab',version:CONFIG.version,brain:brain.toJSON(),replay:replay.slice(-1200)})],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='chess-learning-brain-gen-'+generation+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+let brainDBPromise=null;
+function openBrainDB(){
+  if(brainDBPromise)return brainDBPromise;
+  brainDBPromise=new Promise((resolve,reject)=>{
+    if(!window.indexedDB){reject(new Error('IndexedDB unavailable'));return}
+    const req=indexedDB.open('chess-learning-lab',1);
+    req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains('state'))db.createObjectStore('state')};
+    req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error('IndexedDB open failed'));
+  });return brainDBPromise;
+}
+async function saveBrain(show=true){
+  try{
+    const db=await openBrainDB();
+    const state={version:CONFIG.version,architecture:CONFIG.architecture,brain:{version:CONFIG.version,input:CONFIG.input,hidden1:CONFIG.hidden1,hidden2:CONFIG.hidden2,policy:CONFIG.policy,generation,steps,games,w1:brain.w1,b1:brain.b1,w2:brain.w2,b2:brain.b2,wp:brain.wp,bp:brain.bp,wv:brain.wv,bv:brain.bv},replay:replay.slice(-CONFIG.replayMax)};
+    await new Promise((resolve,reject)=>{const tx=db.transaction('state','readwrite');tx.objectStore('state').put(state,'learner');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('IndexedDB write failed'))});
+    try{localStorage.removeItem('chess-learning-brain');localStorage.removeItem('chess-learning-replay')}catch(e){}
+    if(show){toast('brain saved');log('neural network saved to IndexedDB')}
+  }catch(e){log('save failed: '+e.message)}
+}
+async function loadBrain(){
+  try{
+    const db=await openBrainDB();
+    const state=await new Promise((resolve,reject)=>{const tx=db.transaction('state','readonly');const q=tx.objectStore('state').get('learner');q.onsuccess=()=>resolve(q.result||null);q.onerror=()=>reject(q.error)});
+    if(state?.brain){brain=TinyNet.fromJSON(state.brain);replay=Array.isArray(state.replay)?state.replay.slice(-CONFIG.replayMax):[];renderStats();toast('neural network loaded');log('neural network loaded from IndexedDB');return}
+    const raw=localStorage.getItem('chess-learning-brain');
+    if(raw){brain=TinyNet.fromJSON(JSON.parse(raw));const rp=localStorage.getItem('chess-learning-replay');if(rp)replay=JSON.parse(rp).slice(-CONFIG.replayMax);await saveBrain(false);toast('brain migrated to IndexedDB');log('migrated old localStorage brain to IndexedDB');return}
+    toast('no saved brain');
+  }catch(e){brain=new TinyNet(Date.now());replay=[];toast('fresh neural network');log('saved brain could not be loaded: '+e.message+' · started fresh')}
+}
+function resetBrain(){if(!confirm('reset the learner to random neural-network weights?'))return;brain=new TinyNet(Date.now());generation=0;steps=0;games=0;replay=[];try{localStorage.removeItem('chess-learning-brain');localStorage.removeItem('chess-learning-replay')}catch(e){};openBrainDB().then(db=>new Promise(resolve=>{const tx=db.transaction('state','readwrite');tx.objectStore('state').delete('learner');tx.oncomplete=resolve})).catch(()=>{});renderStats();toast('new random neural network');log('learner reset: random weights')}
+function exportBrain(){const blob=new Blob([JSON.stringify({app:'Chess Learning Lab',version:CONFIG.version,architecture:CONFIG.architecture,brain:brain.toJSON(),replay:replay.slice(-CONFIG.replayMax)})],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='chess-learning-brain-gen-'+generation+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function importBrain(){document.getElementById('fileInput').click()}
-document.getElementById('fileInput').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const o=JSON.parse(rd.result);brain=TinyNet.fromJSON(o.brain||o);replay=o.replay||[];renderStats();toast('brain imported');log('brain imported')}catch(err){toast('invalid brain file');log('import failed: '+err.message)}};rd.readAsText(f)};
+document.getElementById('fileInput').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=async()=>{try{const o=JSON.parse(rd.result);brain=TinyNet.fromJSON(o.brain||o);replay=o.replay||[];await saveBrain(false);renderStats();toast('neural network imported');log('neural network imported')}catch(err){toast('invalid brain file');log('import failed: '+err.message)}};rd.readAsText(f)};
 
 document.getElementById('clearLog').onclick=()=>{document.getElementById('log').textContent='';log('log cleared')};
 document.getElementById('startTraining').type='button';document.getElementById('playMatch').type='button';document.getElementById('simulateMove').type='button';document.getElementById('newGame').type='button';document.getElementById('flip').type='button';document.getElementById('stopTrain').type='button';document.getElementById('startTraining').onclick=()=>{trainBatch().catch(e=>{log('training launch error: '+e.message);setStatus('error','training failed to start',0)})};document.getElementById('playMatch').onclick=()=>{playMatch().catch(e=>{busy=false;log('Play error: '+e.message);setStatus('error',e.message,0);renderAll()})};document.getElementById('simulateMove').onclick=()=>{simulateOneMove().catch(e=>{busy=false;log('1 move error: '+e.message);setStatus('error',e.message,0);renderAll()})};document.getElementById('newGame').onclick=()=>newGame();document.getElementById('flip').onclick=()=>{flipped=!flipped;renderBoard()};document.getElementById('stopTrain').onclick=()=>{cancelEngine();training=false;busy=false;setStatus('paused','stopped');renderAll();toast('stopped')};document.getElementById('matchType').onchange=()=>{const type=document.getElementById('matchType').value;document.getElementById('engineField').style.display=type==='learner-engine'?'grid':'none';updateMatchBadge();setStatus('ready','press Play to randomize sides and start the match',0)};
 document.getElementById('engineSelect').onchange=async()=>{selectedEngine=document.getElementById('engineSelect').value;document.getElementById('customEngineField').style.display=selectedEngine==='custom-wasm'?'grid':'none';matchEpoch++;await createStockfish(true);updateMatchBadge();setStatus('ready',engineDisplayLabel()+' selected · press Play',0)};
 document.getElementById('customEngineUrl').onchange=async()=>{if(selectedEngine==='custom-wasm'){matchEpoch++;await createStockfish(true);}};document.getElementById('saveBrain').onclick=()=>saveBrain();document.getElementById('loadBrain').onclick=loadBrain;document.getElementById('resetBrain').onclick=resetBrain;document.getElementById('exportBrain').onclick=exportBrain;document.getElementById('importBrain').onclick=importBrain;document.getElementById('promoModal').onclick=e=>{if(e.target.id==='promoModal')e.currentTarget.classList.remove('open')};
 
-brain=new TinyNet(Date.now());loadBrain();createStockfish();resetRepetition();document.getElementById('engineField').style.display='grid';document.getElementById('customEngineField').style.display='none';updateMatchBadge();renderPlayers();renderAll();log('Chess Learning Lab '+CONFIG.version+' initialized');log('learner uses only chess rules from the environment; strategy starts random and is learned from experience');updateMatchBadge();
+brain=new TinyNet(Date.now());loadBrain().catch(e=>log('brain load error: '+e.message));createStockfish();resetRepetition();document.getElementById('engineField').style.display='grid';document.getElementById('customEngineField').style.display='none';updateMatchBadge();renderPlayers();renderAll();log('Chess Learning Lab '+CONFIG.version+' initialized');log('learner uses only chess rules from the environment; strategy starts random and is learned from experience');updateMatchBadge();
 </script>
 </body>
 </html>
