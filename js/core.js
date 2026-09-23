@@ -113,7 +113,7 @@ class TinyNet{
     return loss;
   }
   train(x,target,value,legal,lr=CONFIG.lr){return this._train(x,target,value,legal,lr)}
-  trainPolicyValue(x,policyPairs,value,legal,lr=CONFIG.lr){const target=Object.create(null);for(const pair of (policyPairs||[]))target[pair[0]]=pair[1];return this._train(x,target,value,legal,lr)}
+  trainPolicyValue(x,policyPairs,value,legal,lr=CONFIG.lr){const target=Object.create(null);for(const pair of (policyPairs||[])){const a=Number(pair?.a??pair?.[0]);const p=Number(pair?.p??pair?.[1]);if(Number.isInteger(a)&&Number.isFinite(p))target[a]=Math.max(0,p)}return this._train(x,target,value,legal,lr)}
   trainRL(x,action,reward,legal,lr=CONFIG.lr){return this._train(x,null,0,legal,lr,action,reward)}
   toJSON(){
     const o={version:CONFIG.version,input:CONFIG.input,hidden1:CONFIG.hidden1,hidden2:CONFIG.hidden2,residualBlocks:CONFIG.residualBlocks,policy:CONFIG.policy,generation,steps,games,estimatedElo,trainingTargetElo};
