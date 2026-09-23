@@ -9,6 +9,7 @@
   function applyTheme(theme){
     const t=theme==='dark'?'dark':'light';
     root.dataset.theme=t;
+    root.classList.toggle('is-dark',t==='dark');
     const meta=document.querySelector('meta[name="theme-color"]');
     if(meta)meta.content=t==='dark'?'#1e1e2e':'#fff8fc';
     write('chess-theme',t);
