@@ -43,6 +43,8 @@ function appendSamples(samples){
   for(const s of samples)if(s&&Array.isArray(s.legal)&&s.legal.length){s.x=s.x instanceof Float32Array?s.x:Float32Array.from(s.x||[]);s.priority=Number.isFinite(s.priority)?s.priority:1;s.age=0;replay.push(s);}for(const s of replay)if(s)s.age=(Number(s.age)||0)+1;
   if(replay.length>CONFIG.replayMax)replay.splice(0,replay.length-CONFIG.replayMax);
 }
+function trainingUiYield(){return new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)))}
+
 async function browserSelfPlayGame(maxPlies=120){
   const c=new Chess(),hist=newRepetitionHistory(c),state={detections:0,forcedDraw:false},samples=[];
   let plies=0;
@@ -85,7 +87,7 @@ async function runParallelSelfPlay(gameCount,maxPlies){
       all.push(...r.samples);
       setStatus('training','Fold 6 browser self-play · '+(g+1)+' / '+requested+' games',Math.round((g+1)/requested*100));
       renderTrainingLive();
-      await new Promise(r=>setTimeout(r,0));
+      await trainingUiYield();
     }
     return {samples:all,games:requested,workers:1};
   }
