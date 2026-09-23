@@ -88,7 +88,7 @@ function createStockfish(force=false){
     worker.onerror=e=>fail('message='+(e.message||'unknown')+' filename='+(e.filename||engineUrl)+' line='+(e.lineno||'?')+' col='+(e.colno||'?'));
     worker.onmessageerror=()=>fail('messageerror while communicating with the engine worker');
     worker.postMessage('uci');
-    setTimeout(()=>{if(!settled&&stockfishWorker===worker)fail('timeout waiting for uciok')},20000);
+    setTimeout(()=>{if(!settled&&stockfishWorker===worker)fail('timeout waiting for uciok after 120 seconds')},120000);
   }catch(e){fail('constructor: '+e.message)}
 }
 
