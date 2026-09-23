@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#fff8fc">
 <title>Chess Learning Lab 0.17.0 · KWII</title>
-<link rel="stylesheet" href="css/style.css?v=0.25.0">
-<link rel="stylesheet" href="css/layout-fix.css?v=0.25.0">
-<script src="js/chess.js?v=0.25.0"></script>
+<link rel="stylesheet" href="css/style.css?v=0.26.0">
+<link rel="stylesheet" href="css/layout-fix.css?v=0.26.0">
+<script src="js/chess.js?v=0.26.0"></script>
 </head>
 <body>
 <div class="app">
@@ -40,7 +40,7 @@
       </section>
                 <section class="panel">
         <div class="panel-head"><h2>match settings</h2></div>
-        <div class="field"><label>matchup</label><select id="matchType"><option value="learner-learner" selected>Learner vs Learner</option><option value="learner-engine">Learner vs Chess Engine</option><option value="learner-human">Learner vs Human</option></select></div>
+        <div class="field"><label>matchup</label><select id="matchType"><option value="learner-learner" selected>Learner vs Learner</option><option value="learner-engine">Learner vs Chess Engine</option><option value="learner-human">Learner vs Human</option></select></div><div class="field"><label>learner side</label><select id="learnerSide"><option value="random" selected>Random</option><option value="white">White</option><option value="black">Black</option></select></div>
         <div class="field" id="engineField"><label>chess engine</label><select id="engineSelect"><option value="sf19-full-single">Stockfish 19 · Full · Single-threaded</option><option value="sf19-lite-single">Stockfish 19 · Lite · Single-threaded</option><option value="sf19-full-multi">Stockfish 19 · Full · Multi-threaded</option><option value="sf18-full-single">Stockfish 18 · Full · Single-threaded</option><option value="sf18-lite-single">Stockfish 18 · Lite · Single-threaded</option><option value="sf18-full-multi">Stockfish 18 · Full · Multi-threaded</option><option value="lozza">Lozza · JavaScript</option><option value="custom-wasm">Custom UCI WASM engine</option></select></div><div class="field" id="customEngineField" style="display:none"><label>custom UCI WASM URL</label><input id="customEngineUrl" type="url" placeholder="https://example.com/engine.js" autocomplete="off"></div>
         <div class="field"><label>learner search simulations</label><input id="sims" type="number" min="1" max="250" step="1" value="4"></div>
       </section>
@@ -98,16 +98,16 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
   }).catch(e=>console.warn('isolation worker:',e));
 }
 </script>
-<script src="js/repetition.js?v=0.25.0"></script>
-<script src="js/core.js?v=0.25.0"></script>
-<script src="js/learner.js?v=0.25.0"></script>
-<script src="js/training.js?v=0.25.0"></script>
-<script src="js/engine.js?v=0.25.0"></script>
-<script src="js/review.js?v=0.25.0"></script>
-<script src="js/board.js?v=0.25.0"></script>
-<script src="js/match.js?v=0.25.0"></script>
-<script src="js/ui.js?v=0.25.0"></script>
-<script src="js/storage.js?v=0.25.0"></script>
-<script src="js/app.js?v=0.25.0"></script>
+<script src="js/repetition.js?v=0.26.0"></script>
+<script src="js/core.js?v=0.26.0"></script>
+<script src="js/learner.js?v=0.26.0"></script>
+<script src="js/training.js?v=0.26.0"></script>
+<script src="js/engine.js?v=0.26.0"></script>
+<script src="js/review.js?v=0.26.0"></script>
+<script src="js/board.js?v=0.26.0"></script>
+<script src="js/match.js?v=0.26.0"></script>
+<script src="js/ui.js?v=0.26.0"></script>
+<script src="js/storage.js?v=0.26.0"></script>
+<script src="js/app.js?v=0.26.0"></script>
 </body>
 </html>
