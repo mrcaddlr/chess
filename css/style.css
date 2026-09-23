@@ -328,3 +328,84 @@ html[data-theme="dark"][data-ui-theme="catppuccin"]{--bg:#1e1e2e;--ink:#cdd6f4;-
 html[data-ui-theme] .workspace,html[data-ui-theme] .panel,html[data-ui-theme] .status-card,html[data-ui-theme] .player-card,html[data-ui-theme] .board-card{color:var(--ink)}
 html[data-ui-theme] .panel p,html[data-ui-theme] .workspace-head p,html[data-ui-theme] .tiny,html[data-ui-theme] label{color:var(--muted)}
 html[data-ui-theme] .btn.secondary,html[data-ui-theme] .theme-settings{border-color:var(--line)}
+
+
+/* 0.16.0 compact Fold layout
+   mobile-first: board + controls stay compact, training becomes a dashboard card. */
+.app{width:min(1080px,100%);padding:7px 9px 14px}
+.topbar{margin-bottom:6px;gap:8px}
+.brand{gap:8px}.brand-mark{width:36px;height:36px;border-radius:12px;font-size:15px}
+.brand h1{font-size:18px}.brand p{font-size:8px;margin-top:1px}
+.theme-settings{min-height:32px;padding:6px 9px;font-size:8px}.pill{padding:7px 9px;font-size:8px}
+
+.dashboard{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:8px}
+.workspace{border-radius:16px}.workspace-head{padding:9px 11px 8px}.workspace-head h2{font-size:14px}.workspace-head p{font-size:7px}
+.match-workspace{grid-column:1;grid-row:1 / span 2}.training-workspace{grid-column:2;grid-row:1}.lower-grid{grid-column:2;grid-row:2;display:grid;grid-template-columns:1fr;gap:8px}.debug-workspace{grid-column:1 / -1;grid-row:3}
+
+.match-layout{grid-template-columns:1fr;gap:7px;padding:7px}
+.match-board .board-wrap{width:min(500px,100%)}
+.match-board .players{margin-bottom:6px;gap:6px}
+.player-card{min-height:46px;padding:6px 8px;border-radius:12px}
+.player-card .side-name{font-size:7px}.player-card .player-name{font-size:10px;margin-top:2px}
+.player-card .piece-dot{width:27px;height:27px;font-size:15px;border-radius:9px}
+.match-board .controls{width:100%;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:6px}
+.match-board .controls .btn{min-height:34px;padding:6px 4px;font-size:8px}
+.match-tools{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.match-tools .status-card,.match-tools .move-panel{grid-column:1 / -1}
+.match-tools .status-card,.match-tools .panel{padding:8px;border-radius:12px}
+.status-main{font-size:14px}.status-sub{font-size:8px;margin-top:2px}.bar{height:5px;margin-top:7px}
+.panel{padding:9px}.panel-head{margin-bottom:6px}.panel h2{font-size:11px}
+.field{gap:3px;margin-top:6px}.field label{font-size:7px}
+select,input[type=number],input[type=url]{min-height:31px;padding:5px 7px;border-radius:9px;font-size:9px}
+.move-list{max-height:120px;gap:3px}.move{padding:5px 6px;font-size:8px;border-radius:8px}
+.badge{min-height:20px;padding:4px 7px;font-size:7px}
+.btn{min-height:31px;padding:6px 8px;border-radius:10px;font-size:8px}
+
+.training-layout{display:grid;grid-template-columns:1fr;gap:6px;padding:7px}
+.training-controls .panel,.training-view .training-visual-panel{padding:9px;border-radius:12px}
+.training-controls .stats{grid-template-columns:repeat(3,1fr);gap:4px}
+.stat{padding:6px 3px;border-radius:9px}.stat b{font-size:13px}.stat span{font-size:6px}
+.training-controls .field{display:none}
+.training-controls .row{margin-bottom:5px!important}
+.training-controls .tiny{font-size:7px;line-height:1.3;display:none}
+.training-controls .stats + .row .btn{min-height:34px;font-size:8px}
+.training-view .training-live{min-height:0}.live-top{gap:5px}.live-top b{font-size:10px}.live-top span{font-size:7px}.live-rate b{font-size:14px}
+.learning-flow{margin-top:7px;gap:4px}.flow-box{min-height:42px;padding:6px 3px;border-radius:9px}.flow-box b{font-size:13px}.flow-box span{font-size:6px}
+.metric-row{gap:4px}.metric-row>div{padding:6px 3px;border-radius:8px}.metric-row span{font-size:6px}.metric-row b{font-size:9px}
+.training-activity{padding:5px 0;margin-top:5px}.activity-track{height:5px}.activity-label{font-size:6px;margin-top:3px}
+
+.compact-workspace .panel{padding:9px}.compact-workspace .row{gap:5px}.compact-workspace .btn{min-height:30px}
+.debug-workspace .log-panel{padding:7px 9px}.debug-workspace .log{max-height:70px;padding:7px;font-size:7px}
+.review-grid{margin-top:6px}.review-item{padding:6px 3px}.review-item b{font-size:11px}.review-item span{font-size:7px}
+
+@media(max-width:850px){
+  .dashboard{grid-template-columns:1fr;gap:7px}
+  .match-workspace,.training-workspace,.lower-grid,.debug-workspace{grid-column:auto;grid-row:auto}
+  .match-workspace{grid-row:auto}
+  .match-layout{grid-template-columns:minmax(0,1fr) minmax(210px,.7fr)}
+  .match-tools{grid-template-columns:1fr}
+  .match-tools .status-card,.match-tools .move-panel{grid-column:auto}
+  .training-layout{grid-template-columns:minmax(0,1fr) minmax(220px,.8fr)}
+  .training-controls .field{display:grid}
+  .training-controls .tiny{display:block}
+}
+@media(max-width:600px){
+  .app{padding:5px 6px 10px}
+  .topbar{padding:2px 1px}.brand h1{font-size:16px}.brand p{display:none}.brand-mark{width:32px;height:32px}
+  .top-actions .pill{display:none}
+  .dashboard{gap:6px}.workspace{border-radius:13px}.workspace-head{padding:8px 9px}
+  .match-layout,.training-layout{padding:6px}
+  .match-layout{grid-template-columns:1fr}
+  .match-tools{grid-template-columns:1fr 1fr;gap:5px}
+  .match-tools .status-card,.match-tools .move-panel{grid-column:1/-1}
+  .match-tools .move-list{max-height:100px}
+  .match-board .controls{grid-template-columns:repeat(4,1fr)}
+  .match-board .controls .btn{font-size:7px;min-height:32px}
+  .training-layout{grid-template-columns:1fr}
+  .training-controls .field{display:none}
+  .training-controls .tiny{display:none}
+  .training-controls .stats{grid-template-columns:repeat(3,1fr)}
+  .lower-grid{grid-template-columns:1fr 1fr}
+  .lower-grid .compact-workspace:first-child{grid-column:1/-1}
+  .lower-grid .review-panel{min-width:0}
+}
