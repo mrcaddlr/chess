@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f7f7fb">
-<title>Chess Learning Lab 0.6.11</title>
+<title>Chess Learning Lab 0.6.12</title>
 <style>
 :root{
   --bg:#f7f7fb; --bg2:#f0eff8; --surface:#ffffff; --surface-soft:#f7f6fc;
@@ -42,10 +42,10 @@ button:focus-visible,select:focus-visible,input:focus-visible{
 }
 .brand{display:flex;align-items:center;gap:10px;min-width:0}
 .brand-mark{
-  width:40px;height:40px;border-radius:14px;display:grid;place-items:center;
+  width:42px;height:42px;border-radius:15px;display:grid;place-items:center;
   color:#fff;font-weight:950;font-size:18px;
-  background:linear-gradient(145deg,var(--pink),var(--purple));
-  box-shadow:0 8px 20px rgba(140,123,255,.18);
+  background:linear-gradient(145deg,#ff72ad 0%,#a98cff 55%,#61d7e7 100%);
+  box-shadow:0 9px 24px rgba(140,123,255,.22);
 }
 .brand h1{font-size:clamp(18px,4.8vw,25px);line-height:1;margin:0;letter-spacing:-.04em}
 .brand p{margin:4px 0 0;color:var(--muted);font-size:10px;font-weight:750}
@@ -58,24 +58,31 @@ button:focus-visible,select:focus-visible,input:focus-visible{
 .dot{width:8px;height:8px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 4px var(--mint-soft)}
 .layout{display:grid;gap:10px}
 .board-card,.panel,.status-card{
-  background:rgba(255,255,255,.9);border:1px solid rgba(232,230,240,.9);
-  border-radius:var(--radius);box-shadow:var(--shadow);
+  background:rgba(255,255,255,.94);border:1px solid rgba(218,215,231,.95);
+  border-radius:var(--radius);box-shadow:0 10px 28px rgba(57,49,82,.08);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
 }
 .board-card{padding:10px}
 .board-wrap{width:100%;max-width:440px;margin:auto}
 .board{
-  width:100%;aspect-ratio:1;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);
+  width:100%;height:auto;aspect-ratio:1 / 1;display:grid;
+  grid-template-columns:repeat(8,minmax(0,1fr));
+  grid-template-rows:repeat(8,minmax(0,1fr));
+  grid-auto-rows:minmax(0,1fr);
+
   overflow:hidden;border-radius:18px;box-shadow:0 16px 34px rgba(54,47,79,.16);
   border:5px solid #fff;touch-action:manipulation;
 }
 .square{
   position:relative;display:grid;place-items:center;padding:0;background:none;
+  min-width:0;min-height:0;width:100%;height:100%;aspect-ratio:1 / 1;
+
   user-select:none;-webkit-user-select:none;transition:filter .12s,transform .12s;
 }
-.square.light{background:#fff2df}
-.square.dark{background:#d7a0b2}
+.square.light{background:#fff3e2}
+.square.dark{background:#c997ad}
 .square:hover{filter:brightness(1.035)}
-.square.selected{box-shadow:inset 0 0 0 4px var(--purple)}
+.square.selected{box-shadow:inset 0 0 0 4px #8f7cff, inset 0 0 22px rgba(143,124,255,.22)}
 .square.last{background-image:linear-gradient(rgba(255,215,107,.48),rgba(255,215,107,.48))}
 .square.check{box-shadow:inset 0 0 0 5px var(--pink)}
 .piece{
@@ -91,13 +98,14 @@ button:focus-visible,select:focus-visible,input:focus-visible{
 .dark .coord{color:#fff}.light .coord{color:#554c53}
 .controls{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px}
 .btn{
-  min-height:38px;border-radius:13px;padding:8px 9px;font-size:10px;font-weight:900;
-  background:var(--surface-soft);border:1px solid var(--line);
-  box-shadow:0 2px 0 rgba(32,32,43,.03);transition:transform .12s,filter .12s,box-shadow .12s;
+  min-height:40px;border-radius:14px;padding:8px 10px;font-size:10px;font-weight:900;
+  background:#fff;border:1px solid #e4e1ec;
+  box-shadow:0 5px 12px rgba(53,47,72,.055);
+  transition:transform .12s,filter .12s,box-shadow .12s;
 }
 .btn:hover{filter:brightness(.985);box-shadow:var(--shadow-sm)}
 .btn:active{transform:translateY(1px)}
-.btn.primary{background:linear-gradient(135deg,var(--pink),#ff86b8);color:#fff;border-color:transparent}
+.btn.primary{background:linear-gradient(135deg,#ff6eaa,#9a83ff);color:#fff;border-color:transparent;box-shadow:0 8px 18px rgba(154,131,255,.22)}
 .btn.secondary{background:var(--purple-soft);color:#6255bd;border-color:#ddd8ff}
 .btn.green{background:var(--mint-soft);color:#268866;border-color:#cdeee1}
 .btn.danger{background:#fff0f3;color:#bf4668;border-color:#ffd9e2}
@@ -110,7 +118,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{
 .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--pink),var(--purple),var(--cyan));border-radius:inherit;transition:width .2s}
 .panel{padding:12px}
 .panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
-.panel h2{margin:0;font-size:13px;letter-spacing:-.02em}
+.panel h2{margin:0;font-size:13px;letter-spacing:-.025em}.panel-head:after{content:'';height:4px;width:28px;border-radius:99px;background:linear-gradient(90deg,var(--pink),var(--purple),var(--cyan));opacity:.75}
 .tiny{font-size:10px;color:var(--muted);font-weight:650}
 .badge{
   display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;
@@ -242,7 +250,7 @@ select,input[type=number]{
 'use strict';
 const PIECES={wp:'♙',wn:'♘',wb:'♗',wr:'♖',wq:'♕',wk:'♔',bp:'♟',bn:'♞',bb:'♝',br:'♜',bq:'♛',bk:'♚'};
 const FILES='abcdefgh';
-const CONFIG={version:'0.6.11',input:832,hidden1:96,hidden2:64,policy:4352,replayMax:12000,lr:0.0025,valueWeight:.55,policyWeight:1.0};
+const CONFIG={version:'0.6.12',input:832,hidden1:96,hidden2:64,policy:4352,replayMax:12000,lr:0.0025,valueWeight:.55,policyWeight:1.0};
 let game=new Chess(), flipped=false, selected=null, legalMoves=[], lastMove=null, busy=false, botWhite='learner', botBlack='learner', training=false, trainTimer=null, cancelRequested=false;
 let repetition=new Map(), replay=[], games=0, steps=0, generation=0, evalRecord=null, points=0, repetitionDetections=0;
 let brain=null, matchBrainWhite=null, matchBrainBlack=null, stockfishWorker=null, stockfishReady=false, stockfishLoading=false, stockfishQueue=[], matchEpoch=0, matchNonce=0;
@@ -305,6 +313,22 @@ function addReplay(c,policy,value,legal){if(replay.length>=CONFIG.replayMax)repl
 function trainReplay(n=16){if(!brain||!replay.length)return 0;let total=0,used=0;for(let i=0;i<n;i++){const s=replay[Math.floor(Math.random()*replay.length)];if(!s||!Array.isArray(s.legal)||!s.legal.length)continue;const target=new Float32Array(CONFIG.policy);for(const q of s.policy||[])if(q&&Number.isInteger(q.a))target[q.a]=q.p;total+=brain.train(Float32Array.from(s.x),target,s.value,s.legal,CONFIG.lr).loss;used++}if(used)steps+=used;return used?total/used:0}
 
 async function selfPlayGame(sims=1){let c=new Chess(),samples=[],moveNo=0;const hist=new Map([[positionKey(c),1]]);while(!terminalPosition(c,hist)&&moveNo<1000&&!cancelRequested){const legal=c.moves({verbose:true});if(!legal.length)break;const side=c.turn(),x=Array.from(encode(c)),sr=await mcts(c,sims,brain,true);const safe=safeRepetitionMove(c,sr&&sr.move,brain,hist);if(safe.forcedDraw)break;const move=safe.move;if(!move)break;samples.push({x,policy:sr&&sr.policy?sr.policy:[],legal:legal.map(actionIndex),turn:side});if(!c.move({from:move.from,to:move.to,promotion:move.promotion}))break;moveNo++;const k=positionKey(c),n=(hist.get(k)||0)+1;hist.set(k,n)}let r=terminalValue(c);if(r===null)r=0;for(const s of samples)s.value=s.turn==='w'?r:-r;return {samples,moves:moveNo,result:r}}
+
+function mutateBrain(base,rate=.02,strength=.08,seed=Date.now()){
+  if(!base)throw new Error('no base learner to mutate');
+  const rng=new RNG(seed>>>0);
+  const out=new TinyNet(seed>>>0);
+  const arrays=['w1','b1','w2','b2','wp','bp','wv'];
+  for(const key of arrays){
+    out[key].set(base[key]);
+    const a=out[key];
+    for(let i=0;i<a.length;i++){
+      if(rng.next()<rate)a[i]+=rng.gauss()*strength;
+    }
+  }
+  out.bv=base.bv+(rng.next()<rate?rng.gauss()*strength:0);
+  return out;
+}
 
 let fastWorkers=[]; let fastBatchAbort=null;
 function stopFastWorkers(){for(const w of fastWorkers){try{w.terminate()}catch(e){}}fastWorkers=[]}
@@ -487,9 +511,9 @@ async function createStockfish(){
 function expectedPoints(cp){const x=Math.max(-1200,Math.min(1200,cp))/180;return 1/(1+Math.exp(-x))}
 function pieceValue(t){return ({p:1,n:3,b:3,r:5,q:9,k:0})[t]||0}
 function materialScore(c,color){let n=0;for(const row of c.board())for(const p of row)if(p&&p.color===color)n+=pieceValue(p.type);return n}
-function classifyMove(beforeCp,afterCp,bestUci,rec,bestAfterCp,bestMove,bestAfterFen){const moverWhite=rec.side==='w';const before=moverWhite?beforeCp:-beforeCp,after=moverWhite?afterCp:-afterCp;const bestAfter=moverWhite?bestAfterCp:-bestAfterCp;const loss=Math.max(0,expectedPoints(before)-expectedPoints(after));const bestGain=expectedPoints(bestAfter)-expectedPoints(before);const isBest=bestUci===rec.uci;const delta=after-before;let quality;if(isBest&&Math.abs(delta)<8)quality='Best';else if(!isBest&&bestGain>=0.12&&loss<0.20)quality='Miss';else if(loss<0.02)quality='Excellent';else if(loss<0.05)quality='Good';else if(loss<0.10)quality='Inaccuracy';else if(loss<0.20)quality='Mistake';else quality='Blunder';let brilliant=false,great=false;if(isBest&&bestMove&&bestAfterFen){const beforeBoard=new Chess(rec.fen),afterBest=new Chess(bestAfterFen);const ownBefore=materialScore(beforeBoard,rec.side),ownAfter=materialScore(afterBest,rec.side);const sacrificed=ownAfter<ownBefore;const stillPlayable=bestAfter>-100;if(sacrificed&&stillPlayable&&before<250){brilliant=true;quality='Brilliant'}}if(!brilliant&&isBest&&bestGain>=0.12&&before<250){great=true;quality='Great'}return {quality,loss,isBest,bestGain,brilliant,great};}
+function classifyMove(beforeCp,afterCp,bestUci,rec,bestAfterCp,bestMove,bestAfterFen){const moverWhite=rec.side==='w';const before=moverWhite?beforeCp:-beforeCp,after=moverWhite?afterCp:-afterCp;const bestAfter=moverWhite?bestAfterCp:-bestAfterCp;const loss=Math.max(0,expectedPoints(before)-expectedPoints(after));const bestGain=expectedPoints(bestAfter)-expectedPoints(before);const isBest=bestUci===rec.uci;const delta=after-before;let quality;if(isBest&&Math.abs(delta)<8)quality='Best';else if(!isBest&&bestGain>=0.12&&loss<0.20)quality='Miss';else if(loss<0.02)quality='Excellent';else if(loss<0.05)quality='Good';else if(loss<0.10)quality='Inaccuracy';else if(loss<0.20)quality='Mistake';else quality='Blunder';let brilliant=false,great=false;if(isBest&&bestMove&&bestAfterFen){const beforeBoard=new Chess(recFen),afterBest=new Chess(bestAfterFen);const ownBefore=materialScore(beforeBoard,rec.side),ownAfter=materialScore(afterBest,rec.side);const sacrificed=ownAfter<ownBefore;const stillPlayable=bestAfter>-100;if(sacrificed&&stillPlayable&&before<250){brilliant=true;quality='Brilliant'}}if(!brilliant&&isBest&&bestGain>=0.12&&before<250){great=true;quality='Great'}return {quality,loss,isBest,bestGain,brilliant,great};}
 function stockfishAnalyze(fen,depth=7){return new Promise(resolve=>{if(!stockfishReady||!stockfishWorker){resolve(null);return}analysisActive={resolve,score:null};stockfishWorker.postMessage('position fen '+fen);stockfishWorker.postMessage('go depth '+Math.max(4,Math.min(12,depth)));});}
-async function finishGameReview(epoch=matchEpoch){if(reviewRunning||lastReviewedEpoch===epoch||!moveRecords.length||epoch!==matchEpoch)return;lastReviewedEpoch=epoch;reviewRunning=true;reviewState={running:true,text:'checking each move against the engine…'};renderReview();if(!stockfishReady){reviewRunning=false;reviewState={running:false,accuracy:'—',text:'Stockfish was not ready, so this game could not be reviewed yet.',counts:{}};renderReview();log('game review skipped: Stockfish not ready');return}const counts={Brilliant:0,Great:0,Best:0,Excellent:0,Good:0,Inaccuracy:0,Mistake:0,Blunder:0,Miss:0};let totalLoss=0,reviewed=0;for(let i=0;i<moveRecords.length;i++){if(epoch!==matchEpoch)break;const rec=moveRecords[i];const before=await stockfishAnalyze(rec.fen,7);const c=new Chess(rec.fen);const mv=c.move({from:rec.uci.slice(0,2),to:rec.uci.slice(2,4),promotion:rec.uci[4]});if(!mv||!before)continue;const after=await stockfishAnalyze(c.fen(),7);if(!after)continue;let bestAfterCp=after.score,bestMove=null,bestAfterFen=null;if(before.best){const bc=new Chess(rec.fen());const bm=bc.move({from:before.best.slice(0,2),to:before.best.slice(2,4),promotion:before.best[4]});if(bm){bestMove=bm;bestAfterFen=bc.fen();const ba=await stockfishAnalyze(bestAfterFen,7);if(ba)bestAfterCp=ba.score}}const cls=classifyMove(before.score,after.score,before.best,rec,bestAfterCp,bestMove,bestAfterFen);rec.quality=cls.quality;rec.pointDelta=({Brilliant:12,Great:9,Best:6,Excellent:3,Good:1,Inaccuracy:0,Mistake:-5,Blunder:-10,Miss:-7}[cls.quality]??0);if(isCheckmate(c))rec.pointDelta+=20;if(mv.promotion)rec.pointDelta+=3;counts[cls.quality]++;totalLoss+=cls.loss;reviewed++;if((i&3)===3){reviewState.text='reviewing move '+(i+1)+' / '+moveRecords.length;renderReview();}}const accuracy=Math.max(0,Math.min(100,Math.round(100*(1-(totalLoss/Math.max(1,reviewed))))));reviewState={running:false,accuracy,text:'engine feedback has been recorded for the learner. This is Chess.com-inspired classification, not an exact copy of Chess.com’s private scoring system.',counts};reviewRunning=false;renderMoves();renderReview();log('game review complete · '+accuracy+'% · '+reviewed+' moves classified');feedReviewToLearner();}
+async function finishGameReview(epoch=matchEpoch){if(reviewRunning||lastReviewedEpoch===epoch||!moveRecords.length||epoch!==matchEpoch)return;lastReviewedEpoch=epoch;reviewRunning=true;reviewState={running:true,text:'checking each move against the engine…'};renderReview();if(!stockfishReady){reviewRunning=false;reviewState={running:false,accuracy:'—',text:'Stockfish was not ready, so this game could not be reviewed yet.',counts:{}};renderReview();log('game review skipped: Stockfish not ready');return}const counts={Brilliant:0,Great:0,Best:0,Excellent:0,Good:0,Inaccuracy:0,Mistake:0,Blunder:0,Miss:0};let totalLoss=0,reviewed=0;for(let i=0;i<moveRecords.length;i++){if(epoch!==matchEpoch)break;const rec=moveRecords[i];const recFen=typeof rec.fen==='string'?rec.fen:(rec.fen&&typeof rec.fen.fen==='function'?rec.fen.fen():null);if(!recFen)continue;const before=await stockfishAnalyze(recFen,7);const c=new Chess(recFen);const mv=c.move({from:rec.uci.slice(0,2),to:rec.uci.slice(2,4),promotion:rec.uci[4]});if(!mv||!before)continue;const after=await stockfishAnalyze(c.fen(),7);if(!after)continue;let bestAfterCp=after.score,bestMove=null,bestAfterFen=null;if(before.best){const bc=new Chess(recFen);const bm=bc.move({from:before.best.slice(0,2),to:before.best.slice(2,4),promotion:before.best[4]});if(bm){bestMove=bm;bestAfterFen=bc.fen();const ba=await stockfishAnalyze(bestAfterFen,7);if(ba)bestAfterCp=ba.score}}const cls=classifyMove(before.score,after.score,before.best,rec,bestAfterCp,bestMove,bestAfterFen);rec.quality=cls.quality;rec.pointDelta=({Brilliant:12,Great:9,Best:6,Excellent:3,Good:1,Inaccuracy:0,Mistake:-5,Blunder:-10,Miss:-7}[cls.quality]??0);if(isCheckmate(c))rec.pointDelta+=20;if(mv.promotion)rec.pointDelta+=3;counts[cls.quality]++;totalLoss+=cls.loss;reviewed++;if((i&3)===3){reviewState.text='reviewing move '+(i+1)+' / '+moveRecords.length;renderReview();}}const accuracy=Math.max(0,Math.min(100,Math.round(100*(1-(totalLoss/Math.max(1,reviewed))))));reviewState={running:false,accuracy,text:'engine feedback has been recorded for the learner. This is Chess.com-inspired classification, not an exact copy of Chess.com’s private scoring system.',counts};reviewRunning=false;renderMoves();renderReview();log('game review complete · '+accuracy+'% · '+reviewed+' moves classified');feedReviewToLearner();}
 function feedReviewToLearner(){if(!brain)return;const weights={Brilliant:12,Great:9,Best:6,Excellent:3,Good:1,Inaccuracy:0,Mistake:-5,Blunder:-10,Miss:-7};let delta=0,signal=0,n=0;for(const r of moveRecords){if(!r.quality||r.actor!=='learner')continue;const p=r.pointDelta??(weights[r.quality]??0);delta+=p;signal+=p/12;n++;}if(isCheckmate(game)){const winner=game.turn()==='w'?'black':'white';const learnerSide=(botWhite==='learner'&&winner==='white')||(botBlack==='learner'&&winner==='black');if(learnerSide)delta+=20;else if(botWhite==='learner'||botBlack==='learner')delta-=20;}if(repetitionDetections)delta-=2*repetitionDetections;if(drawReason(game)&&!repetitionDetections)delta+=2;points+=delta;brain.reviewSignal=(brain.reviewSignal||0)*.9+signal/Math.max(1,n);brain.rewardHistory=(brain.rewardHistory||[]).concat([{points:delta,accuracy:reviewState?.accuracy??0,generation}]).slice(-200);steps+=n;evalRecord=(brain.reviewSignal).toFixed(2);renderStats();saveBrain(false);log('learner received move-quality feedback · '+(delta>=0?'+':'')+delta+' points · signal '+brain.reviewSignal.toFixed(2));}
 function stockfishMove(c,depth=8){return new Promise(resolve=>{if(!stockfishReady||!stockfishWorker){log('Stockfish is not ready');resolve(null);return}const done=(uci)=>{const ms=c.moves({verbose:true}),m=ms.find(x=>x.from+x.to+(x.promotion||'')===uci);resolve(m||ms[0]||null)};stockfishQueue.push(done);stockfishActiveResolve=()=>{const i=stockfishQueue.indexOf(done);if(i>=0)stockfishQueue.splice(i,1);resolve(null)};stockfishWorker.postMessage('ucinewgame');stockfishWorker.postMessage('position fen '+c.fen());stockfishWorker.postMessage('go depth '+depth)})}
 function cancelEngine(){cancelRequested=true;if(fastBatchAbort){const abort=fastBatchAbort;fastBatchAbort=null;abort()}else stopFastWorkers();if(stockfishWorker&&stockfishReady){try{stockfishWorker.postMessage('stop')}catch(e){}}if(stockfishActiveResolve){const r=stockfishActiveResolve;stockfishActiveResolve=null;r()}if(analysisActive){const a=analysisActive;analysisActive=null;a.resolve(null)}stockfishQueue.length=0;busy=false;}
@@ -571,7 +595,10 @@ function newGame(){
 }
 function renderMoves(){const list=document.getElementById('moveList'),hist=game.history();list.innerHTML='';for(let i=0;i<hist.length;i++){const d=document.createElement('div');d.className='move';const q=moveRecords[i]?.quality||'';const pd=moveRecords[i]?.pointDelta;d.innerHTML='<b>'+((i>>1)+1)+(i%2?'...':'.')+'</b>'+hist[i]+(q?' <span style="float:right;font-weight:900">'+q+(Number.isFinite(pd)?' '+(pd>=0?'+':'')+pd:'')+'</span>':'');list.appendChild(d)}document.getElementById('moveCount').textContent=hist.length+' plies'}
 function renderReview(){const b=document.getElementById('reviewBadge'),s=document.getElementById('reviewSummary'),g=document.getElementById('reviewGrid');if(!reviewState){b.textContent='not reviewed';s.textContent='when a game ends, the system checks the moves and feeds the feedback back into the learner.';g.innerHTML='';return}if(reviewState.running){b.textContent='reviewing';s.textContent=reviewState.text||'checking the finished game with Stockfish…';g.innerHTML='';return}b.textContent=reviewState.accuracy+'% accuracy';s.textContent=reviewState.text;g.innerHTML='';for(const [k,v] of Object.entries(reviewState.counts)){const d=document.createElement('div');d.className='review-item';d.innerHTML='<b>'+v+'</b><span>'+k+'</span>';g.appendChild(d)}}
-function recordMove(fenBefore,mv,actor){moveRecords.push({fen:fenBefore,uci:mv.from+mv.to+(mv.promotion||''),san:mv.san||game.history().at(-1)||'',side:fenBefore.split(' ')[1],actor,quality:null});}
+function recordMove(fenBefore,mv,actor){
+  const fen=typeof fenBefore==='string'?fenBefore:(fenBefore&&typeof fenBefore.fen==='function'?fenBefore.fen():String(fenBefore||''));
+  moveRecords.push({fen,uci:mv.from+mv.to+(mv.promotion||''),san:mv.san||game.history().at(-1)||'',side:fen.split(' ')[1]||game.turn(),actor,quality:null});
+}
 function renderStats(){document.getElementById('gamesStat').textContent=games;document.getElementById('stepsStat').textContent=steps;document.getElementById('replayStat').textContent=replay.length;document.getElementById('generationBadge').textContent='gen '+generation;document.getElementById('evalStat').textContent=evalRecord??'—';document.getElementById('pointsStat').textContent=points;document.getElementById('brainState').textContent='gen '+generation+' · '+brain.w1.length+' weights'}
 function renderAll(){renderBoard();renderMoves();renderStats();renderReview();const t=terminalText(game);if(t)setStatus(t,'game finished');else if(!busy&&!training){const inCheck=isInCheck(game);setStatus(inCheck?'check':(botForTurn()==='human'?'your move':'ready'),inCheck?(botLabel(botForTurn())+' is in check'):'generation '+generation+' · '+replay.length+' replay positions')}}
 function saveBrain(show=true){try{localStorage.setItem('chess-learning-brain',JSON.stringify(brain.toJSON()));localStorage.setItem('chess-learning-replay',JSON.stringify(replay.slice(-1200)));if(show){toast('brain saved');log('brain saved locally')}}catch(e){log('save failed: '+e.message)}}
