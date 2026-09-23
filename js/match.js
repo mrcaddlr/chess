@@ -36,7 +36,7 @@ async function playMatch(){
     // No training or weight mutation occurs during the match.
     matchBrainWhite=cloneLearnerForMatch();
     matchBrainBlack=cloneLearnerForMatch();
-  }else if(type==='learner-stockfish'){
+  }else if(type==='learner-engine'){
     if(botWhite==='learner') matchBrainWhite=cloneLearnerForMatch();
     if(botBlack==='learner') matchBrainBlack=cloneLearnerForMatch();
   }else if(type==='learner-human'){
