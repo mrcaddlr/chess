@@ -20,6 +20,16 @@ async function buildBundledEngineWorker(engineUrl){
     return new Worker(engineUrl);
   }
 
+  // Fairy-Stockfish's browser package already contains its own worker entrypoint.
+  // Launch that worker directly instead of wrapping stockfish.js a second time.
+  if(engineUrl.endsWith('/fairy-stockfish.js')){
+    const workerUrl=new URL('stockfish/fairy-stockfish.worker.js',document.baseURI);
+    const wasmUrl=new URL('stockfish/fairy-stockfish.wasm',document.baseURI);
+    workerUrl.searchParams.set('wasm',wasmUrl.href);
+    log('loading Fairy-Stockfish · bundled NNUE worker');
+    return new Worker(workerUrl.href);
+  }
+
   const jsName=engineUrl.split('/').pop();
   const wasmName=jsName.replace(/\.js$/i,'.wasm');
   const parts=manifest?.[wasmName];
