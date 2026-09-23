@@ -14,50 +14,49 @@ async function buildBundledEngineWorker(engineUrl){
     const r=await fetch(manifestUrl,{cache:'no-store'});
     if(r.ok)manifest=await r.json();
   }catch(err){log('engine manifest fetch failed: '+err.message)}
+
   const jsName=engineUrl.split('/').pop();
   const wasmName=jsName.replace(/\\.js$/i,'.wasm');
   const parts=manifest?.[wasmName];
+  let wasmUrl='';
 
-  if(!Array.isArray(parts)||!parts.length)return new Worker(engineUrl);
+  if(Array.isArray(parts)&&parts.length){
+    log('assembling '+wasmName+' from '+parts.length+' chunks');
 
-  log('assembling '+wasmName+' from '+parts.length+' chunks');
+    // Keep the chunks as Blob parts instead of copying them into a second
+    // 100MB Uint8Array. This matters on Android, where the old approach could
+    // briefly require 200MB+ just to start the full single-threaded engine.
+    const blobs=[];
+    let total=0;
 
-  // Fetch chunks one at a time. Promise.all() kept every chunk alive at once,
-  // which could push Android browsers over their memory limit.
-  const buffers=[];
-  let total=0;
+    for(let i=0;i<parts.length;i++){
+      const part=String(parts[i]||'').replace(/^\\/+/, '');
+      const url=new URL('stockfish/'+part,document.baseURI);
+      url.searchParams.set('v','0.31.12');
+      const r=await fetch(url.href,{cache:'no-store'});
+      if(!r.ok)throw new Error('Stockfish chunk '+part+' returned HTTP '+r.status);
 
-  for(let i=0;i<parts.length;i++){
-    const part=String(parts[i]||'').replace(/^\/+/, '');
-    const url=new URL('stockfish/'+part,document.baseURI);
-    url.searchParams.set('v','0.31.9');
-    const r=await fetch(url.href,{cache:'no-store'});
-    if(!r.ok)throw new Error('Stockfish chunk '+part+' returned HTTP '+r.status);
+      const data=new Uint8Array(await r.arrayBuffer());
+      if(!data.byteLength)throw new Error('Stockfish chunk '+part+' is empty');
+      if(i===0&&data.length>=4&&!(data[0]===0x00&&data[1]===0x61&&data[2]===0x73&&data[3]===0x6d)){
+        throw new Error('Stockfish chunk '+part+' is not the start of a WASM binary');
+      }
 
-    const data=new Uint8Array(await r.arrayBuffer());
-    if(!data.byteLength)throw new Error('Stockfish chunk '+part+' is empty');
-
-    // A Pages error document accidentally returned as a successful response
-    // must never be appended to the WASM binary.
-    if(i===0&&data.length>=4&&!(data[0]===0x00&&data[1]===0x61&&data[2]===0x73&&data[3]===0x6d)){
-      throw new Error('Stockfish chunk '+part+' is not the start of a WASM binary');
+      blobs.push(data);
+      total+=data.byteLength;
+      log('chunk '+(i+1)+'/'+parts.length+' loaded · '+Math.round(data.byteLength/1048576)+' MiB');
     }
 
-    buffers.push(data);
-    total+=data.byteLength;
-    log('chunk '+(i+1)+'/'+parts.length+' loaded · '+Math.round(data.byteLength/1048576)+' MiB');
+    if(total<1024*1024)throw new Error('assembled '+wasmName+' is only '+total+' bytes; incomplete WASM bundle');
+
+    wasmUrl=URL.createObjectURL(new Blob(blobs,{type:'application/wasm'}));
+  }else{
+    // Stockfish.js itself looks for "stockfish.wasm". Our files have
+    // engine-specific names, so always provide locateFile even for lite builds.
+    wasmUrl=new URL('stockfish/'+wasmName,document.baseURI).href;
+    log('using direct WASM '+wasmName);
   }
 
-  if(total<1024*1024)throw new Error('assembled '+wasmName+' is only '+total+' bytes; incomplete WASM bundle');
-
-  const wasm=new Uint8Array(total);
-  let offset=0;
-  for(const part of buffers){wasm.set(part,offset);offset+=part.byteLength}
-
-  try{await WebAssembly.compile(wasm)}
-  catch(err){throw new Error('assembled '+wasmName+' failed WebAssembly validation: '+(err.message||err))}
-
-  const wasmUrl=URL.createObjectURL(new Blob([wasm],{type:'application/wasm'}));
   const jsResponse=await fetch(engineUrl,{cache:'no-store'});
   if(!jsResponse.ok)throw new Error('engine JavaScript file returned HTTP '+jsResponse.status);
   const source=await jsResponse.text();
@@ -72,10 +71,10 @@ async function buildBundledEngineWorker(engineUrl){
 
   const bootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(path){if(/stockfish\\\\.worker\\\\.js$/i.test(path)&&'+JSON.stringify(pthreadWorkerUrl)+')return '+JSON.stringify(pthreadWorkerUrl)+';if(/\\\\.wasm$/i.test(path))return '+wasmLiteral+';return new URL(path,'+JSON.stringify(engineUrl)+').href;};\\n'+source;
   const workerUrl=URL.createObjectURL(new Blob([bootstrap],{type:'text/javascript'}));
-  stockfishBlobUrls.push(wasmUrl,workerUrl);
+  stockfishBlobUrls.push(workerUrl);
+  if(wasmUrl.startsWith('blob:'))stockfishBlobUrls.push(wasmUrl);
   return new Worker(workerUrl);
 }
-
 function cfgIsMultiEngine(engineUrl){
   return Object.values(ENGINE_CONFIGS||{}).some(cfg=>cfg?.multi&&new URL(cfg.url,document.baseURI).href===engineUrl);
 }
@@ -83,7 +82,7 @@ async function createNativeEngine(cfg){
   const kind=cfg?.native;
   if(!kind)return false;
   if(kind==='tonnetto'){
-    const mod=await import('https://cdn.jsdelivr.net/npm/tonnetto@1.0.2/+esm');
+    const mod=await import('https://cdn.jsdelivr.net/npm/tonnetto@1.0.2/dist/index.js');
     nativeEngine={kind,Engine:mod.default||mod.TonnettoEngine||mod};
   }else if(kind==='jce'){
     const mod=await import('https://esm.sh/js-chess-engine@2.4.6');
