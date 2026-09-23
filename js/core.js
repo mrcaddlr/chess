@@ -14,8 +14,8 @@ let moveRecords=[], reviewState=null, reviewRunning=false, lastReviewedEpoch=-1,
 
 
 function log(msg){const line=new Date().toLocaleTimeString()+'  '+String(msg);const el=document.getElementById('log');if(el)el.textContent=(line+'\\n'+el.textContent).slice(0,24000)}
-window.addEventListener('error',e=>log('ERROR: '+(e.message||'unknown error')+' @ '+(e.filename||'inline')+':'+(e.lineno||'?')));
-window.addEventListener('unhandledrejection',e=>log('ERROR: unhandled promise rejection: '+(e.reason?.message||String(e.reason||'unknown'))));
+if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('error',e=>log('ERROR: '+(e.message||'unknown error')+' @ '+(e.filename||'inline')+':'+(e.lineno||'?')));
+if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('unhandledrejection',e=>log('ERROR: unhandled promise rejection: '+(e.reason?.message||String(e.reason||'unknown'))));
 function toast(msg){const e=document.getElementById('toast');if(!e)return;e.textContent=msg;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),1800)}
 function setStatus(a,b,progress=null){const main=document.getElementById('statusMain'),sub=document.getElementById('statusSub'),bar=document.getElementById('progressBar');if(main)main.textContent=a;if(sub)sub.textContent=b;if(progress!==null&&bar)bar.style.width=Math.max(0,Math.min(100,progress))+'%'}
 function positionKey(c){const p=c.fen().split(' ');return [p[0],p[1],p[2],p[3]].join(' ')}
