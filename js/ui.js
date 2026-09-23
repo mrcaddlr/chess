@@ -1,4 +1,66 @@
-/* Panels, moves, review and status rendering */
+/* Theme preferences */
+(function(){
+  const root=document.documentElement;
+  const $=id=>document.getElementById(id);
+  const uiThemes=['sakura','catppuccin','ocean','mint','lavender','sunset','mono'];
+  const boardThemes=['classic','catppuccin','rose','ocean','mint','lavender','mono'];
+  function read(key,fallback){try{return localStorage.getItem(key)||fallback}catch(e){return fallback}}
+  function write(key,value){try{localStorage.setItem(key,value)}catch(e){}}
+  function applyTheme(theme){
+    const t=theme==='dark'?'dark':'light';
+    root.dataset.theme=t;
+    const meta=document.querySelector('meta[name="theme-color"]');
+    if(meta)meta.content=t==='dark'?'#1e1e2e':'#fff8fc';
+    write('chess-theme',t);
+  }
+  function applyUiTheme(theme){
+    const t=uiThemes.includes(theme)?theme:'sakura';
+    root.dataset.uiTheme=t;
+    write('chess-ui-theme',t);
+    const s=$('uiThemeSelect');if(s)s.value=t;
+    root.classList.remove('theme-pulse');void root.offsetWidth;root.classList.add('theme-pulse');
+  }
+  function applyBoardTheme(theme){
+    const t=boardThemes.includes(theme)?theme:'classic';
+    root.dataset.boardTheme=t;
+    write('chess-board-theme',t);
+    const s=$('boardThemeSelect');if(s)s.value=t;
+  }
+  function openThemes(){const m=$('themeModal');if(m)m.classList.add('open')}
+  function closeThemes(){const m=$('themeModal');if(m)m.classList.remove('open')}
+  const savedTheme=read('chess-theme','light');
+  const savedUi=read('chess-ui-theme','sakura');
+  const savedBoard=read('chess-board-theme','classic');
+  applyTheme(savedTheme);applyUiTheme(savedUi);applyBoardTheme(savedBoard);
+
+  $('themeSettings')?.addEventListener('click',openThemes);
+  $('closeThemeSettings')?.addEventListener('click',closeThemes);
+  $('themeModal')?.addEventListener('click',e=>{if(e.target===$('themeModal'))closeThemes()});
+  $('uiThemeSelect')?.addEventListener('change',e=>applyUiTheme(e.target.value));
+  $('boardThemeSelect')?.addEventListener('change',e=>applyBoardTheme(e.target.value));
+  $('themeLight')?.addEventListener('click',()=>applyTheme('light'));
+  $('themeDark')?.addEventListener('click',()=>applyTheme('dark'));
+
+  $('clearLog')?.addEventListener('click',()=>{$('log').textContent='';log('log cleared')});
+
+  $('startTraining')?.addEventListener('click',()=>trainBatch().catch(e=>{log('training launch error: '+e.message);setStatus('error','training failed to start',0)}));
+  $('stopTraining')?.addEventListener('click',()=>{cancelRequested=true;cancelEngine();training=false;busy=false;setStatus('paused','training stopped',0);renderStats();toast('training stopped')});
+  $('playMatch')?.addEventListener('click',()=>playMatch().catch(e=>{busy=false;log('Play error: '+e.message);setStatus('error',e.message,0);renderAll()}));
+  $('simulateMove')?.addEventListener('click',()=>simulateOneMove().catch(e=>{busy=false;log('1 move error: '+e.message);setStatus('error',e.message,0);renderAll()}));
+  $('newGame')?.addEventListener('click',()=>newGame());
+  $('flip')?.addEventListener('click',()=>{flipped=!flipped;renderBoard()});
+  $('stopTrain')?.addEventListener('click',()=>{cancelEngine();training=false;busy=false;setStatus('paused','stopped');renderAll();toast('stopped')});
+  $('trainingMode')?.addEventListener('change',()=>{const e=$('targetEloField');if(e)e.style.display=$('trainingMode').value==='target'?'grid':'none';renderStats()});
+  $('trainOpponent')?.addEventListener('change',()=>{const e=$('mixRatioField');if(e)e.style.display=$('trainOpponent').value==='mix'?'grid':'none'});
+  $('matchType')?.addEventListener('change',()=>{const type=$('matchType').value;$('engineField').style.display=type==='learner-engine'?'grid':'none';updateMatchBadge();setStatus('ready','press Play to randomize sides and start the match',0)});
+  $('engineSelect')?.addEventListener('change',async()=>{selectedEngine=$('engineSelect').value;$('customEngineField').style.display=selectedEngine==='custom-wasm'?'grid':'none';matchEpoch++;setEngineUi('loading '+engineDisplayLabel(),false);await createStockfish(true);updateMatchBadge();setStatus(stockfishReady?'ready':'engine unavailable',stockfishReady?engineDisplayLabel()+' ready':'could not start '+engineDisplayLabel(),0)});
+  $('customEngineUrl')?.addEventListener('change',async()=>{if(selectedEngine==='custom-wasm'){matchEpoch++;await createStockfish(true)}});
+  $('saveBrain')?.addEventListener('click',()=>saveBrain());$('loadBrain')?.addEventListener('click',loadBrain);$('resetBrain')?.addEventListener('click',resetBrain);$('exportBrain')?.addEventListener('click',exportBrain);$('importBrain')?.addEventListener('click',importBrain);
+  $('promoModal')?.addEventListener('click',e=>{if(e.target.id==='promoModal')e.currentTarget.classList.remove('open')});
+
+  const tm=$('trainingMode');if(tm){const e=$('targetEloField');if(e)e.style.display=tm.value==='target'?'grid':'none'}
+  const to=$('trainOpponent');if(to){const e=$('mixRatioField');if(e)e.style.display=to.value==='mix'?'grid':'none'}
+})();/* Panels, moves, review and status rendering */
 function renderMoves(){const list=document.getElementById('moveList'),hist=game.history();list.innerHTML='';for(let i=0;i<hist.length;i++){const d=document.createElement('div');d.className='move';const q=moveRecords[i]?.quality||'';const pd=moveRecords[i]?.pointDelta;d.innerHTML='<b>'+((i>>1)+1)+(i%2?'...':'.')+'</b>'+hist[i]+(q?' <span style="float:right;font-weight:900">'+q+(Number.isFinite(pd)?' '+(pd>=0?'+':'')+pd:'')+'</span>':'');list.appendChild(d)}document.getElementById('moveCount').textContent=hist.length+' plies'}
 
 function renderReview(){const b=document.getElementById('reviewBadge'),s=document.getElementById('reviewSummary'),g=document.getElementById('reviewGrid');if(!reviewState){b.textContent='not reviewed';s.textContent='when a game ends, the system checks the moves and feeds the feedback back into the learner.';g.innerHTML='';return}if(reviewState.running){b.textContent='reviewing';s.textContent=reviewState.text||'checking the finished game with Stockfish…';g.innerHTML='';return}b.textContent=reviewState.accuracy+'% accuracy';s.textContent=reviewState.text;g.innerHTML='';for(const [k,v] of Object.entries(reviewState.counts)){const d=document.createElement('div');d.className='review-item';d.innerHTML='<b>'+v+'</b><span>'+k+'</span>';g.appendChild(d)}}
