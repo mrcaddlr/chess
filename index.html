@@ -121,7 +121,7 @@ body{background:var(--bg);background-image:radial-gradient(circle at 12% 0%,rgba
 'use strict';
 const PIECES={wp:'♙',wn:'♘',wb:'♗',wr:'♖',wq:'♕',wk:'♔',bp:'♟',bn:'♞',bb:'♝',br:'♜',bq:'♛',bk:'♚'};
 const FILES='abcdefgh';
-const CONFIG={version:'0.6.9',input:832,hidden1:96,hidden2:64,policy:4352,replayMax:12000,lr:0.0025,valueWeight:.55,policyWeight:1.0};
+const CONFIG={version:'0.6.10',input:832,hidden1:96,hidden2:64,policy:4352,replayMax:12000,lr:0.0025,valueWeight:.55,policyWeight:1.0};
 let game=new Chess(), flipped=false, selected=null, legalMoves=[], lastMove=null, busy=false, botWhite='learner', botBlack='learner', training=false, trainTimer=null, cancelRequested=false;
 let repetition=new Map(), replay=[], games=0, steps=0, generation=0, evalRecord=null, points=0, repetitionDetections=0;
 let brain=null, matchBrainWhite=null, matchBrainBlack=null, stockfishWorker=null, stockfishReady=false, stockfishLoading=false, stockfishQueue=[], matchEpoch=0, matchNonce=0;
@@ -221,36 +221,73 @@ function mutateBrain(base,rate,strength,seed){
   return n;
 }
 async function evaluateMutations(candidates,best,sims,matches){
-  const cores=navigator.hardwareConcurrency||4;
-  const workerCount=Math.min(candidates.length,Math.max(1,Math.min(12,cores)));
-  stopFastWorkers();
-  const bestData=cloneBrainData(best);
-  return await new Promise(resolve=>{
-    let next=0,done=0,finished=false,results=new Array(candidates.length);
-    const finish=()=>{if(finished)return;finished=true;fastBatchAbort=null;stopFastWorkers();resolve(results.filter(Boolean))};
-    fastBatchAbort=()=>finish();
-    const launch=(w)=>{
-      if(finished)return;
-      const index=next++;
-      if(index>=candidates.length){return;}
-      const worker=makeFastWorker();fastWorkers.push(worker);
-      const mutationData=cloneBrainData(candidates[index]);
-      worker.onmessage=e=>{
-        if(e.data.type!=='matchDone')return;
-        results[index]={index,score:e.data.score,results:e.data.results,brain:candidates[index]};
-        done++;try{worker.terminate()}catch(err){}
-        if(done>=candidates.length){finish();return;}
-        launch(worker);
-      };
-      worker.onerror=err=>{
-        log('mutation worker failed: '+(err.message||'unknown worker error'));
-        done++;try{worker.terminate()}catch(e){}
-        if(done>=candidates.length)finish();else launch(worker);
-      };
-      worker.postMessage({type:'match',id:index,best:bestData,mutant:mutationData,count:matches,sims,flip:true});
-    };
-    for(let i=0;i<workerCount;i++)launch(null);
-  });
+  const results=[];
+  const safeMatches=Math.max(1,Math.min(8,Number(matches)||2));
+  const safeSims=Math.max(1,Math.min(16,Number(sims)||4));
+  for(let index=0;index<candidates.length;index++){
+    if(cancelRequested)break;
+    const candidate=candidates[index];
+    const gamesForCandidate=[];
+    let candidateScore=0;
+    for(let matchIndex=0;matchIndex<safeMatches;matchIndex++){
+      if(cancelRequested)break;
+      const candidateWhite=(matchIndex%2===0);
+      const whiteBrain=candidateWhite?candidate:best;
+      const blackBrain=candidateWhite?best:candidate;
+      let c=new Chess();
+      let hist=new Map([[positionKey(c),1]]);
+      let plies=0, repetitionHits=0, candidatePoints=0;
+      while(plies<300&&!cancelRequested){
+        if(isCheckmate(c)||isStalemate(c)||isInsufficientMaterial(c))break;
+        const f=c.fen().split(' ');
+        if(Number(f[4])>=100)break;
+        const side=c.turn();
+        const sideBrain=side==='w'?whiteBrain:blackBrain;
+        const before=c.fen();
+        let move=await learnerMove(c,safeSims,sideBrain,hist);
+        if(!move)break;
+        const repeated=moveCreatesRepetitionBreak(c,move,hist);
+        if(repeated){
+          repetitionHits++;
+          candidatePoints-=2;
+          const safe=safeRepetitionMove(c,move,sideBrain,hist);
+          if(safe.forcedDraw){
+            candidatePoints-=3;
+            break;
+          }
+          move=safe.move;
+          if(!move)break;
+        }
+        const mv=c.move({from:move.from,to:move.to,promotion:move.promotion});
+        if(!mv)break;
+        plies++;
+        const k=positionKey(c);
+        hist.set(k,(hist.get(k)||0)+1);
+        if((plies&7)===0)await new Promise(r=>setTimeout(r,0));
+      }
+      const raw=terminalValue(c);
+      let result=raw===null?0:raw;
+      const candidateResult=candidateWhite?result:-result;
+      if(raw!==null){
+        if(candidateResult>0)candidatePoints+=20;
+        else if(candidateResult<0)candidatePoints-=20;
+      }
+      candidateScore+=candidateResult*100+candidatePoints*0.25;
+      gamesForCandidate.push({
+        result:candidateResult,
+        moves:plies,
+        pointsWhite:candidateWhite?candidatePoints:0,
+        pointsBlack:candidateWhite?0:candidatePoints,
+        repetitionDetections:repetitionHits,
+        before
+      });
+    }
+    results.push({index,score:candidateScore/Math.max(1,gamesForCandidate.length),results:gamesForCandidate,brain:candidate});
+    setStatus('training','evaluated mutation '+(index+1)+' / '+candidates.length+' · '+gamesForCandidate.length+' matches',Math.min(95,10+85*((index+1)/candidates.length)));
+    log('mutation '+index+' evaluated · score '+(candidateScore/Math.max(1,gamesForCandidate.length)).toFixed(2)+' · '+gamesForCandidate.length+' matches');
+    await new Promise(r=>setTimeout(r,0));
+  }
+  return results;
 }
 async function trainBatch(){
   if(training)return;
@@ -288,43 +325,35 @@ async function trainBatch(){
   }catch(e){log('training error: '+e.message);setStatus('error','training failed · '+e.message,0);toast('training failed')}
   finally{fastBatchAbort=null;stopFastWorkers();training=false;busy=false;renderStats();if(!isGameOver(game))setStatus(cancelRequested?'paused':'ready',cancelRequested?'training stopped':'generation '+generation+' · '+games+' matches',100)}
 }
-async function createStockfish(){
+async async function createStockfish(){
   if(stockfishWorker||stockfishLoading)return;
   stockfishLoading=true;
-  if(location.protocol==='file:'||location.origin==='null'){
-    stockfishLoading=false;
-    stockfishReady=false;
-    document.getElementById('enginePill').textContent='Stockfish needs web mode';
-    document.getElementById('onlineDot').style.background='var(--rose)';
-    log('Stockfish unavailable · this HTML is running from file:// (origin null)');
-    log('Stockfish 19 browser workers cannot be started from this file context');
-    log('Open the HTML through a local HTTP server, then reload the page');
-    return;
-  }
   const urls=[
-    'https://unpkg.com/stockfish@19.0.0/bin/stockfish-19-asm.js',
     'https://cdn.jsdelivr.net/npm/stockfish@19.0.0/bin/stockfish-19-asm.js',
-    'https://unpkg.com/stockfish@19.0.0/bin/stockfish-19-lite-single.js',
-    'https://cdn.jsdelivr.net/npm/stockfish@19.0.0/bin/stockfish-19-lite-single.js'
+    'https://unpkg.com/stockfish@19.0.0/bin/stockfish-19-asm.js'
   ];
   for(const url of urls){
-    let worker=null;
+    let worker=null,blobUrl=null;
     try{
       const file=url.split('/').pop();
-      log('loading Stockfish 19: '+file);
-      // Stockfish's browser builds are already worker scripts. Do not wrap
-      // them in a Blob worker + importScripts: that creates the exact
-      // cross-origin failure seen in the terminal and breaks relative WASM.
-      worker=new Worker(url);
+      log('fetching Stockfish 19: '+file);
+      const response=await fetch(url,{mode:'cors',cache:'no-store'});
+      if(!response.ok)throw new Error('HTTP '+response.status);
+      const source=await response.text();
+      if(!source||source.length<10000)throw new Error('engine source was empty or incomplete');
+      blobUrl=URL.createObjectURL(new Blob([source],{type:'application/javascript'}));
+      worker=new Worker(blobUrl);
       stockfishWorker=worker;
       let settled=false;
-      const readyTimer=setTimeout(()=>{
+      const fail=msg=>{
         if(settled)return;
         settled=true;
-        log('Stockfish timeout waiting for uciok: '+file);
+        log(msg);
         try{worker.terminate()}catch(e){}
         if(stockfishWorker===worker)stockfishWorker=null;
-      },15000);
+        if(blobUrl)URL.revokeObjectURL(blobUrl);
+      };
+      const readyTimer=setTimeout(()=>fail('Stockfish timeout waiting for uciok: '+file),20000);
       worker.onmessage=e=>{
         const d=typeof e.data==='string'?e.data:'';
         if(d.includes('uciok')){
@@ -334,22 +363,22 @@ async function createStockfish(){
           stockfishLoading=false;
           document.getElementById('enginePill').textContent='Stockfish ready';
           document.getElementById('onlineDot').style.background='var(--green)';
-          log('Stockfish 19 ready · '+file);
-          try{worker.postMessage('isready')}catch(err){log('Stockfish isready error: '+err.message)}
+          log('Stockfish 19 ready · '+file+' · loaded through a same-origin Blob worker');
+          try{worker.postMessage('isready')}catch(err){}
           return;
         }
         if(analysisActive){
           if(d.startsWith('info ')){
-            const m=d.match(/score\s+(cp|mate)\s+(-?\d+)/);
+            const m=d.match(/score\\s+(cp|mate)\\s+(-?\\d+)/);
             if(m){const n=Number(m[2]);analysisActive.score=m[1]==='mate'?(n>0?100000:-100000):n;}
           }
           if(d.startsWith('bestmove')){
             const a=analysisActive;analysisActive=null;
-            a.resolve({score:a.score??0,best:d.split(/\s+/)[1]||null});
+            a.resolve({score:a.score??0,best:d.split(/\\s+/)[1]||null});
           }
         }
         if(d.startsWith('bestmove')){
-          const m=d.split(/\s+/)[1];
+          const m=d.split(/\\s+/)[1];
           const q=stockfishQueue.shift();
           stockfishActiveResolve=null;
           if(q)q(m);
@@ -357,26 +386,24 @@ async function createStockfish(){
       };
       worker.onerror=e=>{
         clearTimeout(readyTimer);
-        if(!settled){settled=true;log('Stockfish worker error for '+file+': '+(e.message||'worker failed'));}
-        stockfishReady=false;
-        try{worker.terminate()}catch(err){}
-        if(stockfishWorker===worker)stockfishWorker=null;
+        fail('Stockfish worker error for '+file+': '+(e.message||'worker failed'));
       };
       worker.postMessage('uci');
-      await new Promise(r=>setTimeout(r,350));
+      await new Promise(resolve=>setTimeout(resolve,500));
       if(stockfishReady&&stockfishWorker===worker)return;
-      if(stockfishWorker===worker&&!stockfishReady){try{worker.terminate()}catch(e){}stockfishWorker=null;}
+      if(stockfishWorker===worker&&!stockfishReady)fail('Stockfish did not initialize: '+file);
     }catch(e){
       log('Stockfish source failed for '+url+': '+e.message);
       try{if(worker)worker.terminate()}catch(err){}
       if(stockfishWorker===worker)stockfishWorker=null;
+      if(blobUrl)URL.revokeObjectURL(blobUrl);
     }
   }
   stockfishLoading=false;
   stockfishReady=false;
   document.getElementById('enginePill').textContent='Stockfish unavailable';
   document.getElementById('onlineDot').style.background='var(--rose)';
-  log('Stockfish unavailable · all remote engine workers failed to load');
+  log('Stockfish unavailable · CDN fetch/engine initialization failed');
 }
 function expectedPoints(cp){const x=Math.max(-1200,Math.min(1200,cp))/180;return 1/(1+Math.exp(-x))}
 function pieceValue(t){return ({p:1,n:3,b:3,r:5,q:9,k:0})[t]||0}
