@@ -35,7 +35,7 @@ async function buildBundledEngineWorker(engineUrl){
     let total=0;
 
     for(let i=0;i<parts.length;i++){
-      const part=String(parts[i]||'').replace(/^\\/+/, '');
+      const part=String(parts[i]||'').replace(/^\/+/, '');
       const url=new URL('stockfish/'+part,document.baseURI);
       url.searchParams.set('v','0.31.12');
       const r=await fetch(url.href,{cache:'no-store'});
