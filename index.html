@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#fff8fc">
 <title>Chess Learning Lab 0.17.0 · KWII</title>
-<link rel="stylesheet" href="css/style.css?v=0.29.0">
-<link rel="stylesheet" href="css/layout-fix.css?v=0.29.0">
-<script src="js/chess.js?v=0.29.0"></script>
+<link rel="stylesheet" href="css/style.css?v=0.30.0">
+<link rel="stylesheet" href="css/layout-fix.css?v=0.30.0">
+<script src="js/chess.js?v=0.30.0"></script>
 </head>
 <body>
 <div class="app">
@@ -22,8 +22,8 @@
       <div class="match-layout">
         <div class="match-board">
       <div class="players" aria-label="Players">
-        <div class="player-card white" id="whitePlayerCard"><div><div class="side-name">White</div><div class="player-name" id="whitePlayerName">Learner</div></div><div class="piece-dot">♔</div></div>
-        <div class="player-card black" id="blackPlayerCard"><div><div class="side-name">Black</div><div class="player-name" id="blackPlayerName">Learner</div></div><div class="piece-dot">♚</div></div>
+        <div class="player-card white" id="whitePlayerCard"><div><div class="side-name">White</div><div class="player-name" id="whitePlayerName">Learner</div></div><div class="piece-dot">[+]</div></div>
+        <div class="player-card black" id="blackPlayerCard"><div><div class="side-name">Black</div><div class="player-name" id="blackPlayerName">Learner</div></div><div class="piece-dot">[#]</div></div>
       </div>
       <div class="board-wrap"><div class="board" id="board" aria-label="Chess board"></div></div>
       <div class="controls">
@@ -92,22 +92,22 @@
 
 <script>
 if('serviceWorker' in navigator && location.protocol==='https:'){
-  navigator.serviceWorker.register('./coi-service-worker.js?v=0.29.0',{scope:'./'}).then(reg=>{
+  navigator.serviceWorker.register('./coi-service-worker.js?v=0.30.0',{scope:'./'}).then(reg=>{
     if(!window.crossOriginIsolated && navigator.serviceWorker.controller){reg.update().catch(()=>{});location.reload();}
     else if(!window.crossOriginIsolated){navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!sessionStorage.getItem('coi-reloaded')){sessionStorage.setItem('coi-reloaded','1');location.reload();}},{once:true});}
   }).catch(e=>console.warn('isolation worker:',e));
 }
 </script>
-<script src="js/repetition.js?v=0.29.0"></script>
-<script src="js/core.js?v=0.29.0"></script>
-<script src="js/learner.js?v=0.29.0"></script>
-<script src="js/training.js?v=0.29.0"></script>
-<script src="js/engine.js?v=0.29.0"></script>
-<script src="js/review.js?v=0.29.0"></script>
-<script src="js/board.js?v=0.29.0"></script>
-<script src="js/match.js?v=0.29.0"></script>
-<script src="js/ui.js?v=0.29.0"></script>
-<script src="js/storage.js?v=0.29.0"></script>
-<script src="js/app.js?v=0.29.0"></script>
+<script src="js/repetition.js?v=0.30.0"></script>
+<script src="js/core.js?v=0.30.0"></script>
+<script src="js/learner.js?v=0.30.0"></script>
+<script src="js/training.js?v=0.30.0"></script>
+<script src="js/engine.js?v=0.30.0"></script>
+<script src="js/review.js?v=0.30.0"></script>
+<script src="js/board.js?v=0.30.0"></script>
+<script src="js/match.js?v=0.30.0"></script>
+<script src="js/ui.js?v=0.30.0"></script>
+<script src="js/storage.js?v=0.30.0"></script>
+<script src="js/app.js?v=0.30.0"></script>
 </body>
 </html>
