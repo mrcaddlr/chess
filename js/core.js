@@ -18,23 +18,16 @@ if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener(
 if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('unhandledrejection',e=>log('ERROR: unhandled promise rejection: '+(e.reason?.message||String(e.reason||'unknown'))));
 function toast(msg){const e=document.getElementById('toast');if(!e)return;e.textContent=msg;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),1800)}
 function setStatus(a,b,progress=null){const main=document.getElementById('statusMain'),sub=document.getElementById('statusSub'),bar=document.getElementById('progressBar');if(main)main.textContent=a;if(sub)sub.textContent=b;if(progress!==null&&bar)bar.style.width=Math.max(0,Math.min(100,progress))+'%'}
-function positionKey(c){const p=c.fen().split(' ');return [p[0],p[1],p[2],p[3]].join(' ')}
 function isCheckmate(c){return typeof c.isCheckmate==='function'?c.isCheckmate():typeof c.in_checkmate==='function'?c.in_checkmate():false}
 function isStalemate(c){return typeof c.isStalemate==='function'?c.isStalemate():typeof c.in_stalemate==='function'?c.in_stalemate():false}
 function isInsufficientMaterial(c){return typeof c.isInsufficientMaterial==='function'?c.isInsufficientMaterial():typeof c.insufficient_material==='function'?c.insufficient_material():false}
 function isGameOver(c){if(isCheckmate(c)||isStalemate(c)||isInsufficientMaterial(c))return true;const f=c.fen().split(' ');return Number(f[4])>=100||repetitionForcedDraw}
 function isInCheck(c){return typeof c.isCheck==='function'?c.isCheck():typeof c.in_check==='function'?c.in_check():false}
-function recordPosition(c){const k=positionKey(c),n=(repetition.get(k)||0)+1;repetition.set(k,n);return n}
-function resetRepetition(){repetition=new Map();repetitionForcedDraw=false;repetitionDetections=0;recordPosition(game)}
-let repetitionForcedDraw=false;
 function drawReason(c){if(repetitionForcedDraw)return 'repetition';if(isStalemate(c))return 'stalemate';if(isInsufficientMaterial(c))return 'insufficient material';const f=c.fen().split(' ');if(Number(f[4])>=100)return '50-move rule';return null}
 function result(c){if(isCheckmate(c))return c.turn()==='w'?-1:1;const d=drawReason(c);return d?0:null}
 function terminalText(c){if(isCheckmate(c))return 'checkmate';const d=drawReason(c);if(d)return 'draw · '+d;return null}
 function positionStatus(c){if(terminalText(c))return terminalText(c);if(isInCheck(c))return 'check';return null}
-function terminalPosition(c,hist){if(isCheckmate(c)||isStalemate(c)||isInsufficientMaterial(c))return true;const f=c.fen().split(' ');if(Number(f[4])>=100)return true;return false}
-function moveCreatesRepetitionBreak(c,m,hist){if(!hist)return false;const mv=c.move({from:m.from,to:m.to,promotion:m.promotion});if(!mv)return true;const k=positionKey(c),would=(hist.get(k)||0)+1;c.undo();return would>=4}
-function safeRepetitionMove(c,proposed,learnerBrain,hist){const legal=c.moves({verbose:true});if(!legal.length)return {move:null,forcedDraw:false,detected:false};if(proposed&&!moveCreatesRepetitionBreak(c,proposed,hist))return {move:proposed,forcedDraw:false,detected:false};const safe=legal.filter(m=>!moveCreatesRepetitionBreak(c,m,hist));if(!safe.length)return {move:null,forcedDraw:true,detected:true};if(!learnerBrain)return {move:safe[Math.floor(Math.random()*safe.length)],forcedDraw:false,detected:true};const pred=learnerBrain.predict(encode(c),safe.map(actionIndex));let best=safe[0],bs=-Infinity;for(let i=0;i<safe.length;i++){const sc=pred.policy[actionIndex(safe[i])];if(sc>bs){bs=sc;best=safe[i]}}return {move:best,forcedDraw:false,detected:true}}
-
+function terminalPosition(c){if(isCheckmate(c)||isStalemate(c)||isInsufficientMaterial(c))return true;const f=c.fen().split(' ');return Number(f[4])>=100||repetitionForcedDraw}
 
 class RNG{constructor(seed=Date.now()){this.s=seed>>>0}next(){let x=this.s;x^=x<<13;x^=x>>>17;x^=x<<5;this.s=x>>>0;return this.s/4294967296}gauss(){let a=Math.max(1e-9,this.next()),b=this.next();return Math.sqrt(-2*Math.log(a))*Math.cos(Math.PI*2*b)}}
 
