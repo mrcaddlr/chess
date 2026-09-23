@@ -909,3 +909,77 @@ body::before{width:100%!important;height:100%!important;inset:0!important;border
 .piece.black-piece{color:#7ee787!important}
 .player-card .piece-dot{font-size:19px!important}
 .promo{font-size:18px!important}
+
+
+/* 0.31.0 — terminal motion cleanup */
+.player-card .piece-dot{
+  display:none!important;
+  width:0!important;
+  height:0!important;
+  padding:0!important;
+  margin:0!important;
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+}
+
+/* kill decorative floating/pulsing motion */
+*,*::before,*::after{
+  animation:none!important;
+}
+.workspace,.status-card,.training-visual-panel .flow-box,.learning-flow>i,
+.brand-mark,.btn,.badge,.log,.network .net-node{
+  animation:none!important;
+  transform:none!important;
+  filter:none!important;
+}
+.panel:hover,.status-card:hover,.flow-box:hover,.stat:hover,.review-item:hover,
+.btn:hover,.btn:active{
+  transform:none!important;
+}
+.btn.primary{
+  animation:none!important;
+  box-shadow:none!important;
+}
+.training-visual-panel.is-training .flow-box,
+.training-visual-panel.is-training .learning-flow>i,
+.training-visual-panel.is-training .live-top b,
+.training-visual-panel.is-training .live-rate b{
+  animation:none!important;
+  transform:none!important;
+  filter:none!important;
+}
+.training-visual-panel.is-training .activity-track i,
+.training-visual-panel.is-training .bar>i{
+  animation:none!important;
+  filter:none!important;
+}
+body::before{
+  animation:none!important;
+}
+body::after{
+  animation:none!important;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(126,231,135,.025) 0px,
+      rgba(126,231,135,.025) 1px,
+      rgba(0,0,0,.06) 2px,
+      rgba(0,0,0,.06) 4px
+    )!important;
+  opacity:.45!important;
+  box-shadow:inset 0 0 70px rgba(0,0,0,.45)!important;
+}
+
+/* the only decorative animation: a terminal cursor */
+.terminal-titlebar span:first-child::after{
+  content:"█"!important;
+  display:inline-block!important;
+  margin-left:4px!important;
+  color:#7ee787!important;
+  animation:terminalCursor .9s steps(1,end) infinite!important;
+}
+@keyframes terminalCursor{
+  0%,49%{opacity:1}
+  50%,100%{opacity:0}
+}
