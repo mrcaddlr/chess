@@ -306,7 +306,7 @@ html[data-ui-theme] .review-item{background:var(--stat);border-color:var(--line)
 .square{aspect-ratio:1 / 1;min-width:0;min-height:0;overflow:hidden}
 
 /* Give the match settings column some breathing room. */
-.match-layout{grid-template-columns:minmax(0,1fr) 340px}
+.match-layout{grid-template-columns:minmax(0,1fr) 420px}
 .match-board .board-wrap{width:min(560px,100%)}
-@media(max-width:1050px){.match-layout{grid-template-columns:minmax(0,1fr) 310px}}
+@media(max-width:1050px){.match-layout{grid-template-columns:minmax(0,1fr) 360px}}
 @media(max-width:800px){.match-layout{grid-template-columns:1fr}.match-board .board-wrap{width:min(560px,100%)}}
