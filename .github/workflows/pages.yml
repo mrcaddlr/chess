@@ -25,17 +25,28 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v5
-      - name: Download Stockfish 19 browser engine
+      - name: Download selectable chess engines
         run: |
           set -e
           mkdir -p stockfish
-          curl -fL --retry 3 --retry-delay 2 https://registry.npmjs.org/stockfish/-/stockfish-19.0.0.tgz -o /tmp/stockfish.tgz
-          tar -xzf /tmp/stockfish.tgz -C /tmp
-          cp /tmp/package/bin/stockfish-19-lite-single.js stockfish/
-          cp /tmp/package/bin/stockfish-19-lite-single.wasm stockfish/
-          cp /tmp/package/Copying.txt stockfish/Copying.txt
-          test -s stockfish/stockfish-19-lite-single.js
-          test -s stockfish/stockfish-19-lite-single.wasm
+          download_engine() {
+            version="$1"
+            files="$2"
+            url="https://registry.npmjs.org/stockfish/-/stockfish-${version}.tgz"
+            dir="/tmp/stockfish-${version}"
+            rm -rf "$dir"
+            mkdir -p "$dir"
+            curl -fL --retry 3 --retry-delay 2 "$url" -o "/tmp/stockfish-${version}.tgz"
+            tar -xzf "/tmp/stockfish-${version}.tgz" -C "$dir"
+            for file in $files; do
+              cp "$dir/package/bin/$file" stockfish/
+              test -s "stockfish/$file"
+            done
+          }
+          download_engine "19.0.0" "stockfish-19-lite-single.js stockfish-19-lite-single.wasm stockfish-19-single.js stockfish-19-single.wasm"
+          download_engine "18.0.8" "stockfish-18-lite-single.js stockfish-18-lite-single.wasm"
+          download_engine "17.1.0" "stockfish-17.1-lite-single.js stockfish-17.1-lite-single.wasm"
+          cp /tmp/stockfish-19.0.0/package/Copying.txt stockfish/Copying.txt
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
