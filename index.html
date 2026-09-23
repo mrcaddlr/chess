@@ -17,7 +17,7 @@
 
   <main class="dashboard">
     <section class="workspace match-workspace">
-      <div class="workspace-head"><div><span class="eyebrow">PLAY</span><h2>match</h2><p>run the learner against itself, an engine, or you.</p></div><span class="badge" id="modeBadge">learner vs learner</span></div>
+      <div class="workspace-head"><div><span class="eyebrow">PLAY</span><h2>match</h2><p>run the learner against itself, an engine, or you.</p></div></div>
       <div class="match-layout">
         <div class="match-board">
       <div class="players" aria-label="Players">
@@ -30,7 +30,6 @@
         <button class="btn secondary" id="flip">Flip board</button>
         <button class="btn green" id="playMatch">Play</button>
         <button class="btn secondary" id="simulateMove">1 move</button>
-        <button class="btn" id="stopTrain">Stop</button>
       </div></div>
         <div class="match-tools">
                 <section class="status-card">
@@ -52,7 +51,7 @@
       </div>
     </section>
     <section class="workspace training-workspace">
-      <div class="workspace-head"><div><span class="eyebrow">LEARN</span><h2>training</h2><p>turn played positions into better weights.</p></div><span class="badge" id="generationBadge">gen 0</span></div>
+      <div class="workspace-head"><div><span class="eyebrow">LEARN</span><h2>training</h2><p>turn played positions into better weights.</p></div></div>
       <div class="training-layout">
         <div class="training-controls">      <section class="panel">
         <div class="panel-head"><h2>training</h2><span class="badge" id="generationBadge">gen 0</span></div><div class="stats"><div class="stat"><b id="trainingElo">—</b><span>estimated Elo</span></div><div class="stat"><b id="trainingTarget">—</b><span>target Elo</span></div><div class="stat"><b id="trainingSpeed">—</b><span>games/min</span></div><div class="stat"><b id="gamesStat">0</b><span>self-play games</span></div><div class="stat"><b id="stepsStat">0</b><span>training steps</span></div></div><div class="row" style="margin-bottom:8px"><button class="btn green" id="startTraining" style="flex:2;font-weight:900">Start training</button><button class="btn danger" id="stopTraining" style="flex:1;font-weight:900">Stop training</button></div>
