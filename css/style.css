@@ -201,3 +201,15 @@ select,input[type=number],input[type=url]{min-height:35px;padding:6px 9px;font-s
 @media(min-width:851px){.layout{grid-template-columns:minmax(430px,520px) minmax(0,1fr)}.side{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.side>.status-card,.side>.move-panel,.side>.review-panel,.side>.log-panel{grid-column:1/-1}.board-card{position:sticky;top:8px}.board{border-width:6px;border-radius:22px}}
 @media(max-width:850px){.app{padding:6px 8px 10px}.layout{gap:8px}.board-wrap{width:min(470px,100%)}.board-card{padding:8px}.side{gap:7px}}
 @media(max-width:560px){.app{padding:5px 6px 8px}.brand h1{font-size:17px}.brand-mark{width:36px;height:36px}.board-wrap{width:min(420px,100%)}.player-card{min-height:43px;padding:6px 8px}.player-card .player-name{font-size:10px}.player-card .piece-dot{width:27px;height:27px;font-size:15px}.btn{min-height:38px;font-size:8px}.panel,.status-card{padding:9px}.controls{gap:4px}.network{min-height:95px}}
+
+/* dark-mode theme correction: UI themes must remain dark instead of replacing the dark palette */
+html[data-theme="dark"][data-ui-theme]{--bg:#1e1e2e;--ink:#cdd6f4;--muted:#a6adc8;--line:#45475a;--white:#fff;--card:rgba(49,50,68,.94);--input:#313244;--stat:#292c3c;--move:#292c3c;--pink:#f38ba8;--pink-soft:#3b2631;--purple:#cba6f7;--purple-soft:#30283b;--cyan:#89dceb;--cyan-soft:#25363b;--mint:#a6e3a1;--mint-soft:#29392f;--yellow:#f9e2af;--yellow-soft:#3b3527;--coral:#fab387;--shadow:0 22px 60px rgba(0,0,0,.34);--soft-shadow:0 8px 24px rgba(0,0,0,.24)}
+html[data-theme="dark"][data-ui-theme] body{background:radial-gradient(700px 420px at -8% -8%,rgba(243,139,168,.16) 0,transparent 62%),radial-gradient(620px 420px at 108% 3%,rgba(203,166,247,.14) 0,transparent 62%),radial-gradient(600px 420px at 85% 110%,rgba(166,227,161,.10) 0,transparent 58%),#1e1e2e}
+html[data-theme="dark"][data-ui-theme] .board-card,html[data-theme="dark"][data-ui-theme] .status-card,html[data-theme="dark"][data-ui-theme] .panel,html[data-theme="dark"][data-ui-theme] .player-card{background:var(--card);color:var(--ink);border-color:var(--line)}
+html[data-theme="dark"][data-ui-theme] .btn,html[data-theme="dark"][data-ui-theme] .theme-settings,html[data-theme="dark"][data-ui-theme] .pill{background:var(--card);color:var(--ink);border-color:var(--line)}
+html[data-theme="dark"][data-ui-theme] select,html[data-theme="dark"][data-ui-theme] input[type="number"],html[data-theme="dark"][data-ui-theme] input[type="url"]{background:var(--input);color:var(--ink);border-color:var(--line)}
+html[data-theme="dark"][data-ui-theme] .stat{background:var(--stat);border-color:var(--line)}
+html[data-theme="dark"][data-ui-theme] .move{background:var(--move);color:var(--ink)}
+html[data-theme="dark"][data-ui-theme] .modal-box{background:var(--card);color:var(--ink)}
+html[data-theme="dark"][data-ui-theme] .tiny,html[data-theme="dark"][data-ui-theme] .field label,html[data-theme="dark"][data-ui-theme] .side-name{color:var(--muted)}
+html[data-theme="dark"][data-ui-theme] .btn.primary{color:#fff}
