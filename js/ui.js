@@ -73,7 +73,7 @@ function recordMove(fenBefore,mv,actor){
 
 function renderTrainingVisual(){const root=document.getElementById('networkVisual');if(!root)return;const layers=[{n:12,label:'832 input'},{n:24,label:'256 trunk'},{n:24,label:'3 residual blocks'},{n:32,label:'policy + value'}];if(!root.dataset.ready){root.innerHTML='';layers.forEach((l,li)=>{const col=document.createElement('div');col.className='net-layer';for(let j=0;j<l.n;j++){const node=document.createElement('span');node.className='net-node';node.style.setProperty('--d',(j*35+li*70)+'ms');col.appendChild(node)}const lab=document.createElement('small');lab.textContent=l.label;col.appendChild(lab);root.appendChild(col)});root.dataset.ready='1'}const active=training;root.classList.toggle('active',active);const state=document.getElementById('brainState');if(state)state.textContent=active?'learning':'idle';root.style.setProperty('--pulse',Math.min(1,trainingSpeed/20).toFixed(2));}
 function renderTrainingLive(){
-  const panel=document.querySelector('.training-visual-panel');
+  const panel=document.querySelector('.training-controls-panel');
   if(!panel)return;
   panel.classList.toggle('is-training',!!training);
   const s=trainingLiveState||{};
