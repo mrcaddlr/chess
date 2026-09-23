@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#fff8fc">
-<title>Chess Learning Lab 0.31.11 · KWII</title>
-<link rel="stylesheet" href="css/style.css?v=0.31.11">
-<link rel="stylesheet" href="css/layout-fix.css?v=0.31.11">
-<script src="js/chess.js?v=0.31.11"></script>
+<title>Chess Learning Lab 0.31.12 · KWII</title>
+<link rel="stylesheet" href="css/style.css?v=0.31.12">
+<link rel="stylesheet" href="css/layout-fix.css?v=0.31.12">
+<script src="js/chess.js?v=0.31.12"></script>
 </head>
 <body><div class="crt-overlay" aria-hidden="true"></div>
 <div class="app">
   <header class="topbar">
-    <div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" role="img"><path d="M12 39h24M16 35h16l-2-7c3-2 5-5 5-9 0-5-3-9-8-11l-3-3-4 3 2 4c-5 1-8 5-8 10 0 4 2 7 5 9l-3 4z" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 13l5-3 5 3" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><h1>Chess Learning Lab</h1><p>tiny moves · big ideas · one growing chess mind</p></div></div>
+    <div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" role="img"><text x="24" y="39" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="38" font-weight="700" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" paint-order="stroke">♘</text></svg></div><div><h1>Chess Learning Lab</h1><p>tiny moves · big ideas · one growing chess mind</p></div></div>
     <div class="top-actions"><div class="pill"><i class="dot" id="onlineDot"></i><span id="enginePill">learner ready</span></div></div>
   </header>
 
@@ -93,22 +93,22 @@
 
 <script>
 if('serviceWorker' in navigator && location.protocol==='https:'){
-  navigator.serviceWorker.register('./coi-service-worker.js?v=0.31.11',{scope:'./'}).then(reg=>{
+  navigator.serviceWorker.register('./coi-service-worker.js?v=0.31.12',{scope:'./'}).then(reg=>{
     if(!window.crossOriginIsolated && navigator.serviceWorker.controller){reg.update().catch(()=>{});location.reload();}
     else if(!window.crossOriginIsolated){navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!sessionStorage.getItem('coi-reloaded')){sessionStorage.setItem('coi-reloaded','1');location.reload();}},{once:true});}
   }).catch(e=>console.warn('isolation worker:',e));
 }
 </script>
-<script src="js/repetition.js?v=0.31.11"></script>
-<script src="js/core.js?v=0.31.11"></script>
-<script src="js/learner.js?v=0.31.11"></script>
-<script src="js/training.js?v=0.31.11"></script>
-<script src="js/engine.js?v=0.31.11"></script>
-<script src="js/review.js?v=0.31.11"></script>
-<script src="js/board.js?v=0.31.11"></script>
-<script src="js/match.js?v=0.31.11"></script>
-<script src="js/ui.js?v=0.31.11"></script>
-<script src="js/storage.js?v=0.31.11"></script>
-<script src="js/app.js?v=0.31.11"></script>
+<script src="js/repetition.js?v=0.31.12"></script>
+<script src="js/core.js?v=0.31.12"></script>
+<script src="js/learner.js?v=0.31.12"></script>
+<script src="js/training.js?v=0.31.12"></script>
+<script src="js/engine.js?v=0.31.12"></script>
+<script src="js/review.js?v=0.31.12"></script>
+<script src="js/board.js?v=0.31.12"></script>
+<script src="js/match.js?v=0.31.12"></script>
+<script src="js/ui.js?v=0.31.12"></script>
+<script src="js/storage.js?v=0.31.12"></script>
+<script src="js/app.js?v=0.31.12"></script>
 </body>
 </html>
