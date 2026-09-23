@@ -896,3 +896,16 @@ body::before{width:100%!important;height:100%!important;inset:0!important;border
 .dot,#onlineDot{background:#7ee787!important;border-color:#7ee787!important;box-shadow:0 0 7px rgba(126,231,135,.35)!important}
 .player-card:before,.player-card.black:before,.player-card.white:before{background:#26332b!important}
 .player-card .piece-dot{font-family:"Courier New",monospace!important;font-size:16px!important;color:#7ee787!important;text-shadow:none!important}
+
+/* 0.30.1 — restore the original chess symbol rendering */
+.piece,.piece-dot,.promo{
+  font-family:"DejaVu Sans","Noto Sans Symbols 2",sans-serif!important;
+  font-weight:700!important;
+  letter-spacing:0!important;
+  text-shadow:1px 1px 0 #000,0 0 1px currentColor!important;
+}
+.piece{font-size:clamp(22px,5vw,38px)!important;line-height:1!important}
+.piece.white-piece{color:#e1e8e3!important}
+.piece.black-piece{color:#7ee787!important}
+.player-card .piece-dot{font-size:19px!important}
+.promo{font-size:18px!important}
