@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#fff8fc">
-<title>Chess Learning Lab 0.31.9 · KWII</title>
-<link rel="stylesheet" href="css/style.css?v=0.31.9">
-<link rel="stylesheet" href="css/layout-fix.css?v=0.31.9">
-<script src="js/chess.js?v=0.31.9"></script>
+<title>Chess Learning Lab 0.31.10 · KWII</title>
+<link rel="stylesheet" href="css/style.css?v=0.31.10">
+<link rel="stylesheet" href="css/layout-fix.css?v=0.31.10">
+<script src="js/chess.js?v=0.31.10"></script>
 </head>
 <body><div class="crt-overlay" aria-hidden="true"></div>
 <div class="app">
@@ -92,22 +92,22 @@
 
 <script>
 if('serviceWorker' in navigator && location.protocol==='https:'){
-  navigator.serviceWorker.register('./coi-service-worker.js?v=0.31.9',{scope:'./'}).then(reg=>{
+  navigator.serviceWorker.register('./coi-service-worker.js?v=0.31.10',{scope:'./'}).then(reg=>{
     if(!window.crossOriginIsolated && navigator.serviceWorker.controller){reg.update().catch(()=>{});location.reload();}
     else if(!window.crossOriginIsolated){navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!sessionStorage.getItem('coi-reloaded')){sessionStorage.setItem('coi-reloaded','1');location.reload();}},{once:true});}
   }).catch(e=>console.warn('isolation worker:',e));
 }
 </script>
-<script src="js/repetition.js?v=0.31.9"></script>
-<script src="js/core.js?v=0.31.9"></script>
-<script src="js/learner.js?v=0.31.9"></script>
-<script src="js/training.js?v=0.31.9"></script>
-<script src="js/engine.js?v=0.31.9"></script>
-<script src="js/review.js?v=0.31.9"></script>
-<script src="js/board.js?v=0.31.9"></script>
-<script src="js/match.js?v=0.31.9"></script>
-<script src="js/ui.js?v=0.31.9"></script>
-<script src="js/storage.js?v=0.31.9"></script>
-<script src="js/app.js?v=0.31.9"></script>
+<script src="js/repetition.js?v=0.31.10"></script>
+<script src="js/core.js?v=0.31.10"></script>
+<script src="js/learner.js?v=0.31.10"></script>
+<script src="js/training.js?v=0.31.10"></script>
+<script src="js/engine.js?v=0.31.10"></script>
+<script src="js/review.js?v=0.31.10"></script>
+<script src="js/board.js?v=0.31.10"></script>
+<script src="js/match.js?v=0.31.10"></script>
+<script src="js/ui.js?v=0.31.10"></script>
+<script src="js/storage.js?v=0.31.10"></script>
+<script src="js/app.js?v=0.31.10"></script>
 </body>
 </html>
