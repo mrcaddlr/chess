@@ -64,8 +64,9 @@ async function mcts(c,sims,learnerBrain=brain,detailed=false){
         const score=q+u;
         if(score>bestScore){bestScore=score;best=ch}
       }
-      if(!best)break;
-      if(!c.move({from:best.move.from,to:best.move.to,promotion:best.move.promotion}))break;
+      if(!best||!best.move||typeof best.move.from!=='string'||typeof best.move.to!=='string')break;
+      const applied=c.move({from:best.move.from,to:best.move.to,promotion:best.move.promotion});
+      if(!applied)break;
       played.push(1);depth++;path.push(best);node=best;
     }
     if(value===null)value=0;
@@ -77,15 +78,20 @@ async function mcts(c,sims,learnerBrain=brain,detailed=false){
   }
   let best=null,bestN=-1,bestTie=-Infinity;
   for(const ch of root.children.values()){
+    if(!ch||!ch.move||typeof ch.move.from!=='string'||typeof ch.move.to!=='string')continue;
     const tie=Math.random();
     if(ch.visits>bestN||(ch.visits===bestN&&tie>bestTie)){bestN=ch.visits;bestTie=tie;best=ch.move}
   }
   if(!best)best=softmaxLegal(c,0,learnerBrain);
+  if(!best||typeof best.from!=='string'||typeof best.to!=='string){
+    resetMctsTree();
+    best=softmaxLegal(c,0,learnerBrain);
+  }
   if(!detailed)return best;
   const total=[...root.children.values()].reduce((a,ch)=>a+ch.visits,0)||1;
   const policy=[...root.children.values()].filter(ch=>ch.visits>0).map(ch=>({a:actionIndex(ch.move),p:ch.visits/total}));
   return {move:best,policy,legal:[...root.children.keys()],nodes:root.visits};
 }
-async function learnerMove(c,sims,learnerBrain=brain,hist=repetition){const legal=c.moves({verbose:true});if(!legal.length)return null;try{let m;if(!learnerBrain)m=legal[Math.floor(Math.random()*legal.length)];else{const safeSims=Math.max(1,Math.min(16,Number(sims)||4));m=await mcts(c,safeSims,learnerBrain)}const safe=safeRepetitionMove(c,m,learnerBrain,hist);if(safe.forcedDraw)return null;retainMctsChild(c,safe.move);return safe.move}catch(e){log('Learner search error: '+e.message);const safe=safeRepetitionMove(c,null,learnerBrain,hist);return safe.move}}
+async function learnerMove(c,sims,learnerBrain=brain,hist=repetition){const legal=c.moves({verbose:true});if(!legal.length)return null;try{let m;if(!learnerBrain)m=legal[Math.floor(Math.random()*legal.length)];else{const safeSims=Math.max(1,Math.min(16,Number(sims)||4));m=await mcts(c,safeSims,learnerBrain)}const safe=safeRepetitionMove(c,m,learnerBrain,hist);if(safe.forcedDraw)return null;retainMctsChild(c,safe.move);return safe.move}catch(e){resetMctsTree();log('Learner search error: '+e.message+' · search cache reset');const safe=safeRepetitionMove(c,null,learnerBrain,hist);return safe.move}}
 
 function randomMove(c){const ms=c.moves({verbose:true});return ms.length?ms[Math.floor(Math.random()*ms.length)]:null}
