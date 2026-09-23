@@ -26,10 +26,10 @@ jobs:
           download_stockfish() {
             version="$1"
             shift
-            archive="/tmp/stockfish-\${version}.tgz"
-            work="/tmp/stockfish-\${version}"
+            archive="/tmp/stockfish-${version}.tgz"
+            work="/tmp/stockfish-${version}"
             curl -fL --retry 5 --retry-delay 2 \
-              "https://registry.npmjs.org/stockfish/-/stockfish-\${version}.tgz" \
+              "https://registry.npmjs.org/stockfish/-/stockfish-${version}.tgz" \
               -o "$archive"
             rm -rf "$work"
             mkdir -p "$work"
