@@ -54,12 +54,13 @@ async function browserSelfPlayGame(maxPlies=120){
   while(!terminalPosition(c)&&!state.forcedDraw&&plies<maxPlies&&!cancelRequested){
     const legal=safeRepetitionMoves(c,hist);
     if(!legal.length)break;
-    const proposed=await learnerMove(c,Math.max(1,Math.min(16,Number(document.getElementById('sims')?.value)||4)),brain,hist,true);
-    if(!proposed)break;
+    const choice=await learnerMove(c,Math.max(1,Math.min(16,Number(document.getElementById('sims')?.value)||4)),brain,hist,true);
+    if(!choice?.move)break;
+    const proposed=choice.move;
     const move=safeRepetitionMove(c,proposed,brain,hist,state);
     if(move.forcedDraw||!move.move)break;
     const chosen=move.move;
-    samples.push({x:Array.from(encode(c)),action:actionIndex(chosen),policy:move.policy||[{a:actionIndex(chosen),p:1}],legal:legal.map(actionIndex),side:c.turn()});
+    samples.push({x:Array.from(encode(c)),action:actionIndex(chosen),policy:choice.policy?.length?choice.policy:[{a:actionIndex(chosen),p:1}],legal:legal.map(actionIndex),side:c.turn()});
     if(!c.move({from:chosen.from,to:chosen.to,promotion:chosen.promotion}))break;
     plies++;
     recordPosition(c,hist);
