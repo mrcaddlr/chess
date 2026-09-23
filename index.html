@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f7f7fb">
-<title>Chess Learning Lab 0.6.12</title>
+<title>Chess Learning Lab 0.6.12.1</title>
 <style>
 :root{
   --bg:#f7f7fb; --bg2:#f0eff8; --surface:#ffffff; --surface-soft:#f7f6fc;
@@ -263,7 +263,7 @@ select,input[type=number]{
 'use strict';
 const PIECES={wp:'♙',wn:'♘',wb:'♗',wr:'♖',wq:'♕',wk:'♔',bp:'♟',bn:'♞',bb:'♝',br:'♜',bq:'♛',bk:'♚'};
 const FILES='abcdefgh';
-const CONFIG={version:'0.6.12',input:832,hidden1:96,hidden2:64,policy:4352,replayMax:12000,lr:0.0025,valueWeight:.55,policyWeight:1.0};
+const CONFIG={version:'0.6.12.1',input:832,hidden1:96,hidden2:64,policy:4352,replayMax:12000,lr:0.0025,valueWeight:.55,policyWeight:1.0};
 let game=new Chess(), flipped=false, selected=null, legalMoves=[], lastMove=null, busy=false, botWhite='learner', botBlack='learner', training=false, trainTimer=null, cancelRequested=false;
 let repetition=new Map(), replay=[], games=0, steps=0, generation=0, evalRecord=null, points=0, repetitionDetections=0;
 let brain=null, matchBrainWhite=null, matchBrainBlack=null, stockfishWorker=null, stockfishReady=false, stockfishLoading=false, stockfishQueue=[], matchEpoch=0, matchNonce=0;
