@@ -111,10 +111,14 @@ async function trainBatch(){
   const lr=Math.max(.0001,Math.min(.01,Number(document.getElementById('mutationRate').value)||CONFIG.lr));
   const updates=Math.max(1,Math.min(256,Number(document.getElementById('evalMatches').value)||CONFIG.rlBatch));
   const maxPlies=Math.max(40,Math.min(500,Number(document.getElementById('trainSims').value)||CONFIG.trainPlies));
+  const mode=document.getElementById('trainingMode')?.value||'games';
+  trainingTargetElo=Math.max(400,Math.min(2400,Number(document.getElementById('targetElo')?.value)||1000));
+  if(mode==='target'&&estimatedElo>=trainingTargetElo){toast('target Elo already reached');return;}
+  trainingStartedAt=performance.now();
   let completed=0,trained=0;
   setStatus('training','neural reinforcement learning · generation '+generation+' · lr '+lr.toFixed(4),5);
   try{
-    while(completed<requested&&!cancelRequested){
+    while((mode==='target'?estimatedElo<trainingTargetElo:completed<requested)&&!cancelRequested){
       const gamesThisBatch=Math.min(batch,requested-completed);
       for(let g=0;g<gamesThisBatch&&!cancelRequested;g++){
         let c=new Chess(),hist=new Map([[positionKey(c),1]]),samples=[],plies=0;
@@ -127,7 +131,7 @@ async function trainBatch(){
           samples.push({x,action:actionIndex(chosen),legal:legal.map(actionIndex)});
           if(!c.move({from:chosen.from,to:chosen.to,promotion:chosen.promotion}))break;
           plies++;const k=positionKey(c);hist.set(k,(hist.get(k)||0)+1);
-          if((plies&15)===0)await new Promise(r=>setTimeout(r,0));
+          if((plies&63)===0)await new Promise(r=>setTimeout(r,0));
         }
         let reward=terminalValue(c);if(reward===null)reward=0;
         for(let si=0;si<samples.length;si++){const s=samples[si];const sideReward=si%2===0?reward:-reward;replay.push({...s,reward:sideReward});}
@@ -135,11 +139,12 @@ async function trainBatch(){
         const loss=trainReplay(Math.min(updates,replay.length),lr);
         trained+=samples.length;completed++;
         if((completed&3)===0||completed===requested){generation++;setStatus('training','generation '+generation+' · RL games '+completed+' / '+requested+' · loss '+loss.toFixed(4),Math.min(96,5+91*(completed/requested)));}
-        if((completed&7)===0){steps+=samples.length;games++;await saveBrain(false);renderStats();}
+        if((completed&7)===0){steps+=samples.length;games++;trainingSpeed=completed/Math.max(.001,(performance.now()-trainingStartedAt)/60000);await saveBrain(false);renderStats();}
       }
     }
     if(!cancelRequested&&completed){await saveBrain(false);toast('neural training complete');log('neural training complete · '+completed+' games · '+trained+' positions · gradient updates');}
     else if(cancelRequested)log('neural training cancelled after '+completed+' games');
+    if(mode==='target'&&estimatedElo>=trainingTargetElo)log('target Elo estimate reached · '+estimatedElo);
   }catch(e){log('training error: '+e.message);setStatus('error','training failed · '+e.message,0);toast('training failed')}
   finally{fastBatchAbort=null;stopFastWorkers();training=false;busy=false;renderStats();if(!isGameOver(game))setStatus(cancelRequested?'paused':'ready',cancelRequested?'training stopped':'generation '+generation+' · '+games+' training games',100)}
 }
