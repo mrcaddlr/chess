@@ -958,3 +958,52 @@ body::before,body::after{
   content:none!important;
   display:none!important;
 }
+
+
+/* 0.31.9 — definitive static terminal override */
+/* Kill every legacy visual animation. The terminal UI is intentionally static. */
+*,*::before,*::after{
+  animation:none!important;
+}
+.workspace,.topbar,.panel,.status-card,.player-card,.stat,.move,.metric-row>div,.flow-box,.btn,.badge,.log,.board,.square,.brand-mark,.dot{
+  animation:none!important;
+  transition:none!important;
+  transform:none!important;
+}
+.training-visual-panel.is-training .flow-box,
+.training-visual-panel.is-training .learning-flow>i,
+.training-visual-panel.is-training .live-top b,
+.training-visual-panel.is-training .live-rate b,
+.training-visual-panel.is-training .activity-track i,
+.training-visual-panel.is-training .bar>i,
+.training-visual-panel.is-training .net-node{
+  animation:none!important;
+  transform:none!important;
+  filter:none!important;
+}
+/* Remove the old player icon markup visually. */
+.player-card .piece-dot{
+  display:none!important;
+}
+/* Remove the old pulsing theme class if another script adds it. */
+html.theme-pulse,html.theme-pulse body,html.theme-pulse *{
+  animation:none!important;
+}
+/* One static CRT layer only. */
+body::before,body::after{content:none!important;display:none!important;animation:none!important;}
+.crt-overlay{
+  position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;
+  pointer-events:none!important;z-index:2147483647!important;transform:none!important;
+  background:repeating-linear-gradient(to bottom,transparent 0,transparent 1px,rgba(18,16,16,.30) 2px,rgba(18,16,16,.30) 3px)!important;
+  background-size:100% 4px!important;background-repeat:repeat!important;
+  box-shadow:inset 0 0 90px rgba(0,0,0,.42)!important;
+}
+.crt-overlay::after{content:""!important;position:absolute!important;inset:0!important;pointer-events:none!important;background:linear-gradient(90deg,rgba(255,0,0,.025),rgba(0,255,0,.012),rgba(0,0,255,.025))!important;background-size:3px 100%!important;}
+/* Keep the actual chess glyphs, never terminal-font them into letters. */
+.piece,.promo{
+  font-family:"Noto Sans Symbols 2","Segoe UI Symbol",serif!important;
+  font-weight:400!important;letter-spacing:normal!important;text-shadow:none!important;filter:drop-shadow(0 3px 2px rgba(40,34,48,.17))!important;
+}
+.piece{font-size:clamp(29px,8vw,70px)!important;line-height:1!important;}
+.piece.white-piece{color:#edf5ef!important;text-shadow:0 1px 0 #55645b,0 0 2px #55645b!important;}
+.piece.black-piece{color:#172019!important;text-shadow:0 1px 0 rgba(255,255,255,.2)!important;}
