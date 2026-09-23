@@ -657,3 +657,51 @@ select,input[type=number],input[type=url]{border-radius:2px!important;background
   width:100%!important;
   box-sizing:border-box!important;
 }
+
+
+/* 0.22.0 — animated terminal UI: no rainbow/rgb decorations */
+:root{
+  --green:#7ee787;--cyan:#79c7ff;--amber:#e3b341;--red:#ff7b8f;
+}
+/* kill decorative gradient/rgb lines and old colored player accents */
+.panel-head:after,.flow-box:before,.flow-box:after,.metric-row>div:before,.metric-row>div:after,
+.stat:before,.stat:after,.review-item:before,.review-item:after,
+.workspace:before,.workspace:after,.panel:before,.panel:after,
+.status-card:before,.status-card:after,.player-card:after,
+.training-visual-panel:before,.training-visual-panel:after{content:none!important;background:none!important;box-shadow:none!important}
+.player-card.black:before,.player-card.white:before{background:#26332b!important}
+.learning-flow>i{color:#7ee787!important;font-size:12px;font-style:normal;font-weight:900;opacity:.9;text-shadow:0 0 8px rgba(126,231,135,.3)}
+/* animated terminal surfaces */
+.workspace,.status-card,.panel,.player-card,.stat,.move,.review-item,.metric-row>div,.flow-box,.topbar{
+  position:relative;overflow:hidden;transition:border-color .2s ease,background-color .2s ease,transform .2s ease,box-shadow .2s ease;
+}
+.workspace:hover{border-color:#35483d!important}
+.panel:hover,.status-card:hover,.flow-box:hover,.stat:hover,.review-item:hover{border-color:#3a5143!important;transform:translateY(-1px)}
+.workspace:focus-within,.panel:focus-within,.status-card:focus-within{border-color:#41634d!important;box-shadow:0 0 0 1px rgba(126,231,135,.12),0 0 18px rgba(126,231,135,.05)!important}
+/* subtle CRT scanline motion, kept extremely faint */
+body:after{content:"";display:block;position:fixed;inset:0;pointer-events:none;z-index:9999;background:linear-gradient(to bottom,transparent 0%,rgba(126,231,135,.025) 50%,transparent 100%);background-size:100% 7px;opacity:.18;animation:crtScan 8s linear infinite}
+@keyframes crtScan{from{background-position:0 0}to{background-position:0 140px}}
+/* terminal cursor blink */
+.brand-mark{animation:terminalBlink 1.15s steps(2,end) infinite}
+@keyframes terminalBlink{0%,45%{box-shadow:none}46%,100%{box-shadow:0 0 0 1px rgba(126,231,135,.25),0 0 14px rgba(126,231,135,.12)}}
+/* live training activity */
+.training-visual-panel.is-training .flow-box{animation:flowPulse 1.6s ease-in-out infinite}
+.training-visual-panel.is-training .flow-box:nth-of-type(1){animation-delay:0s}
+.training-visual-panel.is-training .flow-box:nth-of-type(2){animation-delay:.2s}
+.training-visual-panel.is-training .flow-box:nth-of-type(3){animation-delay:.4s}
+@keyframes flowPulse{0%,100%{transform:translateY(0);border-color:#26332b;box-shadow:0 0 0 rgba(126,231,135,0)}50%{transform:translateY(-2px);border-color:#41634d;box-shadow:0 0 14px rgba(126,231,135,.08)}}
+.training-visual-panel.is-training .learning-flow>i{animation:arrowPulse 1s ease-in-out infinite}
+@keyframes arrowPulse{0%,100%{opacity:.45;transform:translateX(0)}50%{opacity:1;transform:translateX(3px)}}
+/* progress and status glow when active */
+.training-visual-panel.is-training .activity-track i,.training-visual-panel.is-training .bar>i{animation:progressGlow 1.2s ease-in-out infinite}
+@keyframes progressGlow{0%,100%{filter:brightness(1);box-shadow:0 0 3px rgba(126,231,135,.15)}50%{filter:brightness(1.25);box-shadow:0 0 10px rgba(126,231,135,.4)}}
+/* buttons get terminal hover/press motion */
+.btn{transition:transform .12s ease,border-color .15s ease,background-color .15s ease,box-shadow .15s ease,filter .15s ease}
+.btn:hover{transform:translateY(-1px)!important;box-shadow:0 0 12px rgba(126,231,135,.06)!important}
+.btn:active{transform:translateY(1px) scale(.98)!important}
+.btn.primary{animation:primaryIdle 2.8s ease-in-out infinite}
+@keyframes primaryIdle{0%,100%{box-shadow:0 0 0 rgba(126,231,135,0)}50%{box-shadow:0 0 14px rgba(126,231,135,.16)}}
+/* live numbers softly tick */
+.training-visual-panel.is-training .live-top b,.training-visual-panel.is-training .live-rate b{animation:numberFlicker 1.4s steps(2,end) infinite}
+@keyframes numberFlicker{0%,100%{opacity:1}50%{opacity:.72}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
