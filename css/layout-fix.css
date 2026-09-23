@@ -1,0 +1,95 @@
+/* Chess Learning Lab 0.14.0 — final layout pass
+   Keep the board dominant, keep controls readable, and stop long panels
+   from creating uneven columns. */
+.dashboard{gap:14px}
+.match-layout{
+  grid-template-columns:minmax(0,1fr) 340px;
+  align-items:start;
+}
+.match-board{min-width:0;display:grid;align-content:start}
+.match-board .board-wrap{
+  width:min(620px,100%);
+  margin-inline:auto;
+}
+.match-tools{min-width:0}
+.match-tools .status-card{min-height:0}
+.match-tools .move-list{max-height:240px}
+.match-tools .panel{min-width:0}
+.training-layout{
+  grid-template-columns:minmax(300px,.82fr) minmax(0,1.18fr);
+  align-items:stretch;
+}
+.training-controls,.training-view{min-width:0}
+.training-controls .panel,.training-view .panel{height:100%}
+.training-visual-panel{min-width:0}
+.lower-grid{align-items:stretch}
+.compact-workspace{min-width:0}
+.debug-workspace{min-width:0}
+
+/* The controls belong to the board column, so they never stretch the
+   settings column or squeeze the board. */
+.match-board .controls{
+  width:min(620px,100%);
+  margin-inline:auto;
+}
+
+/* Prevent long labels and select values from forcing horizontal overflow. */
+.field label,.field select,.field input{min-width:0}
+select,input[type=number],input[type=url]{text-overflow:ellipsis}
+
+/* Small screens: board first, then settings, then training. */
+@media(max-width:1050px){
+  .match-layout{grid-template-columns:minmax(0,1fr) 300px}
+  .match-board .board-wrap,.match-board .controls{width:min(600px,100%)}
+}
+@media(max-width:820px){
+  .match-layout,.training-layout{grid-template-columns:1fr}
+  .match-tools{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+  .match-tools .status-card,.match-tools .move-panel{grid-column:1/-1}
+  .match-board .board-wrap,.match-board .controls{width:min(620px,100%)}
+  .training-layout{gap:8px}
+}
+@media(max-width:560px){
+  .dashboard{gap:8px}
+  .workspace-head{align-items:flex-start}
+  .workspace-head .badge{flex:none}
+  .match-layout{padding:7px}
+  .match-tools{grid-template-columns:1fr}
+  .match-tools .status-card,.match-tools .move-panel{grid-column:auto}
+  .match-board .board-wrap,.match-board .controls{width:100%}
+  .match-board .controls{grid-template-columns:repeat(2,1fr)}
+  .match-board .controls .btn{min-width:0}
+  .training-layout{padding:7px}
+  .training-controls .stats{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:360px){
+  .match-board .controls{grid-template-columns:1fr}
+  .player-card .player-name{max-width:90px}
+}
+
+/* Remote benchmark card */
+.remote-benchmark{
+  display:grid;
+  gap:10px;
+  margin-top:10px;
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:var(--stat);
+}
+.remote-benchmark-head{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.remote-benchmark-head b{font-size:12px}
+.remote-benchmark-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.remote-benchmark-stat{padding:8px 5px;border:1px solid var(--line);border-radius:12px;background:var(--card);text-align:center}
+.remote-benchmark-stat b{display:block;font-size:13px}
+.remote-benchmark-stat span{display:block;margin-top:2px;color:var(--muted);font-size:7px;font-weight:900}
+.remote-history{display:grid;gap:4px;max-height:125px;overflow:auto}
+.remote-history-row{display:grid;grid-template-columns:52px 1fr 52px;gap:6px;align-items:center;padding:6px 8px;border-radius:9px;background:var(--move);font-size:8px;font-weight:900}
+.remote-history-row span:last-child{text-align:right}
+@media(max-width:560px){
+  .remote-benchmark-grid{grid-template-columns:repeat(2,1fr)}
+}
