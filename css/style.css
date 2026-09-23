@@ -285,3 +285,28 @@ html[data-theme="dark"] .workspace{background:var(--card);border-color:var(--lin
 @media(max-width:1050px){.match-layout{grid-template-columns:minmax(0,1fr) 250px}}
 @media(max-width:800px){.match-layout{padding:8px}.training-layout{padding:8px}}
 @media(max-width:560px){.workspace-head{padding:11px 12px}.workspace-head h2{font-size:15px}.match-layout{padding:8px}.match-tools .controls .btn{min-height:38px}.player-card{min-height:50px;padding:7px}.player-card .piece-dot{width:28px;height:28px;font-size:15px}}
+
+
+/* KWII review + board geometry pass · 0.11.8 */
+/* Game review uses the same theme tokens as the rest of the dashboard. */
+.review-panel{background:var(--card);color:var(--ink)}
+.review-panel .tiny{color:var(--muted)}
+.review-panel .badge{background:var(--purple-soft);border-color:var(--line);color:var(--purple)}
+.review-grid{background:transparent}
+.review-item{background:var(--stat);border:1px solid var(--line);color:var(--ink);box-shadow:none}
+.review-item b{color:var(--ink)}
+.review-item span{color:var(--muted)}
+html[data-theme="dark"] .review-panel{background:var(--card);border-color:var(--line)}
+html[data-theme="dark"] .review-item{background:var(--stat);border-color:var(--line);color:var(--ink)}
+html[data-ui-theme] .review-panel{background:var(--card);color:var(--ink)}
+html[data-ui-theme] .review-item{background:var(--stat);border-color:var(--line);color:var(--ink)}
+
+/* The board is a true 1:1 grid: every file/rank is forced to the same dimensions. */
+.board{aspect-ratio:1 / 1;height:auto;min-height:0;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr))}
+.square{aspect-ratio:1 / 1;min-width:0;min-height:0;overflow:hidden}
+
+/* Give the match settings column some breathing room. */
+.match-layout{grid-template-columns:minmax(0,1fr) 340px}
+.match-board .board-wrap{width:min(560px,100%)}
+@media(max-width:1050px){.match-layout{grid-template-columns:minmax(0,1fr) 310px}}
+@media(max-width:800px){.match-layout{grid-template-columns:1fr}.match-board .board-wrap{width:min(560px,100%)}}
