@@ -6,7 +6,8 @@ let game=new Chess(), flipped=false, selected=null, legalMoves=[], lastMove=null
 const ENGINE_CONFIGS={'sf19-full-single':{label:'Stockfish 19 · Full · Single-threaded',url:'stockfish/stockfish-19-single.js',multi:false},'sf19-full-multi':{label:'Stockfish 19 · Full · Multi-threaded',url:'stockfish/stockfish-19.js',multi:true},'sf19-lite-single':{label:'Stockfish 19 · Lite · Single-threaded',url:'stockfish/stockfish-19-lite-single.js',multi:false},'lozza':{label:'Lozza · JavaScript',url:'stockfish/lozza.js',multi:false},'tonnetto':{label:'Tonnetto · JavaScript',native:'tonnetto',multi:false},'js-chess-engine':{label:'js-chess-engine · JavaScript',native:'jce',multi:false}};
 let selectedEngine='sf19-lite-single';
 let replay=[], games=0, steps=0, generation=0, evalRecord=null, evaluationHistory=[], bestEvalScore=-1, championGeneration=0, points=0, estimatedElo=400, trainingTargetElo=1000, trainingStartedAt=0, trainingSpeed=0;
-let brain=null, matchBrainWhite=null, matchBrainBlack=null, stockfishWorker=null, stockfishReady=false, stockfishLoading=false, stockfishQueue=[];\nlet trainingLiveState={phase:'idle',detail:'start training to watch the learner learn',game:0,totalGames:0,ply:0,maxPlies:0,updates:0};
+let brain=null, matchBrainWhite=null, matchBrainBlack=null, stockfishWorker=null, stockfishReady=false, stockfishLoading=false, stockfishQueue=[];
+let trainingLiveState={phase:'idle',detail:'start training to watch the learner learn',game:0,totalGames:0,ply:0,maxPlies:0,updates:0};
 let brainDBPromise=null, matchEpoch=0, matchNonce=0;
 // Optional fast-training worker hooks. Keep them defined even when the fast path is unused.
 let fastBatchAbort=null, fastWorkers=[];
