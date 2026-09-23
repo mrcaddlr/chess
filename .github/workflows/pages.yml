@@ -39,6 +39,11 @@ jobs:
           for part in "${parts[@]}"; do test -s "$part"; done
           for wasm in "${wasms[@]}"; do test -s "$wasm"; done
 
+      - name: Run neural network regression tests
+        run: |
+          set -euo pipefail
+          node tests/neural-training.test.mjs
+
       - name: Verify application JavaScript
         run: |
           set -euo pipefail
