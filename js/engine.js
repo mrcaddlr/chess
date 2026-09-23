@@ -5,6 +5,7 @@ function engineDisplayLabel(){
 }
 function setEngineUi(label,ok){const pill=document.getElementById('enginePill'),dot=document.getElementById('onlineDot');if(pill)pill.textContent=label;if(dot)dot.style.background=ok?'var(--mint)':'var(--red)';}
 let stockfishBlobUrls=[];
+function waitForStockfish(timeout=125000){return new Promise(resolve=>{if(stockfishReady){resolve(true);return}const started=Date.now();const timer=setInterval(()=>{if(stockfishReady||Date.now()-started>=timeout){clearInterval(timer);resolve(stockfishReady)}},100)})}
 async function buildBundledEngineWorker(engineUrl){
   const manifestUrl=new URL('stockfish/engine-manifest.json',document.baseURI).href;let manifest=null;
   try{const r=await fetch(manifestUrl,{cache:'no-store'});if(r.ok)manifest=await r.json();}catch(e){}
