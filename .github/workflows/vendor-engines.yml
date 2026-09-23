@@ -52,6 +52,23 @@ jobs:
             stockfish-19-lite.js stockfish-19-lite.wasm \
             stockfish-19-lite-single.js stockfish-19-lite-single.wasm
 
+
+          echo "Downloading Fairy-Stockfish NNUE WASM..."
+          fairy_archive="/tmp/fairy-stockfish-nnue.tgz"
+          fairy_work="/tmp/fairy-stockfish-nnue"
+          curl -fL --retry 5 --retry-delay 2 \
+            "https://registry.npmjs.org/fairy-stockfish-nnue.wasm/-/fairy-stockfish-nnue.wasm-1.1.12.tgz" \
+            -o "$fairy_archive"
+          rm -rf "$fairy_work"
+          mkdir -p "$fairy_work"
+          tar -xzf "$fairy_archive" -C "$fairy_work"
+          cp "$fairy_work/package/bin/stockfish.js" stockfish/fairy-stockfish.js
+          cp "$fairy_work/package/bin/stockfish.wasm" stockfish/fairy-stockfish.wasm
+          cp "$fairy_work/package/bin/stockfish.worker.js" stockfish/fairy-stockfish.worker.js
+          test -s stockfish/fairy-stockfish.js
+          test -s stockfish/fairy-stockfish.wasm
+          test -s stockfish/fairy-stockfish.worker.js
+
           download_stockfish "18.0.8" \
             stockfish-18.js stockfish-18.wasm \
             stockfish-18-single.js stockfish-18-single.wasm \
