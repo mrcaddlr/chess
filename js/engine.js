@@ -24,7 +24,8 @@ async function buildBundledEngineWorker(engineUrl){
   const wasmUrl=URL.createObjectURL(new Blob([wasm],{type:'application/wasm'}));
   const jsResponse=await fetch(engineUrl,{cache:'reload'});if(!jsResponse.ok)throw new Error('engine JavaScript file returned HTTP '+jsResponse.status);
   const source=await jsResponse.text();
-  const wasmLiteral=JSON.stringify(wasmUrl);\n  const bootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(path){if(/\\.wasm$/i.test(path))return '+wasmLiteral+';return new URL(path,'+JSON.stringify(engineUrl)+').href;};\\n'+source;
+  const wasmLiteral=JSON.stringify(wasmUrl);
+  const bootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(path){if(/\\.wasm$/i.test(path))return '+wasmLiteral+';return new URL(path,'+JSON.stringify(engineUrl)+').href;};\\n'+source;
   const workerUrl=URL.createObjectURL(new Blob([bootstrap],{type:'text/javascript'}));
   stockfishBlobUrls.push(wasmUrl,workerUrl);
   return new Worker(workerUrl);
