@@ -1,7 +1,7 @@
 /* Chess Learning Lab · application state + chess-rule helpers */
 const PIECES={wp:'♙',wn:'♘',wb:'♗',wr:'♖',wq:'♕',wk:'♔',bp:'♟',bn:'♞',bb:'♝',br:'♜',bq:'♛',bk:'♚'};
 const FILES='abcdefgh';
-const CONFIG={version:'0.11.9',architecture:'residual-policy-value-v3',input:832,hidden1:256,hidden2:256,residualBlocks:3,policy:4352,replayMax:2500,lr:0.0015,valueWeight:.55,policyWeight:1.0,rlBatch:64,trainPlies:160};
+const CONFIG={version:'0.12.0',architecture:'residual-policy-value-v4',input:832,hidden1:384,hidden2:384,residualBlocks:8,policy:4352,replayMax:2500,lr:0.0015,valueWeight:.55,policyWeight:1.0,rlBatch:64,trainPlies:160};
 let game=new Chess(), flipped=false, selected=null, legalMoves=[], lastMove=null, busy=false, botWhite='learner', botBlack='learner', training=false, trainTimer=null, cancelRequested=false;
 const ENGINE_CONFIGS={'sf19-full-single':{label:'Stockfish 19 · Full · Single-threaded',url:'stockfish/stockfish-19-single.js',multi:false},'sf19-full-multi':{label:'Stockfish 19 · Full · Multi-threaded',url:'stockfish/stockfish-19.js',multi:true},'sf19-lite-single':{label:'Stockfish 19 · Lite · Single-threaded',url:'stockfish/stockfish-19-lite-single.js',multi:false},'sf18-full-single':{label:'Stockfish 18 · Full · Single-threaded',url:'stockfish/stockfish-18-single.js',multi:false},'sf18-full-multi':{label:'Stockfish 18 · Full · Multi-threaded',url:'stockfish/stockfish-18.js',multi:true},'sf18-lite-single':{label:'Stockfish 18 · Lite · Single-threaded',url:'stockfish/stockfish-18-lite-single.js',multi:false},'lozza':{label:'Lozza · JavaScript',url:'stockfish/lozza.js',multi:false}};
 let selectedEngine='sf19-lite-single';
@@ -45,19 +45,25 @@ class TinyNet{
     this.bp=zeros(CONFIG.policy);
     this.wv=randArr(CONFIG.hidden2,this.rng,Math.sqrt(2/CONFIG.hidden2));
     this.bv=0;
+    this._infer={h0:zeros(CONFIG.hidden1),zA:zeros(CONFIG.hidden2),a:zeros(CONFIG.hidden2),zB:zeros(CONFIG.hidden2),next:zeros(CONFIG.hidden2)};
   }
-  trunk(x){
-    const z0=zeros(CONFIG.hidden1),h0=zeros(CONFIG.hidden1);
+  trunk(x,training=false){
+    const z0=zeros(CONFIG.hidden1),h0=training?zeros(CONFIG.hidden1):this._infer.h0;
     for(let j=0;j<CONFIG.hidden1;j++){let s=this.b1[j],off=j*CONFIG.input;for(let i=0;i<CONFIG.input;i++)s+=this.w1[off+i]*x[i];z0[j]=s;h0[j]=Math.max(0,s)}
-    let h=h0,blocks=[];
+    let h=h0,blocks=training?[]:null;
     for(let k=0;k<CONFIG.residualBlocks;k++){
-      const zA=zeros(CONFIG.hidden2),a=zeros(CONFIG.hidden2),zB=zeros(CONFIG.hidden2),out=zeros(CONFIG.hidden2);
-      for(let j=0;j<CONFIG.hidden2;j++){let s=this.rb1[k][j],off=j*CONFIG.hidden1;for(let i=0;i<CONFIG.hidden1;i++)s+=this.rw1[k][off+i]*h[i];zA[j]=s;a[j]=Math.max(0,s)}
+      const zA=training?zeros(CONFIG.hidden2):this._infer.zA;
+      const a=training?zeros(CONFIG.hidden2):this._infer.a;
+      const zB=training?zeros(CONFIG.hidden2):this._infer.zB;
+      const out=training?zeros(CONFIG.hidden2):this._infer.next;
+      for(let j=0;j<CONFIG.hidden2;j++){let s=this.rb1[k][j],off=j*CONFIG.hidden1;for(let i=0;i<CONFIG.hidden1;i++)s+=this.rw1[k][off+i]*h[i];zA[j]=s;a[j]=s>0?s:0}
       for(let j=0;j<CONFIG.hidden2;j++){let s=this.rb2[k][j],off=j*CONFIG.hidden2;for(let i=0;i<CONFIG.hidden2;i++)s+=this.rw2[k][off+i]*a[i];zB[j]=s;out[j]=Math.max(0,h[j]+s)}
-      blocks.push({input:h,zA,a,zB,out});h=out;
+      if(training)blocks.push({input:h,zA,a,zB,out});
+      h=out;
+      if(!training){this._infer.zA=this._infer.zB;this._infer.zB=zA;this._infer.a=a;this._infer.next=(k===CONFIG.residualBlocks-1?this._infer.next:this._infer.zA)}
     }
     let v=this.bv;for(let i=0;i<CONFIG.hidden2;i++)v+=this.wv[i]*h[i];
-    return {h0,z0,blocks,h2:h,v:Math.tanh(v)};
+    return training?{h0,z0,blocks,h2:h,v:Math.tanh(v)}:{h2:h,v:Math.tanh(v)};
   }
   legalLogits(h2,legal){
     const logits=new Float32Array(legal.length);
@@ -65,29 +71,30 @@ class TinyNet{
     return logits;
   }
   predictLegal(x,legal){
-    const o=this.trunk(x),logits=this.legalLogits(o.h2,legal);let max=-Infinity;
+    const o=this.trunk(x,false),logits=this.legalLogits(o.h2,legal);let max=-Infinity;
     for(let i=0;i<logits.length;i++)if(logits[i]>max)max=logits[i];
     const vals=new Float32Array(logits.length);let sum=0;
     for(let i=0;i<logits.length;i++){vals[i]=Math.exp(Math.max(-30,logits[i]-max));sum+=vals[i]}
     if(sum)for(let i=0;i<vals.length;i++)vals[i]/=sum;
-    return {policy:vals,value:o.v,cache:o};
+    return {policy:vals,value:o.v};
   }
   predict(x,legal){
     const p=this.predictLegal(x,legal),probs=new Float32Array(CONFIG.policy);
     for(let i=0;i<legal.length;i++)probs[legal[i]]=p.policy[i];
-    return {policy:probs,value:p.value,cache:p.cache};
+    return {policy:probs,value:p.value};
   }
   _train(x,target,value,legal,lr,rlAction=null,rlReward=0){
-    const o=this.trunk(x),logits=this.legalLogits(o.h2,legal),p=new Float32Array(legal.length);let max=-Infinity;
-    for(const z of logits)max=Math.max(max,z);let sum=0;
-    for(let i=0;i<logits.length;i++){p[i]=Math.exp(Math.max(-30,logits[i]-max));sum+=p[i]}for(let i=0;i<p.length;i++)p[i]/=sum||1;
-    const dh=zeros(CONFIG.hidden2),lossTarget=rlAction===null?value:Math.max(-1,Math.min(1,Number(rlReward)||0));
+    const o=this.trunk(x,true),logits=this.legalLogits(o.h2,legal),p=new Float32Array(legal.length);let max=-Infinity;
+    for(const z of logits)if(z>max)max=z;let sum=0;
+    for(let i=0;i<logits.length;i++){p[i]=Math.exp(Math.max(-30,logits[i]-max));sum+=p[i]}
+    for(let i=0;i<p.length;i++)p[i]/=sum||1;
+    const dh=zeros(CONFIG.hidden2),reward=rlAction===null?value:Math.max(-1,Math.min(1,Number(rlReward)||0)),lossTarget=reward;
     const dv=2*(o.v-lossTarget)*CONFIG.valueWeight*(1-o.v*o.v);
     this.bv-=lr*dv;for(let i=0;i<CONFIG.hidden2;i++){dh[i]+=dv*this.wv[i];this.wv[i]-=lr*dv*o.h2[i]}
     let loss=Math.abs(o.v-lossTarget);
     for(let k=0;k<legal.length;k++){
-      const a=legal[k],grad=rlAction===null?(p[k]-(target[a]||0))*CONFIG.policyWeight:-Math.max(-1,Math.min(1,Number(rlReward)||0))*((a===rlAction?1:0)-p[k]);
-      if(rlAction!==null&&a===rlAction)loss+=-Math.max(-1,Math.min(1,Number(rlReward)||0))*Math.log(Math.max(1e-8,p[k]));
+      const a=legal[k],grad=rlAction===null?(p[k]-(target[a]||0))*CONFIG.policyWeight:-reward*((a===rlAction?1:0)-p[k]);
+      if(rlAction!==null&&a===rlAction)loss+=-reward*Math.log(Math.max(1e-8,p[k]));
       const off=a*CONFIG.hidden2;this.bp[a]-=lr*grad;
       for(let i=0;i<CONFIG.hidden2;i++){dh[i]+=grad*this.wp[off+i];this.wp[off+i]-=lr*grad*o.h2[i]}
     }
@@ -99,7 +106,7 @@ class TinyNet{
       for(let j=0;j<CONFIG.hidden2;j++){const off=j*CONFIG.hidden1;for(let i=0;i<CONFIG.hidden1;i++){dIn[i]+=dA[j]*this.rw1[k][off+i];this.rw1[k][off+i]-=lr*dA[j]*bl.input[i]}this.rb1[k][j]-=lr*dA[j]}
       for(let i=0;i<CONFIG.hidden1;i++)dh[i]=dIn[i];
     }
-    const d0=zeros(CONFIG.hidden1);for(let j=0;j<CONFIG.hidden1;j++){const d=o.z0[j]>0?dh[j]:0;d0[j]=d;this.b1[j]-=lr*d;const off=j*CONFIG.input;for(let i=0;i<CONFIG.input;i++)this.w1[off+i]-=lr*d*x[i]}
+    for(let j=0;j<CONFIG.hidden1;j++){const d=o.z0[j]>0?dh[j]:0;this.b1[j]-=lr*d;const off=j*CONFIG.input;for(let i=0;i<CONFIG.input;i++)this.w1[off+i]-=lr*d*x[i]}
     return loss;
   }
   train(x,target,value,legal,lr=CONFIG.lr){return this._train(x,target,value,legal,lr)}
@@ -117,5 +124,4 @@ class TinyNet{
     generation=o.generation||0;steps=o.steps||0;games=o.games||0;return n;
   }
 }
-
 class Node{constructor(prior=1,move=null){this.prior=prior;this.move=move;this.visits=0;this.valueSum=0;this.children=new Map();this.expanded=false;this.value=0}}
