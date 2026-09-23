@@ -41,7 +41,7 @@ async function playMatch(){
     if(botWhite==='learner') matchBrainWhite=cloneLearnerForMatch();
     if(botBlack==='learner') matchBrainBlack=cloneLearnerForMatch();
   }
-  game=new Chess();selected=null;legalMoves=[];lastMove=null;moveRecords=[];reviewState=null;lastReviewedEpoch=-1;resetRepetition();busy=false;
+  game=new Chess();selected=null;legalMoves=[];lastMove=null;moveRecords=[];reviewState=null;lastReviewedEpoch=-1;resetRepetition();if(typeof resetMctsTree==='function')resetMctsTree();busy=false;
   if(type==='learner-engine'&&!stockfishReady){setStatus('loading engine',engineDisplayLabel()+' is initializing…',5);log('Play requested before engine was ready; waiting for local engine initialization');await waitForStockfish(125000);if(!stockfishReady){busy=false;renderAll();setStatus('engine unavailable',engineDisplayLabel()+' could not initialize',0);return;}}
   renderAll();renderReview();
   renderPlayers();
@@ -63,6 +63,7 @@ function newGame(){
   repetitionForcedDraw=false;
   points=0;repetitionDetections=0;
   game=new Chess();
+  if(typeof resetMctsTree==='function')resetMctsTree();
   selected=null;
   legalMoves=[];
   lastMove=null;
