@@ -705,3 +705,13 @@ body:after{content:"";display:block;position:fixed;inset:0;pointer-events:none;z
 .training-visual-panel.is-training .live-top b,.training-visual-panel.is-training .live-rate b{animation:numberFlicker 1.4s steps(2,end) infinite}
 @keyframes numberFlicker{0%,100%{opacity:1}50%{opacity:.72}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+
+/* 0.23.0 — wider match settings + remove game review */
+.match-layout{grid-template-columns:minmax(0,1fr) 320px!important}
+.match-tools{width:100%!important;min-width:0!important}
+.match-tools .status-card,.match-tools>.panel{width:100%!important;min-width:0!important;box-sizing:border-box!important}
+.match-tools>.panel:not(.move-panel) .field,.match-tools>.panel:not(.move-panel) select,.match-tools>.panel:not(.move-panel) input{width:100%!important;min-width:0!important;box-sizing:border-box!important}
+@media(max-width:950px){.match-layout{grid-template-columns:minmax(0,1fr) 320px!important}}
+@media(max-width:700px){.match-layout{grid-template-columns:1fr!important}}
+.lower-grid{grid-template-columns:1fr!important}
