@@ -65,7 +65,8 @@ async function browserSelfPlayGame(maxPlies=120){
   return {samples,games:1,moves:plies};
 }
 async function runParallelSelfPlay(gameCount,maxPlies){
-  const requested=Math.max(1,Number(gameCount)||1);\n  trainingLiveState.totalGames=requested;trainingLiveState.game=0;
+  const requested=Math.max(1,Number(gameCount)||1);
+  trainingLiveState.totalGames=requested;trainingLiveState.game=0;
   const mobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'');
   const cores=Math.max(1,navigator.hardwareConcurrency||2);
   const memoryGB=Number(navigator.deviceMemory)||2;
