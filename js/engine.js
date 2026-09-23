@@ -9,29 +9,67 @@ function waitForStockfish(timeout=125000){return new Promise(resolve=>{if(stockf
 async function buildBundledEngineWorker(engineUrl){
   const manifestUrl=new URL('stockfish/engine-manifest.json',document.baseURI).href;
   let manifest=null;
-  try{const r=await fetch(manifestUrl,{cache:'reload'});if(r.ok)manifest=await r.json();}catch(err){log('engine manifest fetch failed: '+err.message)}
-  const jsName=engineUrl.split('/').pop(),wasmName=jsName.replace(/\.js$/i,'.wasm'),parts=manifest?.[wasmName];
+  try{
+    const r=await fetch(manifestUrl,{cache:'no-store'});
+    if(r.ok)manifest=await r.json();
+  }catch(err){log('engine manifest fetch failed: '+err.message)}
+  const jsName=engineUrl.split('/').pop();
+  const wasmName=jsName.replace(/\\.js$/i,'.wasm');
+  const parts=manifest?.[wasmName];
+
   if(!Array.isArray(parts)||!parts.length)return new Worker(engineUrl);
-  log('assembling '+wasmName+' from '+parts.length+' Pages chunks');
-  const responses=await Promise.all(parts.map(p=>fetch(new URL('stockfish/'+p,document.baseURI).href,{cache:'reload'})));
-  for(let i=0;i<responses.length;i++)if(!responses[i].ok)throw new Error('Stockfish chunk '+parts[i]+' returned HTTP '+responses[i].status);
-  const buffers=await Promise.all(responses.map(r=>r.arrayBuffer()));
-  const total=buffers.reduce((n,a)=>n+a.byteLength,0);
-  if(total<1024*1024)throw new Error('assembled '+wasmName+' is only '+total+' bytes; Pages is serving an incomplete WASM bundle');
-  const wasm=new Uint8Array(total);let offset=0;
-  for(const part of buffers){wasm.set(new Uint8Array(part),offset);offset+=part.byteLength}
-  try{await WebAssembly.compile(wasm)}catch(err){throw new Error('assembled '+wasmName+' failed WebAssembly validation: '+(err.message||err))}
+
+  log('assembling '+wasmName+' from '+parts.length+' chunks');
+
+  // Fetch chunks one at a time. Promise.all() kept every chunk alive at once,
+  // which could push Android browsers over their memory limit.
+  const buffers=[];
+  let total=0;
+
+  for(let i=0;i<parts.length;i++){
+    const part=String(parts[i]||'').replace(/^\\/+/, '');
+    const url=new URL('stockfish/'+part,document.baseURI);
+    url.searchParams.set('v','0.31.8');
+    const r=await fetch(url.href,{cache:'no-store'});
+    if(!r.ok)throw new Error('Stockfish chunk '+part+' returned HTTP '+r.status);
+
+    const data=new Uint8Array(await r.arrayBuffer());
+    if(!data.byteLength)throw new Error('Stockfish chunk '+part+' is empty');
+
+    // A Pages error document accidentally returned as a successful response
+    // must never be appended to the WASM binary.
+    if(i===0&&data.length>=4&&!(data[0]===0x00&&data[1]===0x61&&data[2]===0x73&&data[3]===0x6d)){
+      throw new Error('Stockfish chunk '+part+' is not the start of a WASM binary');
+    }
+
+    buffers.push(data);
+    total+=data.byteLength;
+    log('chunk '+(i+1)+'/'+parts.length+' loaded · '+Math.round(data.byteLength/1048576)+' MiB');
+  }
+
+  if(total<1024*1024)throw new Error('assembled '+wasmName+' is only '+total+' bytes; incomplete WASM bundle');
+
+  const wasm=new Uint8Array(total);
+  let offset=0;
+  for(const part of buffers){wasm.set(part,offset);offset+=part.byteLength}
+
+  try{await WebAssembly.compile(wasm)}
+  catch(err){throw new Error('assembled '+wasmName+' failed WebAssembly validation: '+(err.message||err))}
+
   const wasmUrl=URL.createObjectURL(new Blob([wasm],{type:'application/wasm'}));
-  const jsResponse=await fetch(engineUrl,{cache:'reload'});if(!jsResponse.ok)throw new Error('engine JavaScript file returned HTTP '+jsResponse.status);
+  const jsResponse=await fetch(engineUrl,{cache:'no-store'});
+  if(!jsResponse.ok)throw new Error('engine JavaScript file returned HTTP '+jsResponse.status);
   const source=await jsResponse.text();
   const wasmLiteral=JSON.stringify(wasmUrl);
   let pthreadWorkerUrl='';
+
   if(cfgIsMultiEngine(engineUrl)){
-    const pthreadBootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(path){if(/\\.wasm$/i.test(path))return '+wasmLiteral+';return new URL(path,'+JSON.stringify(engineUrl)+').href;};\\n'+source;
+    const pthreadBootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(path){if(/\\\\.wasm$/i.test(path))return '+wasmLiteral+';return new URL(path,'+JSON.stringify(engineUrl)+').href;};\\n'+source;
     pthreadWorkerUrl=URL.createObjectURL(new Blob([pthreadBootstrap],{type:'text/javascript'}));
     stockfishBlobUrls.push(pthreadWorkerUrl);
   }
-  const bootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(path){if(/stockfish\\.worker\\.js$/i.test(path)&&'+JSON.stringify(pthreadWorkerUrl)+')return '+JSON.stringify(pthreadWorkerUrl)+';if(/\\.wasm$/i.test(path))return '+wasmLiteral+';return new URL(path,'+JSON.stringify(engineUrl)+').href;};\\n'+source;
+
+  const bootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(path){if(/stockfish\\\\.worker\\\\.js$/i.test(path)&&'+JSON.stringify(pthreadWorkerUrl)+')return '+JSON.stringify(pthreadWorkerUrl)+';if(/\\\\.wasm$/i.test(path))return '+wasmLiteral+';return new URL(path,'+JSON.stringify(engineUrl)+').href;};\\n'+source;
   const workerUrl=URL.createObjectURL(new Blob([bootstrap],{type:'text/javascript'}));
   stockfishBlobUrls.push(wasmUrl,workerUrl);
   return new Worker(workerUrl);
