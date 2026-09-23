@@ -5,6 +5,7 @@ function engineDisplayLabel(){
 }
 function setEngineUi(label,ok){const pill=document.getElementById('enginePill'),dot=document.getElementById('onlineDot');if(pill)pill.textContent=label;if(dot)dot.style.background=ok?'var(--mint)':'var(--red)';}
 let stockfishBlobUrls=[];
+let nativeEngine=null;
 function waitForStockfish(timeout=125000){return new Promise(resolve=>{if(stockfishReady){resolve(true);return}const started=Date.now();const timer=setInterval(()=>{if(stockfishReady||Date.now()-started>=timeout){clearInterval(timer);resolve(stockfishReady)}},100)})}
 async function buildBundledEngineWorker(engineUrl){
   const manifestUrl=new URL('stockfish/engine-manifest.json',document.baseURI).href;
@@ -78,10 +79,24 @@ async function buildBundledEngineWorker(engineUrl){
 function cfgIsMultiEngine(engineUrl){
   return Object.values(ENGINE_CONFIGS||{}).some(cfg=>cfg?.multi&&new URL(cfg.url,document.baseURI).href===engineUrl);
 }
+async function createNativeEngine(cfg){
+  const kind=cfg?.native;
+  if(!kind)return false;
+  if(kind==='tonnetto'){
+    const mod=await import('https://esm.sh/tonnetto@1.0.0');
+    nativeEngine={kind,Engine:mod.default||mod.TonnettoEngine||mod};
+  }else if(kind==='jce'){
+    const mod=await import('https://esm.sh/js-chess-engine@2.4.6');
+    nativeEngine={kind,Engine:mod.Game||mod.default?.Game};
+  }
+  if(!nativeEngine?.Engine)throw new Error('native engine module did not expose an engine');
+  stockfishReady=true;stockfishLoading=false;setEngineUi(cfg.label+' ready',true);log(cfg.label+' ready · browser-native engine');return true;
+}
 async function createStockfish(force=false){
   if((stockfishWorker||stockfishLoading)&&!force)return;
   const cfg=ENGINE_CONFIGS[selectedEngine]||null,previousWorker=stockfishWorker,previousReady=stockfishReady;
   const engineUrl=selectedEngine==='custom-wasm'?document.getElementById('customEngineUrl')?.value.trim():cfg?.url?new URL(cfg.url,document.baseURI).href:'';
+  if(cfg?.native){stockfishLoading=true;try{await createNativeEngine(cfg)}catch(err){stockfishLoading=false;stockfishReady=false;setEngineUi(cfg.label+' failed',false);log(cfg.label+' load failed: '+err.message)}return;}
   if(!engineUrl){stockfishLoading=false;setEngineUi(previousReady?'previous engine ready':'Engine unavailable',previousReady);log(previousReady?'engine selection has no valid URL; keeping the working engine':'engine URL is missing');return;}
   if(cfg?.multi&&(!window.crossOriginIsolated||typeof SharedArrayBuffer==='undefined')){stockfishLoading=false;setEngineUi('Multi-threaded engine unavailable',false);log(cfg.label+' requires cross-origin isolation (COOP/COEP); reload once after the isolation service worker activates');return;}
   const requestedLabel=cfg?.label||'Custom UCI WASM engine';log('loading '+requestedLabel+' · '+engineUrl);stockfishLoading=true;let worker=null,settled=false;
@@ -92,7 +107,12 @@ async function createStockfish(force=false){
     worker.onerror=e=>fail('message='+(e.message||'unknown')+' filename='+(e.filename||engineUrl)+' line='+(e.lineno||'?')+' col='+(e.colno||'?'));worker.onmessageerror=()=>fail('messageerror while communicating with the engine worker');worker.postMessage('uci');setTimeout(()=>{if(!settled&&stockfishWorker===worker)fail('timeout waiting for uciok after 120 seconds · engine file may not be deployed')},120000);
   }catch(e){fail('constructor: '+e.message)}
 }
-function stockfishAnalyze(fen,depth=7){return new Promise(resolve=>{if(!stockfishReady||!stockfishWorker){resolve(null);return}analysisActive={resolve,score:null};stockfishWorker.postMessage('position fen '+fen);stockfishWorker.postMessage('go depth '+Math.max(4,Math.min(12,depth)));});}
-function stockfishSetStrength(full=true){if(!stockfishReady||!stockfishWorker)return;try{stockfishWorker.postMessage('setoption name UCI_LimitStrength value '+(!full));if(full)stockfishWorker.postMessage('setoption name UCI_Elo value 3000');stockfishWorker.postMessage('isready')}catch(e){log('engine strength reset failed: '+e.message)}}
-function stockfishMove(c,depth=12,allowedMoves=null){return new Promise(resolve=>{if(!stockfishReady||!stockfishWorker){log('Stockfish is not ready');resolve(null);return}const legal=c.moves({verbose:true}),allowed=Array.isArray(allowedMoves)?allowedMoves:legal,allowedUci=allowed.map(x=>x.from+x.to+(x.promotion||''));if(!allowedUci.length){resolve(null);return}const done=uci=>{const m=legal.find(x=>x.from+x.to+(x.promotion||'')===uci);resolve(m||null)};stockfishQueue.push(done);stockfishActiveResolve=()=>{const i=stockfishQueue.indexOf(done);if(i>=0)stockfishQueue.splice(i,1);resolve(null)};stockfishWorker.postMessage('ucinewgame');stockfishWorker.postMessage('position fen '+c.fen());stockfishWorker.postMessage('go depth '+depth+' searchmoves '+allowedUci.join(' '))})}
+function stockfishAnalyze(fen,depth=7){return new Promise(async resolve=>{if(selectedEngine==='tonnetto'||selectedEngine==='js-chess-engine'){try{const m=await nativeBestMove(fen,depth);resolve(m?{score:0,best:m}:null)}catch(e){resolve(null)}return}if(!stockfishReady||!stockfishWorker){resolve(null);return}analysisActive={resolve,score:null};stockfishWorker.postMessage('position fen '+fen);stockfishWorker.postMessage('go depth '+Math.max(4,Math.min(12,depth)));});}
+function stockfishSetStrength(full=true){if(selectedEngine==='tonnetto'||selectedEngine==='js-chess-engine')return;if(!stockfishReady||!stockfishWorker)return;try{stockfishWorker.postMessage('setoption name UCI_LimitStrength value '+(!full));if(full)stockfishWorker.postMessage('setoption name UCI_Elo value 3000');stockfishWorker.postMessage('isready')}catch(e){log('engine strength reset failed: '+e.message)}}
+async function nativeBestMove(fen,depth=6){
+  if(!nativeEngine)throw new Error('native engine is not loaded');
+  if(nativeEngine.kind==='tonnetto'){const eng=new nativeEngine.Engine({fen});const mv=eng.getBestMove(Math.max(1,Math.min(6,depth)));return typeof mv==='string'?mv:(mv?.uci||mv?.from+mv?.to||null)}
+  const game=new nativeEngine.Engine(fen);const obj=game.aiMove(Math.max(0,Math.min(4,Math.floor(depth/2))));const entry=Object.entries(obj||{})[0];if(!entry)return null;let u=entry[0].toLowerCase()+entry[1].toLowerCase();if((u[1]==='7'&&u[3]==='8')||(u[1]==='2'&&u[3]==='1'))u+='q';return u;
+}
+function stockfishMove(c,depth=12,allowedMoves=null){return new Promise(async resolve=>{if(selectedEngine==='tonnetto'||selectedEngine==='js-chess-engine'){try{const legal=c.moves({verbose:true}),allowed=Array.isArray(allowedMoves)?allowedMoves:legal,uci=await nativeBestMove(c.fen(),depth),m=legal.find(x=>x.from+x.to+(x.promotion||'')===uci);resolve(m||null)}catch(e){log('native engine move failed: '+e.message);resolve(null)}return}if(!stockfishReady||!stockfishWorker){log('Stockfish is not ready');resolve(null);return}const legal=c.moves({verbose:true}),allowed=Array.isArray(allowedMoves)?allowedMoves:legal,allowedUci=allowed.map(x=>x.from+x.to+(x.promotion||''));if(!allowedUci.length){resolve(null);return}const done=uci=>{const m=legal.find(x=>x.from+x.to+(x.promotion||'')===uci);resolve(m||null)};stockfishQueue.push(done);stockfishActiveResolve=()=>{const i=stockfishQueue.indexOf(done);if(i>=0)stockfishQueue.splice(i,1);resolve(null)};stockfishWorker.postMessage('ucinewgame');stockfishWorker.postMessage('position fen '+c.fen());stockfishWorker.postMessage('go depth '+depth+' searchmoves '+allowedUci.join(' '))})}
 function cancelEngine(){cancelRequested=true;if(fastBatchAbort){const abort=fastBatchAbort;fastBatchAbort=null;abort()}else stopFastWorkers();if(stockfishWorker&&stockfishReady){try{stockfishWorker.postMessage('stop')}catch(e){}}if(stockfishActiveResolve){const r=stockfishActiveResolve;stockfishActiveResolve=null;r()}if(analysisActive){const a=analysisActive;analysisActive=null;a.resolve(null)}stockfishQueue.length=0;busy=false;}
