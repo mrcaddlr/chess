@@ -56,7 +56,7 @@
   $('matchType')?.addEventListener('change',()=>{const type=$('matchType').value;$('engineField').style.display=type==='learner-engine'?'grid':'none';updateMatchBadge();setStatus('ready','press Play to randomize sides and start the match',0)});
   $('engineSelect')?.addEventListener('change',async()=>{selectedEngine=$('engineSelect').value;$('customEngineField').style.display=selectedEngine==='custom-wasm'?'grid':'none';matchEpoch++;setEngineUi('loading '+engineDisplayLabel(),false);await createStockfish(true);updateMatchBadge();setStatus(stockfishReady?'ready':'engine unavailable',stockfishReady?engineDisplayLabel()+' ready':'could not start '+engineDisplayLabel(),0)});
   $('customEngineUrl')?.addEventListener('change',async()=>{if(selectedEngine==='custom-wasm'){matchEpoch++;await createStockfish(true)}});
-  $('saveBrain')?.addEventListener('click',()=>saveBrain());$('loadBrain')?.addEventListener('click',loadBrain);$('resetBrain')?.addEventListener('click',resetBrain);$('exportBrain')?.addEventListener('click',exportBrain);$('importBrain')?.addEventListener('click',importBrain);
+  $('saveBrain')?.addEventListener('click',()=>saveBrain());$('loadBrain')?.addEventListener('click',loadBrain);$('restoreChampion')?.addEventListener('click',()=>restoreChampionSnapshot().catch(e=>{log('champion restore error: '+e.message)}));$('resetBrain')?.addEventListener('click',resetBrain);$('exportBrain')?.addEventListener('click',exportBrain);$('importBrain')?.addEventListener('click',importBrain);
   $('promoModal')?.addEventListener('click',e=>{if(e.target.id==='promoModal')e.currentTarget.classList.remove('open')});
 
   const tm=$('trainingMode');if(tm){const e=$('targetEloField');if(e)e.style.display=tm.value==='target'?'grid':'none'}
