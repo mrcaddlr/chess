@@ -1,5 +1,5 @@
 /* Local training backend: parallel self-play Web Worker. */
-importScripts('chess.js?v=0.14.0','repetition.js?v=0.14.0','core.js?v=0.14.0','learner.js?v=0.14.0');
+importScripts('chess.js?v=0.15.0','repetition.js?v=0.15.0','core.js?v=0.15.0','learner.js?v=0.15.0');
 function wt(c){if(isCheckmate(c))return c.turn()==='w'?-1:1;if(isStalemate(c)||isInsufficientMaterial(c))return 0;const f=c.fen().split(' ');return Number(f[4])>=100?0:null}
 async function wm(c,net,hist,state,legal){
   if(!legal.length)return null;
