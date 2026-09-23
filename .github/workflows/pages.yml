@@ -27,29 +27,16 @@ jobs:
         run: |
           set -e
           test -s stockfish/engine-manifest.json
-          check_engine() {
-            js="$1"
-            wasm="$2"
-            test -s "stockfish/$js"
-            if [ -s "stockfish/$wasm" ]; then
-              return 0
-            fi
-            parts=$(grep -o ""$wasm"[[:space:]]*:[[:space:]]*\\[[^]]*\\]" stockfish/engine-manifest.json || true)
-            test -n "$parts"
-            for part in $(printf '%s' "$parts" | grep -o '"[^"]*\\.part[0-9][0-9][0-9]"' | tr -d '"'); do
-              test -s "stockfish/$part"
-            done
-          }
-          check_engine stockfish-19.js stockfish-19.wasm
-          check_engine stockfish-19-single.js stockfish-19-single.wasm
-          check_engine stockfish-19-lite.js stockfish-19-lite.wasm
-          check_engine stockfish-19-lite-single.js stockfish-19-lite-single.wasm
-          check_engine stockfish-18.js stockfish-18.wasm
-          check_engine stockfish-18-single.js stockfish-18-single.wasm
-          check_engine stockfish-18-lite.js stockfish-18-lite.wasm
-          check_engine stockfish-18-lite-single.js stockfish-18-lite-single.wasm
-          test -s stockfish/lozza.js
+          for js in stockfish/stockfish-19.js stockfish/stockfish-19-single.js stockfish/stockfish-19-lite.js stockfish/stockfish-19-lite-single.js stockfish/stockfish-18.js stockfish/stockfish-18-single.js stockfish/stockfish-18-lite.js stockfish/stockfish-18-lite-single.js stockfish/lozza.js; do
+            test -s "$js"
+          done
           test -s stockfish/Copying.txt
+          for part in stockfish/*.wasm.part*; do
+            test -s "$part"
+          done
+          for wasm in stockfish/*.wasm; do
+            test -s "$wasm"
+          done
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
