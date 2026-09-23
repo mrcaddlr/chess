@@ -31,12 +31,12 @@ jobs:
             test -s "$js"
           done
           test -s stockfish/Copying.txt
-          for part in stockfish/*.wasm.part*; do
-            test -s "$part"
-          done
-          for wasm in stockfish/*.wasm; do
-            test -s "$wasm"
-          done
+          shopt -s nullglob
+          parts=(stockfish/*.wasm.part*)
+          wasms=(stockfish/*.wasm)
+          test "${#parts[@]}" -gt 0 || test "${#wasms[@]}" -gt 0
+          for part in "${parts[@]}"; do test -s "$part"; done
+          for wasm in "${wasms[@]}"; do test -s "$wasm"; done
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
