@@ -1007,3 +1007,11 @@ body::before,body::after{content:none!important;display:none!important;animation
 .piece{font-size:clamp(29px,8vw,70px)!important;line-height:1!important;}
 .piece.white-piece{color:#edf5ef!important;text-shadow:0 1px 0 #55645b,0 0 2px #55645b!important;}
 .piece.black-piece{color:#172019!important;text-shadow:0 1px 0 rgba(255,255,255,.2)!important;}
+
+/* 0.31.11 — live training board */
+.training-board-wrap{margin:12px 0 14px;padding:10px;border:1px solid #26332b;background:#0b100d;border-radius:14px}
+.training-board{display:grid;grid-template-columns:repeat(8,1fr);aspect-ratio:1;border-radius:10px;overflow:hidden;border:1px solid #26332b}
+.training-square{display:grid;place-items:center;min-width:0;font-size:clamp(20px,5vw,38px);line-height:1;font-family:"Noto Sans Symbols 2","Segoe UI Symbol",serif}
+.training-square.light{background:#26332b}.training-square.dark{background:#111812}
+.training-square.white-piece{color:#edf5ef;text-shadow:0 1px 0 #55645b}.training-square.black-piece{color:#172019;text-shadow:0 1px 0 rgba(255,255,255,.2)}
+.training-board-caption{display:flex;justify-content:space-between;margin-top:7px;font-size:11px;color:#9aaa9f;text-transform:uppercase;letter-spacing:.08em}
