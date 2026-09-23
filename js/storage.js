@@ -75,4 +75,21 @@ function resetBrain(){if(!confirm('reset the learner to random neural-network we
 
 function exportBrain(){const exportReplay=replay.slice(-CONFIG.replayMax).map(s=>({...s,x:Array.from(s.x||[])}));const blob=new Blob([JSON.stringify({app:'Chess Learning Lab',version:CONFIG.version,architecture:CONFIG.architecture,brain:brain.toJSON(),replay:exportReplay,evaluationHistory, bestEvalScore, championGeneration})],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='chess-learning-brain-gen-'+generation+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 
-function importBrain(){document.getElementById('fileInput').click()}
+function importBrain(){document.getElementById('fileInput').click()}async function restoreChampionSnapshot(){
+  const state=await loadChampionSnapshot();
+  if(!state?.brain){toast('no champion checkpoint');return false}
+  if(!confirm('restore the saved champion checkpoint from generation '+Number(state.generation||0)+'?'))return false;
+  try{
+    brain=TinyNet.fromJSON(state.brain);
+    replay=[];
+    evalRecord=state.evaluation||null;
+    markBrainDirty();
+    if(typeof resetMctsTree==='function')resetMctsTree();
+    renderStats();renderAll();
+    toast('champion restored');
+    log('restored champion checkpoint · generation '+generation);
+    await saveBrain(false);
+    return true;
+  }catch(e){log('champion restore failed: '+e.message);toast('champion restore failed');return false}
+}
+
