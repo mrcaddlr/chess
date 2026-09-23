@@ -37,6 +37,13 @@ jobs:
           test "${#parts[@]}" -gt 0 || test "${#wasms[@]}" -gt 0
           for part in "${parts[@]}"; do test -s "$part"; done
           for wasm in "${wasms[@]}"; do test -s "$wasm"; done
+      - name: Verify application JavaScript
+        run: |
+          set -e
+          for js in js/repetition.js js/core.js js/learner.js js/training.js js/engine.js js/review.js js/board.js js/match.js js/ui.js js/storage.js js/app.js js/chess.js; do
+            test -s "$js"
+            node --check "$js"
+          done
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
