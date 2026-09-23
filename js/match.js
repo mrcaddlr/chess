@@ -7,7 +7,7 @@ function learnerBrainForTurn(){return game.turn()==='w'?matchBrainWhite:matchBra
 
 function botLabel(kind){return kind==='stockfish'?(ENGINE_CONFIGS[selectedEngine]?.label||'Chess Engine'):kind==='human'?'Human':'Learner'}
 
-function updateMatchBadge(){const type=document.getElementById('matchType').value;const labels={'learner-learner':'learner vs learner','learner-engine':'learner vs chess engine','learner-human':'learner vs human'};document.getElementById('modeBadge').textContent=labels[type]||'learner vs learner';document.getElementById('modeBadge').title='sides are randomized when Play is pressed'}
+function updateMatchBadge(){const type=document.getElementById('matchType')?.value;const labels={'learner-learner':'learner vs learner','learner-engine':'learner vs chess engine','learner-human':'learner vs human'};const badge=document.getElementById('modeBadge');if(badge){badge.textContent=labels[type]||'learner vs learner';badge.title='learner side is controlled by match settings'}}
 
 async function continueMatch(epoch=matchEpoch){if(epoch!==matchEpoch||training||busy)return;if(isGameOver(game)){renderAll();return}const actor=botForTurn();if(actor==='human'){selected=null;legalMoves=[];renderAll();setStatus('your move','playing as '+(game.turn()==='w'?'White':'Black'));return}busy=true;selected=null;legalMoves=[];setStatus('thinking',botLabel(actor)+' is searching');renderBoard();await new Promise(r=>setTimeout(r,30));if(cancelRequested||epoch!==matchEpoch){busy=false;renderAll();return}const safeMoves=safeRepetitionMoves(game,repetition);if(!safeMoves.length){repetitionForcedDraw=true;busy=false;renderAll();setStatus('draw · repetition','all legal moves would create another repetition');finishGameReview(epoch);return}let m=actor==='stockfish'?await stockfishMove(game,12,safeMoves):await learnerMove(game,Number(document.getElementById('sims').value)||32,learnerBrainForTurn(),repetition);if(m&&moveCreatesRepetitionBreak(game,m,repetition)){const safe=safeRepetitionMove(game,m,learnerBrainForTurn(),repetition);m=safe.move;if(safe.forcedDraw){busy=false;renderAll();setStatus('draw · repetition','three repetition detections · points '+points);finishGameReview(epoch);return}}if(!m){const anySafe=safeRepetitionMoves(game,repetition).length;busy=false;if(!anySafe){repetitionForcedDraw=true;renderAll();setStatus('draw · repetition','all legal moves would create another repetition');}else{renderAll();setStatus('engine unavailable',actor==='stockfish'?'Stockfish is not ready':'Learner could not choose a legal move')}return}const fenBefore=game.fen(),mv=game.move({from:m.from,to:m.to,promotion:m.promotion});if(!mv){busy=false;renderAll();setStatus('move failed',botLabel(actor)+' returned an invalid move');return}lastMove={from:mv.from,to:mv.to};recordMove(fenBefore,mv,actor);recordPosition(game);busy=false;renderAll();const t=terminalText(game);if(t){setStatus(t,'game finished');finishGameReview(epoch);return}if(isInCheck(game))setStatus('check',botLabel(botForTurn())+' is in check');await new Promise(r=>setTimeout(r,60));if(cancelRequested||epoch!==matchEpoch){busy=false;renderAll();return}continueMatch(epoch)}
 
@@ -19,13 +19,15 @@ async function playMatch(){
   matchNonce=(Math.random()*0x100000000)>>>0;
   cancelRequested=false;
   const type=document.getElementById('matchType').value;
+  const learnerSide=document.getElementById('learnerSide')?.value||'random';
+  const learnerIsWhite=learnerSide==='white'||(learnerSide==='random'&&Math.random()<0.5);
   if(type==='learner-learner'){
     botWhite='learner'; botBlack='learner';
   }else if(type==='learner-engine'){
-    if(Math.random()<0.5){botWhite='learner';botBlack='stockfish';}
+    if(learnerIsWhite){botWhite='learner';botBlack='stockfish';}
     else{botWhite='stockfish';botBlack='learner';}
   }else if(type==='learner-human'){
-    if(Math.random()<0.5){botWhite='learner';botBlack='human';}
+    if(learnerIsWhite){botWhite='learner';botBlack='human';}
     else{botWhite='human';botBlack='learner';}
   }
   matchBrainWhite=null; matchBrainBlack=null;
