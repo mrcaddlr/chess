@@ -1,0 +1,13 @@
+/* Panels, moves, review and status rendering */
+function renderMoves(){const list=document.getElementById('moveList'),hist=game.history();list.innerHTML='';for(let i=0;i<hist.length;i++){const d=document.createElement('div');d.className='move';const q=moveRecords[i]?.quality||'';const pd=moveRecords[i]?.pointDelta;d.innerHTML='<b>'+((i>>1)+1)+(i%2?'...':'.')+'</b>'+hist[i]+(q?' <span style="float:right;font-weight:900">'+q+(Number.isFinite(pd)?' '+(pd>=0?'+':'')+pd:'')+'</span>':'');list.appendChild(d)}document.getElementById('moveCount').textContent=hist.length+' plies'}
+
+function renderReview(){const b=document.getElementById('reviewBadge'),s=document.getElementById('reviewSummary'),g=document.getElementById('reviewGrid');if(!reviewState){b.textContent='not reviewed';s.textContent='when a game ends, the system checks the moves and feeds the feedback back into the learner.';g.innerHTML='';return}if(reviewState.running){b.textContent='reviewing';s.textContent=reviewState.text||'checking the finished game with Stockfish…';g.innerHTML='';return}b.textContent=reviewState.accuracy+'% accuracy';s.textContent=reviewState.text;g.innerHTML='';for(const [k,v] of Object.entries(reviewState.counts)){const d=document.createElement('div');d.className='review-item';d.innerHTML='<b>'+v+'</b><span>'+k+'</span>';g.appendChild(d)}}
+
+function recordMove(fenBefore,mv,actor){
+  const fen=typeof fenBefore==='string'?fenBefore:(fenBefore&&typeof fenBefore.fen==='function'?fenBefore.fen():String(fenBefore||''));
+  moveRecords.push({fen,uci:mv.from+mv.to+(mv.promotion||''),san:mv.san||game.history().at(-1)||'',side:fen.split(' ')[1]||game.turn(),actor,quality:null});
+}
+
+function renderStats(){document.getElementById('gamesStat').textContent=games;document.getElementById('stepsStat').textContent=steps;document.getElementById('replayStat').textContent=replay.length;document.getElementById('generationBadge').textContent='gen '+generation;document.getElementById('evalStat').textContent=evalRecord??'—';document.getElementById('pointsStat').textContent=points;document.getElementById('brainState').textContent='gen '+generation+' · '+brain.w1.length+' weights'}
+
+function renderAll(){renderPlayers();renderPlayers();renderBoard();renderMoves();renderStats();renderReview();const t=terminalText(game);if(t)setStatus(t,'game finished');else if(!busy&&!training){const inCheck=isInCheck(game);setStatus(inCheck?'check':(botForTurn()==='human'?'your move':'ready'),inCheck?(botLabel(botForTurn())+' is in check'):'generation '+generation+' · '+replay.length+' replay positions')}}
