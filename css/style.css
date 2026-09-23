@@ -758,3 +758,12 @@ body:after{content:"";display:block;position:fixed;inset:0;pointer-events:none;z
 @keyframes terminalMarkPulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.18)}}
 @keyframes terminalButton{0%,100%{box-shadow:0 0 0 rgba(126,231,135,0)}50%{box-shadow:0 0 16px rgba(126,231,135,.2)}}
 @media(prefers-reduced-motion:reduce){.workspace,.status-card,.training-visual-panel .flow-box,.learning-flow i,.brand-mark,.btn.primary{animation:none!important}}
+
+/* 0.25 terminal cleanup */
+body::before,body::after{display:none!important;content:none!important}
+.piece,.piece-dot,.promo{font-family:"Courier New",monospace!important;font-weight:900!important;text-shadow:none!important}
+.piece{font-size:clamp(18px,4.2vw,32px)!important;letter-spacing:-2px}
+.piece.white-piece{color:#d7e4dc!important}
+.piece.black-piece{color:#7ee787!important}
+.player-card .piece-dot{font-size:16px!important}
+.promo{font-size:15px!important}
