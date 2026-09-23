@@ -216,7 +216,7 @@ select,input[type=number]{
       <section class="panel">
         <div class="panel-head"><h2>match</h2><span class="badge" id="modeBadge">learner vs learner</span></div>
         <div class="field"><label>matchup</label><select id="matchType"><option value="learner-learner" selected>Learner vs Learner</option><option value="learner-engine">Learner vs Chess Engine</option><option value="learner-human">Learner vs Human</option></select></div>
-        <div class="field" id="engineField"><label>chess engine</label><select id="engineSelect"><option value="sf19-lite-single">Stockfish 19 · Lite · Single-threaded</option><option value="sf19-single">Stockfish 19 · Full · Single-threaded</option><option value="sf18-lite-single">Stockfish 18 · Lite · Single-threaded</option><option value="sf17.1-lite-single">Stockfish 17.1 · Lite · Single-threaded</option></select></div>
+        <div class="field" id="engineField"><label>chess engine</label><select id="engineSelect"><option value="sf19-full-single">Stockfish 19 · Full · Single-threaded</option><option value="sf19-lite-single">Stockfish 19 · Lite · Single-threaded</option><option value="sf19-full-multi">Stockfish 19 · Full · Multi-threaded</option><option value="sf18-full-single">Stockfish 18 · Full · Single-threaded</option><option value="sf18-lite-single">Stockfish 18 · Lite · Single-threaded</option><option value="sf18-full-multi">Stockfish 18 · Full · Multi-threaded</option><option value="custom-wasm">Custom UCI WASM engine</option></select></div>
         <div class="field"><label>learner search simulations</label><input id="sims" type="number" min="1" max="250" step="1" value="4"></div>
       </section>
 
@@ -452,79 +452,95 @@ async function trainBatch(){
   }catch(e){log('training error: '+e.message);setStatus('error','training failed · '+e.message,0);toast('training failed')}
   finally{fastBatchAbort=null;stopFastWorkers();training=false;busy=false;renderStats();if(!isGameOver(game))setStatus(cancelRequested?'paused':'ready',cancelRequested?'training stopped':'generation '+generation+' · '+games+' matches',100)}
 }
-async function createStockfish(force=false){
+async function engineDisplayLabel(){
+  if(selectedEngine==='custom-wasm')return 'Custom UCI WASM engine';
+  return ENGINE_CONFIGS[selectedEngine]?.label||'Chess Engine';
+}
+function setEngineUi(label,ok){
+  const pill=document.getElementById('enginePill'),dot=document.getElementById('onlineDot');
+  if(pill)pill.textContent=label;
+  if(dot)dot.style.background=ok?'var(--mint)':'var(--red)';
+}
+function createStockfish(force=false){
   if((stockfishWorker||stockfishLoading)&&!force)return;
+  const cfg=ENGINE_CONFIGS[selectedEngine]||null;
+  const previousWorker=stockfishWorker;
+  const previousReady=stockfishReady;
+  const engineUrl=selectedEngine==='custom-wasm'
+    ?document.getElementById('customEngineUrl')?.value.trim()
+    :cfg?.url?new URL(cfg.url,document.baseURI).href:'';
+  if(!engineUrl){
+    stockfishLoading=false;
+    setEngineUi(previousReady?'previous engine ready':'Engine unavailable',previousReady);
+    log(previousReady?'engine selection has no valid URL; keeping the working engine':'engine URL is missing');
+    return;
+  }
+  if(cfg?.multi&&!window.crossOriginIsolated){
+    stockfishLoading=false;
+    setEngineUi(previousReady?'previous engine ready':'Multi-threaded engine unavailable',previousReady);
+    log(cfg.label+' requires cross-origin isolation (COOP/COEP); keeping the current engine');
+    return;
+  }
+  const requestedLabel=cfg?.label||'Custom UCI WASM engine';
+  log('loading '+requestedLabel+' · '+engineUrl);
   stockfishLoading=true;
-  stockfishReady=false;
-  const cfg=ENGINE_CONFIGS[selectedEngine]||{label:'Custom UCI WASM engine'};
-  const engineUrl=selectedEngine==='custom-wasm'?document.getElementById('customEngineUrl').value.trim():new URL(cfg.url,document.baseURI).href;
-  if(!engineUrl){stockfishLoading=false;setStatus('error','custom engine URL is required',0);return;}
-  log('loading '+cfg.label+' · '+engineUrl);
-  if(stockfishWorker){try{stockfishWorker.terminate()}catch(e){}stockfishWorker=null;}
-  let worker=null;
+  let worker=null,settled=false;
+  const fail=(reason)=>{
+    if(settled)return;
+    settled=true;
+    stockfishLoading=false;
+    try{worker?.terminate()}catch(e){}
+    if(stockfishWorker===worker)stockfishWorker=null;
+    if(previousWorker&&previousReady&&previousWorker!==worker){
+      stockfishWorker=previousWorker;
+      stockfishReady=true;
+      setEngineUi('previous engine ready',true);
+      log(requestedLabel+' failed; kept the previously working engine');
+    }else{
+      stockfishReady=false;
+      setEngineUi(requestedLabel+' failed',false);
+    }
+    log('Engine worker error: '+reason);
+  };
   try{
     worker=new Worker(engineUrl);
     stockfishWorker=worker;
+    stockfishReady=false;
     worker.onmessage=e=>{
       const d=typeof e.data==='string'?e.data:'';
       if(!d)return;
       if(d.includes('uciok')){
+        settled=true;
         stockfishReady=true;
         stockfishLoading=false;
-        document.getElementById('enginePill').textContent=cfg.label+' ready';
-        document.getElementById('onlineDot').style.background='var(--green)';
-        log(cfg.label+' ready · local GitHub Pages worker');
-        try{worker.postMessage('isready')}catch(err){}
+        setEngineUi(requestedLabel+' ready',true);
+        log(requestedLabel+' ready · local GitHub Pages worker');
+        try{
+          if(cfg?.multi)worker.postMessage('setoption name Threads value '+Math.max(1,navigator.hardwareConcurrency||2));
+          worker.postMessage('isready');
+        }catch(err){log('engine initialization command failed: '+err.message)}
         return;
       }
-      if(d.includes('readyok')){
-        stockfishReady=true;
-      }
+      if(d.includes('readyok'))stockfishReady=true;
       if(analysisActive){
         if(d.startsWith('info ')){
-          const m=d.match(/score\s+(cp|mate)\s+(-?\d+)/);
-          if(m){
-            const n=Number(m[2]);
-            analysisActive.score=m[1]==='mate'?(n>0?100000:-100000):n;
-          }
+          const m=d.match(/score\\s+(cp|mate)\\s+(-?\\d+)/);
+          if(m){const n=Number(m[2]);analysisActive.score=m[1]==='mate'?(n>0?100000:-100000):n;}
         }
-        if(d.startsWith('bestmove')){
-          const a=analysisActive;analysisActive=null;
-          a.resolve({score:a.score??0,best:d.split(/\s+/)[1]||null});
-          return;
-        }
+        if(d.startsWith('bestmove')){const a=analysisActive;analysisActive=null;a.resolve({score:a.score??0,best:d.split(/\\s+/)[1]||null});return;}
       }
       if(d.startsWith('bestmove')){
-        const m=d.split(/\s+/)[1];
+        const m=d.split(/\\s+/)[1];
         const q=stockfishQueue.shift();
         stockfishActiveResolve=null;
         if(q)q(m);
       }
     };
-    worker.onerror=e=>{
-      stockfishReady=false;stockfishLoading=false;
-      log('Stockfish worker error: '+(e.message||'unknown worker error'));
-      try{worker.terminate()}catch(err){}
-      if(stockfishWorker===worker)stockfishWorker=null;
-      document.getElementById('enginePill').textContent='Stockfish failed';
-      document.getElementById('onlineDot').style.background='var(--red)';
-    };
+    worker.onerror=e=>fail('message='+(e.message||'unknown')+' filename='+(e.filename||engineUrl)+' line='+(e.lineno||'?')+' col='+(e.colno||'?'));
+    worker.onmessageerror=()=>fail('messageerror while communicating with the engine worker');
     worker.postMessage('uci');
-    setTimeout(()=>{
-      if(!stockfishReady&&stockfishWorker===worker){
-        log('Stockfish timeout · local engine did not answer uciok');
-        try{worker.terminate()}catch(err){}
-        stockfishWorker=null;stockfishLoading=false;
-        document.getElementById('enginePill').textContent='Stockfish failed';
-        document.getElementById('onlineDot').style.background='var(--red)';
-      }
-    },15000);
-  }catch(e){
-    stockfishLoading=false;stockfishReady=false;stockfishWorker=null;
-    document.getElementById('enginePill').textContent='Stockfish failed';
-    document.getElementById('onlineDot').style.background='var(--red)';
-    log('Stockfish local load failed: '+e.message);
-  }
+    setTimeout(()=>{if(!settled&&stockfishWorker===worker)fail('timeout waiting for uciok')},20000);
+  }catch(e){fail('constructor: '+e.message)}
 }
 function expectedPoints(cp){const x=Math.max(-1200,Math.min(1200,cp))/180;return 1/(1+Math.exp(-x))}
 function pieceValue(t){return ({p:1,n:3,b:3,r:5,q:9,k:0})[t]||0}
@@ -639,8 +655,8 @@ document.getElementById('fileInput').onchange=e=>{const f=e.target.files[0];if(!
 
 document.getElementById('clearLog').onclick=()=>{document.getElementById('log').textContent='';log('log cleared')};
 document.getElementById('startTraining').type='button';document.getElementById('playMatch').type='button';document.getElementById('simulateMove').type='button';document.getElementById('newGame').type='button';document.getElementById('flip').type='button';document.getElementById('stopTrain').type='button';document.getElementById('startTraining').onclick=()=>{trainBatch().catch(e=>{log('training launch error: '+e.message);setStatus('error','training failed to start',0)})};document.getElementById('playMatch').onclick=()=>{playMatch().catch(e=>{busy=false;log('Play error: '+e.message);setStatus('error',e.message,0);renderAll()})};document.getElementById('simulateMove').onclick=()=>{simulateOneMove().catch(e=>{busy=false;log('1 move error: '+e.message);setStatus('error',e.message,0);renderAll()})};document.getElementById('newGame').onclick=()=>newGame();document.getElementById('flip').onclick=()=>{flipped=!flipped;renderBoard()};document.getElementById('stopTrain').onclick=()=>{cancelEngine();training=false;busy=false;setStatus('paused','stopped');renderAll();toast('stopped')};document.getElementById('matchType').onchange=()=>{const type=document.getElementById('matchType').value;document.getElementById('engineField').style.display=type==='learner-engine'?'grid':'none';updateMatchBadge();setStatus('ready','press Play to randomize sides and start the match',0)};
-document.getElementById('engineSelect').onchange=async()=>{selectedEngine=document.getElementById('engineSelect').value;document.getElementById('customEngineField').style.display=selectedEngine==='custom-wasm'?'grid':'none';matchEpoch++;cancelEngine();if(selectedEngine!=='custom-wasm')await createStockfish(true);updateMatchBadge();setStatus('ready',(ENGINE_CONFIGS[selectedEngine]?.label||'Custom UCI WASM engine')+' selected · press Play',0)};
-document.getElementById('customEngineUrl').onchange=async()=>{if(selectedEngine==='custom-wasm'){matchEpoch++;cancelEngine();await createStockfish(true);}};document.getElementById('saveBrain').onclick=()=>saveBrain();document.getElementById('loadBrain').onclick=loadBrain;document.getElementById('resetBrain').onclick=resetBrain;document.getElementById('exportBrain').onclick=exportBrain;document.getElementById('importBrain').onclick=importBrain;document.getElementById('promoModal').onclick=e=>{if(e.target.id==='promoModal')e.currentTarget.classList.remove('open')};
+document.getElementById('engineSelect').onchange=async()=>{selectedEngine=document.getElementById('engineSelect').value;document.getElementById('customEngineField').style.display=selectedEngine==='custom-wasm'?'grid':'none';matchEpoch++;await createStockfish(true);updateMatchBadge();setStatus('ready',engineDisplayLabel()+' selected · press Play',0)};
+document.getElementById('customEngineUrl').onchange=async()=>{if(selectedEngine==='custom-wasm'){matchEpoch++;await createStockfish(true);}};document.getElementById('saveBrain').onclick=()=>saveBrain();document.getElementById('loadBrain').onclick=loadBrain;document.getElementById('resetBrain').onclick=resetBrain;document.getElementById('exportBrain').onclick=exportBrain;document.getElementById('importBrain').onclick=importBrain;document.getElementById('promoModal').onclick=e=>{if(e.target.id==='promoModal')e.currentTarget.classList.remove('open')};
 
 brain=new TinyNet(Date.now());loadBrain();createStockfish();resetRepetition();document.getElementById('engineField').style.display='grid';document.getElementById('customEngineField').style.display='none';updateMatchBadge();renderPlayers();renderAll();log('Chess Learning Lab '+CONFIG.version+' initialized');log('learner uses only chess rules from the environment; strategy starts random and is learned from experience');updateMatchBadge();
 </script>
