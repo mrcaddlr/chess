@@ -21,7 +21,7 @@ async function buildBundledEngineWorker(engineUrl){
   }
 
   const jsName=engineUrl.split('/').pop();
-  const wasmName=jsName.replace(/\\.js$/i,'.wasm');
+  const wasmName=jsName.replace(/\.js$/i,'.wasm');
   const parts=manifest?.[wasmName];
   let wasmUrl='';
 
@@ -69,12 +69,12 @@ async function buildBundledEngineWorker(engineUrl){
   let pthreadWorkerUrl='';
 
   if(cfgIsMultiEngine(engineUrl)){
-    const pthreadBootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(path){if(/\\\\.wasm$/i.test(path))return '+wasmLiteral+';return new URL(path,'+JSON.stringify(engineUrl)+').href;};\\n'+source;
+    const pthreadBootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(path){if(/\.wasm$/i.test(path))return '+wasmLiteral+';return new URL(path,'+JSON.stringify(engineUrl)+').href;};\\n'+source;
     pthreadWorkerUrl=URL.createObjectURL(new Blob([pthreadBootstrap],{type:'text/javascript'}));
     stockfishBlobUrls.push(pthreadWorkerUrl);
   }
 
-  const bootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(path){if(/stockfish\\\\.worker\\\\.js$/i.test(path)&&'+JSON.stringify(pthreadWorkerUrl)+')return '+JSON.stringify(pthreadWorkerUrl)+';if(/\\\\.wasm$/i.test(path))return '+wasmLiteral+';return new URL(path,'+JSON.stringify(engineUrl)+').href;};\\n'+source;
+  const bootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(path){if(/stockfish\.worker\.js$/i.test(path)&&'+JSON.stringify(pthreadWorkerUrl)+')return '+JSON.stringify(pthreadWorkerUrl)+';if(/\.wasm$/i.test(path))return '+wasmLiteral+';return new URL(path,'+JSON.stringify(engineUrl)+').href;};\\n'+source;
   const workerUrl=URL.createObjectURL(new Blob([bootstrap],{type:'text/javascript'}));
   stockfishBlobUrls.push(workerUrl);
   if(wasmUrl.startsWith('blob:'))stockfishBlobUrls.push(wasmUrl);
