@@ -767,3 +767,60 @@ body::before,body::after{display:none!important;content:none!important}
 .piece.black-piece{color:#7ee787!important}
 .player-card .piece-dot{font-size:16px!important}
 .promo{font-size:15px!important}
+
+/* 0.27.0 — full ASCII terminal pass */
+:root{
+  --purple:#7ee787!important;
+  --pink:#7ee787!important;
+  --magenta:#7ee787!important;
+  --violet:#7ee787!important;
+  --cyan:#79c7ff;
+  --green:#7ee787;
+}
+/* no purple/pink UI text or decoration */
+*,*::before,*::after{--purple:#7ee787;--pink:#7ee787;--magenta:#7ee787;--violet:#7ee787}
+h1,h2,h3,h4,p,span,label,b,strong,.eyebrow,.badge,.tiny,.side-name,.player-name,.status-main,.status-sub,
+.stat,.move,.metric-row>div,.flow-box,.live-top,.activity-label,.panel-head{color:inherit}
+.workspace-head h2,.panel-head h2{color:#dce8e0!important}
+.workspace-head p,.status-sub,.tiny,.field label,.stat span,.flow-box span,.metric-row span,.live-top span,.activity-label{color:#718078!important}
+.eyebrow,.badge,.status-main:before,.field label:before,.move b{color:#7ee787!important}
+.player-card.black:before,.player-card.white:before{background:#26332b!important}
+/* ASCII terminal chrome */
+.terminal-titlebar span:last-child{font-size:0!important;color:#7ee787!important}
+.terminal-titlebar span:last-child::after{content:"[■][■][■]"!important;font-size:8px}
+.terminal-titlebar span:first-child::before{content:"$ ";color:#7ee787}
+.workspace-head .eyebrow:before{content:"$ ";color:#7ee787!important}
+.workspace-head h2:before,.panel-head h2:before{content:"> ";color:#7ee787!important}
+.status-main:before{content:"["!important}
+.status-main:after{content:"]"!important;color:#7ee787!important;margin-left:0}
+.btn::before{content:"[";color:#53635a}
+.btn::after{content:"]";color:#53635a}
+.learning-flow>i{font-size:0!important}
+.learning-flow>i::after{content:">";font:900 12px "Courier New",monospace;color:#7ee787!important}
+/* full terminal motion, not only training */
+.workspace,.topbar,.panel,.status-card,.player-card,.stat,.move,.metric-row>div,.flow-box,.btn,.badge,select,input,.log,.board,.square{
+  transition:border-color .18s steps(2,end),box-shadow .18s ease,background-color .18s ease,transform .18s ease;
+}
+.workspace,.topbar,.panel,.status-card,.player-card,.stat,.move,.metric-row>div,.flow-box,.board{
+  animation:asciiPulse 3.2s steps(4,end) infinite;
+}
+.workspace:nth-child(2n),.panel:nth-child(2n),.stat:nth-child(2n),.flow-box:nth-child(2n){animation-delay:.4s}
+.btn{animation:asciiButton 2.4s steps(3,end) infinite}
+.badge{animation:asciiBadge 1.8s steps(2,end) infinite}
+.log{animation:asciiLog 4s linear infinite}
+@keyframes asciiPulse{
+  0%,100%{border-color:#26332b;box-shadow:none}
+  50%{border-color:#3b5143;box-shadow:0 0 10px rgba(126,231,135,.045)}
+}
+@keyframes asciiButton{
+  0%,100%{box-shadow:none}
+  50%{box-shadow:0 0 9px rgba(126,231,135,.12)}
+}
+@keyframes asciiBadge{0%,100%{opacity:1}50%{opacity:.62}}
+@keyframes asciiLog{0%,100%{box-shadow:inset 0 0 0 rgba(126,231,135,0)}50%{box-shadow:inset 0 0 12px rgba(126,231,135,.025)}}
+/* square pixels */
+.square{image-rendering:pixelated}
+.piece{font-family:"Courier New",monospace!important;font-weight:900!important;letter-spacing:-2px!important;text-shadow:1px 0 0 currentColor!important}
+body::before{content:"";display:block;position:fixed;inset:0;pointer-events:none;z-index:9998;background:repeating-linear-gradient(0deg,transparent 0,transparent 3px,rgba(126,231,135,.018) 4px);animation:scanAscii 6s linear infinite}
+@keyframes scanAscii{from{transform:translateY(0)}to{transform:translateY(4px)}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important}}
