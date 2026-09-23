@@ -92,7 +92,6 @@ body:after{right:-70px;bottom:5%;background:#c9c2ff;transform:rotate(-22deg)}
 .brand-mark:after{content:"✦";position:absolute;right:4px;top:2px;font-size:9px;color:#fff;opacity:.9}
 .brand p{font-size:10px;letter-spacing:.015em}
 .board-card{position:relative;overflow:hidden;background:var(--card)}
-.board-card:before{content:"";position:absolute;top:-36px;right:12%;width:90px;height:48px;border-radius:0 0 25px 25px;background:#ffe17b;transform:rotate(4deg);opacity:.7}
 .board-card:after{content:"♡";position:absolute;right:22px;bottom:78px;color:#ff9cc5;font-size:24px;opacity:.7;transform:rotate(12deg)}
 .player-card{background:var(--card)}
 .player-card.active{background:linear-gradient(135deg,var(--card),var(--purple-soft))}
@@ -136,3 +135,23 @@ html[data-theme="dark"] .selected{box-shadow:inset 0 0 0 4px var(--purple),inset
 html[data-theme="dark"] .panel-head:after{opacity:.8}
 html[data-theme="dark"] .log{background:#100e16}
 html[data-theme="dark"] .modal{background:rgba(5,4,9,.64)}
+
+/* independent theme system */
+html[data-ui-theme="sakura"]{--bg:#fff8fc;--ink:#292638;--muted:#898397;--line:#ece5f0;--card:rgba(255,255,255,.84);--input:#fff;--stat:#fcfaff;--move:#f8f5fa;--pink:#ff62a6;--purple:#806cff;--cyan:#54cde1;--mint:#59cda3;--yellow:#ffd866}
+html[data-ui-theme="ocean"]{--bg:#f3fbff;--ink:#243342;--muted:#718797;--line:#dcecf2;--card:rgba(255,255,255,.86);--input:#fff;--stat:#f4fbfd;--move:#edf8fb;--pink:#4aa7ff;--purple:#6678e8;--cyan:#38c9d8;--mint:#50c7a4;--yellow:#ffd56b}
+html[data-ui-theme="mint"]{--bg:#f3fcf8;--ink:#253530;--muted:#718780;--line:#dceee8;--card:rgba(255,255,255,.87);--input:#fff;--stat:#f5fbf8;--move:#edf8f4;--pink:#ef77ad;--purple:#7c75e8;--cyan:#49c9d0;--mint:#42bf91;--yellow:#f7d36a}
+html[data-ui-theme="lavender"]{--bg:#f8f6ff;--ink:#302c42;--muted:#817b96;--line:#e7e2f4;--card:rgba(255,255,255,.86);--input:#fff;--stat:#faf8ff;--move:#f3f0fa;--pink:#e875ad;--purple:#8b72e8;--cyan:#67c9e4;--mint:#67c8a4;--yellow:#f3d26d}
+html[data-ui-theme="sunset"]{--bg:#fff8f2;--ink:#3a2d2a;--muted:#907b74;--line:#f0e2da;--card:rgba(255,255,255,.86);--input:#fff;--stat:#fffaf6;--move:#fff3eb;--pink:#f46f91;--purple:#9b70d5;--cyan:#61c4d2;--mint:#65bf96;--yellow:#ffd05f}
+html[data-ui-theme="mono"]{--bg:#f5f5f6;--ink:#29292d;--muted:#77777f;--line:#dedee2;--card:rgba(255,255,255,.9);--input:#fff;--stat:#fafafa;--move:#f0f0f2;--pink:#77777f;--purple:#55555e;--cyan:#888891;--mint:#707078;--yellow:#b2b2b8}
+html[data-ui-theme="catppuccin"]{--bg:#eff1f5;--ink:#4c4f69;--muted:#7c7f93;--line:#dce0e8;--card:rgba(255,255,255,.84);--input:#fff;--stat:#f6f7f9;--move:#e9eaf0;--pink:#d20f39;--purple:#8839ef;--cyan:#04a5e5;--mint:#40a02b;--yellow:#df8e1d}
+html[data-theme="dark"]{--bg:#1e1e2e;--ink:#cdd6f4;--muted:#a6adc8;--line:#45475a;--card:rgba(49,50,68,.92);--input:#313244;--stat:#292c3c;--move:#292c3c;--pink:#f38ba8;--purple:#cba6f7;--cyan:#89dceb;--mint:#a6e3a1;--yellow:#f9e2af;--shadow:0 22px 60px rgba(0,0,0,.34);--soft-shadow:0 8px 24px rgba(0,0,0,.24)}
+html[data-board-theme="classic"] .square.light{background:#fff9ee} html[data-board-theme="classic"] .square.dark{background:#c994ac}
+html[data-board-theme="catppuccin"] .square.light{background:#f5e0dc} html[data-board-theme="catppuccin"] .square.dark{background:#8839a8}
+html[data-board-theme="rose"] .square.light{background:#fff1f5} html[data-board-theme="rose"] .square.dark{background:#c87894}
+html[data-board-theme="ocean"] .square.light{background:#e7f7fa} html[data-board-theme="ocean"] .square.dark{background:#4e93a6}
+html[data-board-theme="mint"] .square.light{background:#e9f8ef} html[data-board-theme="mint"] .square.dark{background:#62a889}
+html[data-board-theme="lavender"] .square.light{background:#f0edff} html[data-board-theme="lavender"] .square.dark{background:#8c79b9}
+html[data-board-theme="mono"] .square.light{background:#eeeeef} html[data-board-theme="mono"] .square.dark{background:#77777f}
+.theme-settings{min-height:38px;padding:7px 12px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);box-shadow:var(--soft-shadow);font-size:9px;font-weight:1000}
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.settings-grid .field{margin-top:0}
+@media(max-width:560px){.theme-settings{min-width:38px;padding:7px 9px}.theme-settings{font-size:8px}}
