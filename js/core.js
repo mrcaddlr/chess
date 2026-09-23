@@ -10,6 +10,7 @@ let brain=null, matchBrainWhite=null, matchBrainBlack=null, stockfishWorker=null
 let brainDBPromise=null, matchEpoch=0, matchNonce=0;
 // Optional fast-training worker hooks. Keep them defined even when the fast path is unused.
 let fastBatchAbort=null, fastWorkers=[];
+function stopFastWorkers(){for(const w of fastWorkers){try{w.terminate()}catch(e){}}fastWorkers=[];}
 let moveRecords=[], reviewState=null, reviewRunning=false, lastReviewedEpoch=-1, analysisActive=null, stockfishActiveResolve=null;
 
 
