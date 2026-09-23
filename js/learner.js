@@ -83,7 +83,7 @@ async function mcts(c,sims,learnerBrain=brain,detailed=false){
     if(ch.visits>bestN||(ch.visits===bestN&&tie>bestTie)){bestN=ch.visits;bestTie=tie;best=ch.move}
   }
   if(!best)best=softmaxLegal(c,0,learnerBrain);
-  if(!best||typeof best.from!=='string'||typeof best.to!=='string){
+  if(!best||typeof best.from!=='string'||typeof best.to!=='string'){
     resetMctsTree();
     best=softmaxLegal(c,0,learnerBrain);
   }
