@@ -34,6 +34,33 @@ async function loadBrain(){
   }catch(e){brain=new TinyNet(Date.now());replay=[];toast('fresh neural network');log('saved brain could not be loaded: '+e.message+' · started fresh')}
 }
 
+async function saveChampionSnapshot(){
+  try{
+    const db=await openBrainDB();
+    const snapshot={version:CONFIG.version,architecture:CONFIG.architecture,generation,brain:brain.toJSON(),evaluation:evalRecord||null,savedAt:Date.now()};
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction('state','readwrite');
+      tx.objectStore('state').put(snapshot,'champion');
+      tx.oncomplete=resolve;
+      tx.onerror=()=>reject(tx.error||new Error('Champion checkpoint write failed'));
+    });
+    log('champion checkpoint saved · generation '+generation);
+  }catch(e){log('champion checkpoint save failed: '+e.message)}
+}
+
+async function loadChampionSnapshot(){
+  try{
+    const db=await openBrainDB();
+    const state=await new Promise((resolve,reject)=>{
+      const tx=db.transaction('state','readonly');
+      const q=tx.objectStore('state').get('champion');
+      q.onsuccess=()=>resolve(q.result||null);
+      q.onerror=()=>reject(q.error);
+    });
+    return state||null;
+  }catch(e){log('champion checkpoint load failed: '+e.message);return null}
+}
+
 function markBrainDirty(){
   const el=document.getElementById('brainState');
   if(el)el.textContent='autosave pending';
