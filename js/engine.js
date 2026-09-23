@@ -25,10 +25,20 @@ async function buildBundledEngineWorker(engineUrl){
   const jsResponse=await fetch(engineUrl,{cache:'reload'});if(!jsResponse.ok)throw new Error('engine JavaScript file returned HTTP '+jsResponse.status);
   const source=await jsResponse.text();
   const wasmLiteral=JSON.stringify(wasmUrl);
-  const bootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(path){if(/\\.wasm$/i.test(path))return '+wasmLiteral+';return new URL(path,'+JSON.stringify(engineUrl)+').href;};\\n'+source;
+  let pthreadWorkerUrl='';
+  if(cfgIsMultiEngine(engineUrl)){
+    const pthreadBootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(path){if(/\\.wasm$/i.test(path))return '+wasmLiteral+';return new URL(path,'+JSON.stringify(engineUrl)+').href;};\\n'+source;
+    pthreadWorkerUrl=URL.createObjectURL(new Blob([pthreadBootstrap],{type:'text/javascript'}));
+    stockfishBlobUrls.push(pthreadWorkerUrl);
+  }
+  const bootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(path){if(/stockfish\\.worker\\.js$/i.test(path)&&'+JSON.stringify(pthreadWorkerUrl)+')return '+JSON.stringify(pthreadWorkerUrl)+';if(/\\.wasm$/i.test(path))return '+wasmLiteral+';return new URL(path,'+JSON.stringify(engineUrl)+').href;};\\n'+source;
   const workerUrl=URL.createObjectURL(new Blob([bootstrap],{type:'text/javascript'}));
   stockfishBlobUrls.push(wasmUrl,workerUrl);
   return new Worker(workerUrl);
+}
+
+function cfgIsMultiEngine(engineUrl){
+  return Object.values(ENGINE_CONFIGS||{}).some(cfg=>cfg?.multi&&new URL(cfg.url,document.baseURI).href===engineUrl);
 }
 async function createStockfish(force=false){
   if((stockfishWorker||stockfishLoading)&&!force)return;
