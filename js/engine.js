@@ -24,7 +24,7 @@ function createStockfish(force=false){
     log(previousReady?'engine selection has no valid URL; keeping the working engine':'engine URL is missing');
     return;
   }
-  if(cfg?.multi&&!window.crossOriginIsolated){
+  if(cfg?.multi&&(!window.crossOriginIsolated||typeof SharedArrayBuffer==='undefined')){
     stockfishLoading=false;
     setEngineUi(previousReady?'previous engine ready':'Multi-threaded engine unavailable',previousReady);
     log(cfg.label+' requires cross-origin isolation (COOP/COEP); keeping the current engine');
@@ -88,7 +88,7 @@ function createStockfish(force=false){
     worker.onerror=e=>fail('message='+(e.message||'unknown')+' filename='+(e.filename||engineUrl)+' line='+(e.lineno||'?')+' col='+(e.colno||'?'));
     worker.onmessageerror=()=>fail('messageerror while communicating with the engine worker');
     worker.postMessage('uci');
-    setTimeout(()=>{if(!settled&&stockfishWorker===worker)fail('timeout waiting for uciok after 120 seconds')},120000);
+    setTimeout(()=>{if(!settled&&stockfishWorker===worker)fail('timeout waiting for uciok after 120 seconds · engine file may not be deployed')},120000);
   }catch(e){fail('constructor: '+e.message)}
 }
 
