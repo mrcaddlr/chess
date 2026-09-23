@@ -1,7 +1,7 @@
 /* Chess Learning Lab · application state + chess-rule helpers */
 const PIECES={wp:'♙',wn:'♘',wb:'♗',wr:'♖',wq:'♕',wk:'♔',bp:'♟',bn:'♞',bb:'♝',br:'♜',bq:'♛',bk:'♚'};
 const FILES='abcdefgh';
-const CONFIG={version:'0.15.0',architecture:'residual-policy-value-v5',input:837,hidden1:384,hidden2:384,residualBlocks:8,policy:4352,replayMax:50000,lr:0.0015,valueWeight:.55,policyWeight:1.0,rlBatch:64,trainPlies:160,gradientClip:5.0,exploration:1.35,temperature:.9};
+const CONFIG={version:'0.16.0',architecture:'residual-policy-value-v5',input:837,hidden1:384,hidden2:384,residualBlocks:8,policy:4352,replayMax:50000,lr:0.0015,valueWeight:.55,policyWeight:1.0,rlBatch:64,trainPlies:160,gradientClip:5.0,exploration:1.35,temperature:.9};
 let game=new Chess(), flipped=false, selected=null, legalMoves=[], lastMove=null, busy=false, botWhite='learner', botBlack='learner', training=false, trainTimer=null, cancelRequested=false;
 const ENGINE_CONFIGS={'sf19-full-single':{label:'Stockfish 19 · Full · Single-threaded',url:'stockfish/stockfish-19-single.js',multi:false},'sf19-full-multi':{label:'Stockfish 19 · Full · Multi-threaded',url:'stockfish/stockfish-19.js',multi:true},'sf19-lite-single':{label:'Stockfish 19 · Lite · Single-threaded',url:'stockfish/stockfish-19-lite-single.js',multi:false},'sf18-full-single':{label:'Stockfish 18 · Full · Single-threaded',url:'stockfish/stockfish-18-single.js',multi:false},'sf18-full-multi':{label:'Stockfish 18 · Full · Multi-threaded',url:'stockfish/stockfish-18.js',multi:true},'sf18-lite-single':{label:'Stockfish 18 · Lite · Single-threaded',url:'stockfish/stockfish-18-lite-single.js',multi:false},'lozza':{label:'Lozza · JavaScript',url:'stockfish/lozza.js',multi:false}};
 let selectedEngine='sf19-lite-single';
@@ -14,7 +14,7 @@ function stopFastWorkers(){for(const w of fastWorkers){try{w.terminate()}catch(e
 let moveRecords=[], reviewState=null, reviewRunning=false, lastReviewedEpoch=-1, analysisActive=null, stockfishActiveResolve=null;
 
 
-function log(msg){const line=new Date().toLocaleTimeString()+'  '+String(msg);const el=document.getElementById('log');if(el)el.textContent=(line+'\\n'+el.textContent).slice(0,24000)}
+function log(msg){const line=new Date().toLocaleTimeString()+'  '+String(msg);const el=document.getElementById('log');if(el)el.textContent=(line+'\n'+el.textContent).slice(0,24000)}
 if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('error',e=>log('ERROR: '+(e.message||'unknown error')+' @ '+(e.filename||'inline')+':'+(e.lineno||'?')));
 if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('unhandledrejection',e=>log('ERROR: unhandled promise rejection: '+(e.reason?.message||String(e.reason||'unknown'))));
 function toast(msg){const e=document.getElementById('toast');if(!e)return;e.textContent=msg;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),1800)}
