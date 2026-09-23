@@ -215,7 +215,8 @@ select,input[type=number]{
 
       <section class="panel">
         <div class="panel-head"><h2>match</h2><span class="badge" id="modeBadge">learner vs learner</span></div>
-        <div class="field"><label>matchup</label><select id="matchType"><option value="learner-learner" selected>Learner vs Learner</option><option value="learner-stockfish">Learner vs Stockfish 19</option><option value="learner-human">Learner vs Human</option></select></div>
+        <div class="field"><label>matchup</label><select id="matchType"><option value="learner-learner" selected>Learner vs Learner</option><option value="learner-engine">Learner vs Chess Engine</option><option value="learner-human">Learner vs Human</option></select></div>
+        <div class="field" id="engineField"><label>chess engine</label><select id="engineSelect"><option value="sf19-lite-single">Stockfish 19 · Lite · Single-threaded</option><option value="sf19-single">Stockfish 19 · Full · Single-threaded</option><option value="sf18-lite-single">Stockfish 18 · Lite · Single-threaded</option><option value="sf17.1-lite-single">Stockfish 17.1 · Lite · Single-threaded</option></select></div>
         <div class="field"><label>learner search simulations</label><input id="sims" type="number" min="1" max="250" step="1" value="4"></div>
       </section>
 
@@ -265,6 +266,8 @@ const PIECES={wp:'♙',wn:'♘',wb:'♗',wr:'♖',wq:'♕',wk:'♔',bp:'♟',bn:
 const FILES='abcdefgh';
 const CONFIG={version:'0.6.12.1',input:832,hidden1:96,hidden2:64,policy:4352,replayMax:12000,lr:0.0025,valueWeight:.55,policyWeight:1.0};
 let game=new Chess(), flipped=false, selected=null, legalMoves=[], lastMove=null, busy=false, botWhite='learner', botBlack='learner', training=false, trainTimer=null, cancelRequested=false;
+const ENGINE_CONFIGS={'sf19-lite-single':{label:'Stockfish 19 · Lite · Single-threaded',url:'stockfish/stockfish-19-lite-single.js'},'sf19-single':{label:'Stockfish 19 · Full · Single-threaded',url:'stockfish/stockfish-19-single.js'},'sf18-lite-single':{label:'Stockfish 18 · Lite · Single-threaded',url:'stockfish/stockfish-18-lite-single.js'},'sf17.1-lite-single':{label:'Stockfish 17.1 · Lite · Single-threaded',url:'stockfish/stockfish-17.1-lite-single.js'}};
+let selectedEngine='sf19-lite-single';
 let repetition=new Map(), replay=[], games=0, steps=0, generation=0, evalRecord=null, points=0, repetitionDetections=0;
 let brain=null, matchBrainWhite=null, matchBrainBlack=null, stockfishWorker=null, stockfishReady=false, stockfishLoading=false, stockfishQueue=[], matchEpoch=0, matchNonce=0;
 let moveRecords=[], reviewState=null, reviewRunning=false, lastReviewedEpoch=-1, analysisActive=null, stockfishActiveResolve=null;
@@ -404,7 +407,6 @@ async function evaluateMutations(candidates,best,sims,matches){
         pointsWhite:candidateWhite?candidatePoints:0,
         pointsBlack:candidateWhite?0:candidatePoints,
         repetitionDetections:repetitionHits,
-        before
       });
     }
     results.push({index,score:candidateScore/Math.max(1,gamesForCandidate.length),results:gamesForCandidate,brain:candidate});
@@ -450,12 +452,14 @@ async function trainBatch(){
   }catch(e){log('training error: '+e.message);setStatus('error','training failed · '+e.message,0);toast('training failed')}
   finally{fastBatchAbort=null;stopFastWorkers();training=false;busy=false;renderStats();if(!isGameOver(game))setStatus(cancelRequested?'paused':'ready',cancelRequested?'training stopped':'generation '+generation+' · '+games+' matches',100)}
 }
-async function createStockfish(){
-  if(stockfishWorker||stockfishLoading)return;
+async function createStockfish(force=false){
+  if((stockfishWorker||stockfishLoading)&&!force)return;
   stockfishLoading=true;
   stockfishReady=false;
-  const engineUrl=new URL('stockfish/stockfish-19-lite-single.js',document.baseURI).href;
-  log('loading local Stockfish 19 · '+engineUrl);
+  const cfg=ENGINE_CONFIGS[selectedEngine]||ENGINE_CONFIGS['sf19-lite-single'];
+  const engineUrl=new URL(cfg.url,document.baseURI).href;
+  log('loading '+cfg.label+' · '+engineUrl);
+  if(stockfishWorker){try{stockfishWorker.terminate()}catch(e){}stockfishWorker=null;}
   let worker=null;
   try{
     worker=new Worker(engineUrl);
@@ -466,9 +470,9 @@ async function createStockfish(){
       if(d.includes('uciok')){
         stockfishReady=true;
         stockfishLoading=false;
-        document.getElementById('enginePill').textContent='Stockfish 19 ready';
+        document.getElementById('enginePill').textContent=cfg.label+' ready';
         document.getElementById('onlineDot').style.background='var(--green)';
-        log('Stockfish 19 ready · local GitHub Pages worker');
+        log(cfg.label+' ready · local GitHub Pages worker');
         try{worker.postMessage('isready')}catch(err){}
         return;
       }
@@ -548,8 +552,8 @@ function botForTurn(){return game.turn()==='w'?botWhite:botBlack}
 function cloneLearnerForMatch(){return brain?TinyNet.fromJSON(JSON.parse(JSON.stringify(brain.toJSON()))):null}
 function learnerBrainForTurn(){return game.turn()==='w'?matchBrainWhite:matchBrainBlack}
 function repetitionSafeMoves(c,hist){return c.moves({verbose:true}).filter(m=>!moveCreatesRepetitionBreak(c,m,hist))}
-function botLabel(kind){return kind==='stockfish'?'Stockfish':kind==='human'?'Human':'Learner'}
-function updateMatchBadge(){const type=document.getElementById('matchType').value;const labels={'learner-learner':'learner vs learner','learner-stockfish':'learner vs stockfish 19','learner-human':'learner vs human'};document.getElementById('modeBadge').textContent=labels[type]||'learner vs learner';document.getElementById('modeBadge').title='sides are randomized when Play is pressed'}
+function botLabel(kind){return kind==='stockfish'?(ENGINE_CONFIGS[selectedEngine]?.label||'Chess Engine'):kind==='human'?'Human':'Learner'}
+function updateMatchBadge(){const type=document.getElementById('matchType').value;const labels={'learner-learner':'learner vs learner','learner-engine':'learner vs chess engine','learner-human':'learner vs human'};document.getElementById('modeBadge').textContent=labels[type]||'learner vs learner';document.getElementById('modeBadge').title='sides are randomized when Play is pressed'}
 async function continueMatch(epoch=matchEpoch){if(epoch!==matchEpoch||training||busy)return;if(isGameOver(game)){renderAll();return}const actor=botForTurn();if(actor==='human'){selected=null;legalMoves=[];renderAll();setStatus('your move','playing as '+(game.turn()==='w'?'White':'Black'));return}busy=true;selected=null;legalMoves=[];setStatus('thinking',botLabel(actor)+' is searching');renderBoard();await new Promise(r=>setTimeout(r,30));if(cancelRequested||epoch!==matchEpoch){busy=false;renderAll();return}const safeMoves=repetitionSafeMoves(game,repetition);if(!safeMoves.length){repetitionForcedDraw=true;busy=false;renderAll();setStatus('draw · repetition','all legal moves would create another repetition');finishGameReview(epoch);return}let m=actor==='stockfish'?await stockfishMove(game,12,safeMoves):await learnerMove(game,Number(document.getElementById('sims').value)||32,learnerBrainForTurn(),repetition);if(m&&moveCreatesRepetitionBreak(game,m,repetition)){repetitionDetections++;points-=2;if(repetitionDetections>=3){repetitionForcedDraw=true;busy=false;renderAll();setStatus('draw · repetition','three repetition detections · points '+points);finishGameReview(epoch);return}const safe=repetitionSafeMoves(game,repetition);if(safe.length){if(actor==='stockfish'){log('Stockfish selected a repetition move despite searchmoves; rejecting it without random replacement')}else{const pick=safeRepetitionMove(game,m,learnerBrainForTurn(),repetition);m=pick.move}}else m=null}if(!m){const anySafe=repetitionSafeMoves(game,repetition).length;busy=false;if(!anySafe){repetitionForcedDraw=true;renderAll();setStatus('draw · repetition','all legal moves would create another repetition');}else{renderAll();setStatus('engine unavailable',actor==='stockfish'?'Stockfish is not ready':'Learner could not choose a legal move')}return}const fenBefore=game.fen(),mv=game.move({from:m.from,to:m.to,promotion:m.promotion});if(!mv){busy=false;renderAll();setStatus('move failed',botLabel(actor)+' returned an invalid move');return}lastMove={from:mv.from,to:mv.to};recordMove(fenBefore,mv,actor);recordPosition(game);busy=false;renderAll();const t=terminalText(game);if(t){setStatus(t,'game finished');finishGameReview(epoch);return}if(isInCheck(game))setStatus('check',botLabel(botForTurn())+' is in check');await new Promise(r=>setTimeout(r,60));if(cancelRequested||epoch!==matchEpoch){busy=false;renderAll();return}continueMatch(epoch)}
 async function simulateOneMove(){if(training||busy||isGameOver(game))return;const actor=botForTurn();if(actor==='human'){setStatus('your move','the current side is set to Human');return}busy=true;selected=null;legalMoves=[];setStatus('thinking',botLabel(actor)+' · simulating one move',20);renderBoard();await new Promise(r=>setTimeout(r,30));if(cancelRequested){busy=false;renderAll();return}const safeMoves=repetitionSafeMoves(game,repetition);if(!safeMoves.length){repetitionForcedDraw=true;busy=false;renderAll();setStatus('draw · repetition','all legal moves would create another repetition');finishGameReview(matchEpoch);return}let m=actor==='stockfish'?await stockfishMove(game,12,safeMoves):await learnerMove(game,Number(document.getElementById('sims').value)||4,learnerBrainForTurn(),repetition);if(m&&moveCreatesRepetitionBreak(game,m,repetition)){repetitionDetections++;points-=2;if(repetitionDetections>=3){repetitionForcedDraw=true;busy=false;renderAll();setStatus('draw · repetition','three repetition detections · points '+points);finishGameReview(matchEpoch);return}const safe=repetitionSafeMoves(game,repetition);if(safe.length){if(actor==='stockfish'){log('Stockfish selected a repetition move despite searchmoves; rejecting it without random replacement')}else m=safeRepetitionMove(game,m,learnerBrainForTurn(),repetition).move}else m=null}if(!m){busy=false;if(!repetitionSafeMoves(game,repetition).length){repetitionForcedDraw=true;renderAll();setStatus('draw · repetition','all legal moves would create another repetition');}else{renderAll();setStatus('engine unavailable',actor==='stockfish'?'Stockfish is not ready':'Learner could not choose a legal move')}return}const fenBefore=game.fen(),mv=game.move({from:m.from,to:m.to,promotion:m.promotion});if(!mv){busy=false;renderAll();setStatus('move failed',botLabel(actor)+' returned an invalid move');return}lastMove={from:mv.from,to:mv.to};recordMove(fenBefore,mv,actor);recordPosition(game);busy=false;renderAll();if(terminalPosition(game,repetition)){renderAll();finishGameReview(matchEpoch)}else setStatus(isInCheck(game)?'check':'ready',isInCheck(game)?botLabel(botForTurn())+' is in check':botLabel(actor)+' made one move',0)}
 async function playMatch(){
@@ -560,7 +564,7 @@ async function playMatch(){
   const type=document.getElementById('matchType').value;
   if(type==='learner-learner'){
     botWhite='learner'; botBlack='learner';
-  }else if(type==='learner-stockfish'){
+  }else if(type==='learner-engine'){
     if(Math.random()<0.5){botWhite='learner';botBlack='stockfish';}
     else{botWhite='stockfish';botBlack='learner';}
   }else if(type==='learner-human'){
@@ -584,7 +588,7 @@ async function playMatch(){
   renderAll();renderReview();
   renderPlayers();
   setStatus('ready','White: '+botLabel(botWhite)+' · Black: '+botLabel(botBlack)+(type==='learner-learner'?' · identical learner snapshots':'') ,5);
-  log('match '+epoch+' started · move-selection seed '+matchNonce);if(type==='learner-stockfish')log('Stockfish is the actual local Stockfish 19 engine; repetition filtering uses UCI searchmoves, never a random replacement');
+  log('match '+epoch+' started · move-selection seed '+matchNonce);if(type==='learner-engine')log((ENGINE_CONFIGS[selectedEngine]?.label||'Chess engine')+' is the selected local engine; repetition filtering uses UCI searchmoves, never a random replacement');
   await new Promise(r=>setTimeout(r,60));
   if(!isGameOver(game))continueMatch(epoch);
 }
@@ -633,9 +637,10 @@ function importBrain(){document.getElementById('fileInput').click()}
 document.getElementById('fileInput').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const o=JSON.parse(rd.result);brain=TinyNet.fromJSON(o.brain||o);replay=o.replay||[];renderStats();toast('brain imported');log('brain imported')}catch(err){toast('invalid brain file');log('import failed: '+err.message)}};rd.readAsText(f)};
 
 document.getElementById('clearLog').onclick=()=>{document.getElementById('log').textContent='';log('log cleared')};
-document.getElementById('startTraining').type='button';document.getElementById('playMatch').type='button';document.getElementById('simulateMove').type='button';document.getElementById('newGame').type='button';document.getElementById('flip').type='button';document.getElementById('stopTrain').type='button';document.getElementById('startTraining').onclick=()=>{trainBatch().catch(e=>{log('training launch error: '+e.message);setStatus('error','training failed to start',0)})};document.getElementById('playMatch').onclick=()=>{playMatch().catch(e=>{busy=false;log('Play error: '+e.message);setStatus('error',e.message,0);renderAll()})};document.getElementById('simulateMove').onclick=()=>{simulateOneMove().catch(e=>{busy=false;log('1 move error: '+e.message);setStatus('error',e.message,0);renderAll()})};document.getElementById('newGame').onclick=()=>newGame();document.getElementById('flip').onclick=()=>{flipped=!flipped;renderBoard()};document.getElementById('stopTrain').onclick=()=>{cancelEngine();training=false;busy=false;setStatus('paused','stopped');renderAll();toast('stopped')};document.getElementById('matchType').onchange=()=>{updateMatchBadge();setStatus('ready','press Play to randomize sides and start the match',0)};document.getElementById('saveBrain').onclick=()=>saveBrain();document.getElementById('loadBrain').onclick=loadBrain;document.getElementById('resetBrain').onclick=resetBrain;document.getElementById('exportBrain').onclick=exportBrain;document.getElementById('importBrain').onclick=importBrain;document.getElementById('promoModal').onclick=e=>{if(e.target.id==='promoModal')e.currentTarget.classList.remove('open')};
+document.getElementById('startTraining').type='button';document.getElementById('playMatch').type='button';document.getElementById('simulateMove').type='button';document.getElementById('newGame').type='button';document.getElementById('flip').type='button';document.getElementById('stopTrain').type='button';document.getElementById('startTraining').onclick=()=>{trainBatch().catch(e=>{log('training launch error: '+e.message);setStatus('error','training failed to start',0)})};document.getElementById('playMatch').onclick=()=>{playMatch().catch(e=>{busy=false;log('Play error: '+e.message);setStatus('error',e.message,0);renderAll()})};document.getElementById('simulateMove').onclick=()=>{simulateOneMove().catch(e=>{busy=false;log('1 move error: '+e.message);setStatus('error',e.message,0);renderAll()})};document.getElementById('newGame').onclick=()=>newGame();document.getElementById('flip').onclick=()=>{flipped=!flipped;renderBoard()};document.getElementById('stopTrain').onclick=()=>{cancelEngine();training=false;busy=false;setStatus('paused','stopped');renderAll();toast('stopped')};document.getElementById('matchType').onchange=()=>{const type=document.getElementById('matchType').value;document.getElementById('engineField').style.display=type==='learner-engine'?'grid':'none';updateMatchBadge();setStatus('ready','press Play to randomize sides and start the match',0)};
+document.getElementById('engineSelect').onchange=async()=>{selectedEngine=document.getElementById('engineSelect').value;matchEpoch++;cancelEngine();await createStockfish(true);updateMatchBadge();setStatus('ready',(ENGINE_CONFIGS[selectedEngine]?.label||'Chess engine')+' selected · press Play',0)};document.getElementById('saveBrain').onclick=()=>saveBrain();document.getElementById('loadBrain').onclick=loadBrain;document.getElementById('resetBrain').onclick=resetBrain;document.getElementById('exportBrain').onclick=exportBrain;document.getElementById('importBrain').onclick=importBrain;document.getElementById('promoModal').onclick=e=>{if(e.target.id==='promoModal')e.currentTarget.classList.remove('open')};
 
-brain=new TinyNet(Date.now());loadBrain();createStockfish();resetRepetition();updateMatchBadge();renderPlayers();renderAll();log('Chess Learning Lab '+CONFIG.version+' initialized');log('learner uses only chess rules from the environment; strategy starts random and is learned from experience');updateMatchBadge();
+brain=new TinyNet(Date.now());loadBrain();createStockfish();resetRepetition();document.getElementById('engineField').style.display='grid';updateMatchBadge();renderPlayers();renderAll();log('Chess Learning Lab '+CONFIG.version+' initialized');log('learner uses only chess rules from the environment; strategy starts random and is learned from experience');updateMatchBadge();
 </script>
 </body>
 </html>
