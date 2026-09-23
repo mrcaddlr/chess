@@ -1,0 +1,16 @@
+{
+  "generation": 1,
+  "engine": "Stockfish",
+  "stockfishRating": 3500,
+  "stockfishDepth": 8,
+  "games": 10,
+  "wins": 0,
+  "draws": 0,
+  "losses": 10,
+  "score": 0,
+  "elo": 2702,
+  "previousElo": null,
+  "eloChange": null,
+  "evaluatedAt": "2026-09-23T18:51:12.132Z",
+  "status": "complete"
+}
