@@ -48,22 +48,22 @@ class TinyNet{
     this.bp=zeros(CONFIG.policy);
     this.wv=randArr(CONFIG.hidden2,this.rng,Math.sqrt(2/CONFIG.hidden2));
     this.bv=0;
-    this._infer={h0:zeros(CONFIG.hidden1),zA:zeros(CONFIG.hidden2),a:zeros(CONFIG.hidden2),zB:zeros(CONFIG.hidden2),next:zeros(CONFIG.hidden2)};
+    this._infer={h0:zeros(CONFIG.hidden1),blocks:Array.from({length:CONFIG.residualBlocks},()=>({zA:zeros(CONFIG.hidden2),a:zeros(CONFIG.hidden2),zB:zeros(CONFIG.hidden2),out:zeros(CONFIG.hidden2)}))};
   }
   trunk(x,training=false){
     const z0=zeros(CONFIG.hidden1),h0=training?zeros(CONFIG.hidden1):this._infer.h0;
     for(let j=0;j<CONFIG.hidden1;j++){let s=this.b1[j],off=j*CONFIG.input;for(let i=0;i<CONFIG.input;i++)s+=this.w1[off+i]*x[i];z0[j]=s;h0[j]=Math.max(0,s)}
     let h=h0,blocks=training?[]:null;
     for(let k=0;k<CONFIG.residualBlocks;k++){
-      const zA=training?zeros(CONFIG.hidden2):this._infer.zA;
-      const a=training?zeros(CONFIG.hidden2):this._infer.a;
-      const zB=training?zeros(CONFIG.hidden2):this._infer.zB;
-      const out=training?zeros(CONFIG.hidden2):this._infer.next;
+      const ib=training?null:this._infer.blocks[k];
+      const zA=training?zeros(CONFIG.hidden2):ib.zA;
+      const a=training?zeros(CONFIG.hidden2):ib.a;
+      const zB=training?zeros(CONFIG.hidden2):ib.zB;
+      const out=training?zeros(CONFIG.hidden2):ib.out;
       for(let j=0;j<CONFIG.hidden2;j++){let s=this.rb1[k][j],off=j*CONFIG.hidden1;for(let i=0;i<CONFIG.hidden1;i++)s+=this.rw1[k][off+i]*h[i];zA[j]=s;a[j]=s>0?s:0}
       for(let j=0;j<CONFIG.hidden2;j++){let s=this.rb2[k][j],off=j*CONFIG.hidden2;for(let i=0;i<CONFIG.hidden2;i++)s+=this.rw2[k][off+i]*a[i];zB[j]=s;out[j]=Math.max(0,h[j]+s)}
       if(training)blocks.push({input:h,zA,a,zB,out});
       h=out;
-      if(!training){this._infer.zA=this._infer.zB;this._infer.zB=zA;this._infer.a=a;this._infer.next=(k===CONFIG.residualBlocks-1?this._infer.next:this._infer.zA)}
     }
     let v=this.bv;for(let i=0;i<CONFIG.hidden2;i++)v+=this.wv[i]*h[i];
     return training?{h0,z0,blocks,h2:h,v:Math.tanh(v)}:{h2:h,v:Math.tanh(v)};
@@ -103,7 +103,7 @@ class TinyNet{
     }
     for(let k=CONFIG.residualBlocks-1;k>=0;k--){
       const bl=o.blocks[k],dIn=zeros(CONFIG.hidden1),dA=zeros(CONFIG.hidden2),dZ=zeros(CONFIG.hidden2);
-      for(let j=0;j<CONFIG.hidden2;j++){const d=bl.zB[j]>0?dh[j]:0;dZ[j]=d;dIn[j]+=d}
+      for(let j=0;j<CONFIG.hidden2;j++){const d=bl.out[j]>0?dh[j]:0;dZ[j]=d;dIn[j]+=d}
       for(let j=0;j<CONFIG.hidden2;j++){const off=j*CONFIG.hidden2;for(let i=0;i<CONFIG.hidden2;i++){dA[i]+=dZ[j]*this.rw2[k][off+i];this.rw2[k][off+i]-=lr*dZ[j]*bl.a[i]}this.rb2[k][j]-=lr*dZ[j]}
       for(let i=0;i<CONFIG.hidden2;i++)if(bl.zA[i]<=0)dA[i]=0;
       for(let j=0;j<CONFIG.hidden2;j++){const off=j*CONFIG.hidden1;for(let i=0;i<CONFIG.hidden1;i++){dIn[i]+=dA[j]*this.rw1[k][off+i];this.rw1[k][off+i]-=lr*dA[j]*bl.input[i]}this.rb1[k][j]-=lr*dA[j]}
