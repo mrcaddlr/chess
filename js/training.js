@@ -82,10 +82,12 @@ async function runParallelSelfPlay(gameCount,maxPlies){
     ? (highEndAndroid?3:Math.max(1,Math.min(2,Math.floor(memoryGB/1.5)||1)))
     : Math.max(1,cores-1);
   const workers=Math.max(1,Math.min(requested,workerCap));
+  trainingLiveState.workers=workers;trainingLiveState.sims=Math.max(1,Math.min(64,Number(document.getElementById('sims')?.value)||4));
   // On Android, keep the main thread responsive and avoid a worker startup deadlock.
   // The Fold 6 has plenty of CPU, but browser workers can still stall on large model
   // structured clones. Direct browser self-play is more reliable for this model size.
   if(mobile){
+    trainingLiveState.workers=1;
     const all=[];
     for(let g=0;g<requested&&!cancelRequested;g++){
       const r=await browserSelfPlayGame(maxPlies);
@@ -120,7 +122,7 @@ async function runParallelSelfPlay(gameCount,maxPlies){
             }
           };
           w.onerror=e=>{if(!finished){finished=true;cleanup();reject(new Error(e.message||'training worker crashed'))}};
-          w.postMessage({type:'train',brain:payload,games:gamesForWorker,maxPlies,sims:Math.max(1,Math.min(8,Number(document.getElementById('sims')?.value)||4))});
+          w.postMessage({type:'train',brain:payload,games:gamesForWorker,maxPlies,sims:trainingLiveState.sims});
         }
       });
     }catch(e){
