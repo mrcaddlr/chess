@@ -1,7 +1,7 @@
 /* Chess Learning Lab · application state + chess-rule helpers */
 const PIECES={wp:'♙',wn:'♘',wb:'♗',wr:'♖',wq:'♕',wk:'♔',bp:'♟',bn:'♞',bb:'♝',br:'♜',bq:'♛',bk:'♚'};
 const FILES='abcdefgh';
-const CONFIG={version:'0.11.3',architecture:'residual-policy-value-v3',input:832,hidden1:256,hidden2:256,residualBlocks:3,policy:4352,replayMax:2500,lr:0.0015,valueWeight:.55,policyWeight:1.0,rlBatch:64,trainPlies:160};
+const CONFIG={version:'0.11.4',architecture:'residual-policy-value-v3',input:832,hidden1:256,hidden2:256,residualBlocks:3,policy:4352,replayMax:2500,lr:0.0015,valueWeight:.55,policyWeight:1.0,rlBatch:64,trainPlies:160};
 let game=new Chess(), flipped=false, selected=null, legalMoves=[], lastMove=null, busy=false, botWhite='learner', botBlack='learner', training=false, trainTimer=null, cancelRequested=false;
 const ENGINE_CONFIGS={'sf19-full-single':{label:'Stockfish 19 · Full · Single-threaded',url:'stockfish/stockfish-19-single.js',multi:false},'sf19-full-multi':{label:'Stockfish 19 · Full · Multi-threaded',url:'stockfish/stockfish-19.js',multi:true},'sf19-lite-single':{label:'Stockfish 19 · Lite · Single-threaded',url:'stockfish/stockfish-19-lite-single.js',multi:false},'sf18-full-single':{label:'Stockfish 18 · Full · Single-threaded',url:'stockfish/stockfish-18-single.js',multi:false},'sf18-full-multi':{label:'Stockfish 18 · Full · Multi-threaded',url:'stockfish/stockfish-18.js',multi:true},'sf18-lite-single':{label:'Stockfish 18 · Lite · Single-threaded',url:'stockfish/stockfish-18-lite-single.js',multi:false},'lozza':{label:'Lozza · JavaScript',url:'stockfish/lozza.js',multi:false}};
 let selectedEngine='sf19-lite-single';
