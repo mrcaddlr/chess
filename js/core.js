@@ -32,6 +32,8 @@ function terminalPosition(c){if(isCheckmate(c)||isStalemate(c)||isInsufficientMa
 
 class RNG{constructor(seed=Date.now()){this.s=seed>>>0}next(){let x=this.s;x^=x<<13;x^=x>>>17;x^=x<<5;this.s=x>>>0;return this.s/4294967296}gauss(){let a=Math.max(1e-9,this.next()),b=this.next();return Math.sqrt(-2*Math.log(a))*Math.cos(Math.PI*2*b)}}
 
+function clipGradient(g){const c=CONFIG.gradientClip||5;return Math.max(-c,Math.min(c,g))}
+
 class TinyNet{
   constructor(seed){
     this.rng=new RNG(seed);
@@ -89,11 +91,11 @@ class TinyNet{
     for(let i=0;i<logits.length;i++){p[i]=Math.exp(Math.max(-30,logits[i]-max));sum+=p[i]}
     for(let i=0;i<p.length;i++)p[i]/=sum||1;
     const dh=zeros(CONFIG.hidden2),reward=rlAction===null?value:Math.max(-1,Math.min(1,Number(rlReward)||0)),lossTarget=reward;
-    const dv=2*(o.v-lossTarget)*CONFIG.valueWeight*(1-o.v*o.v);
+    const dv=clipGradient(2*(o.v-lossTarget)*CONFIG.valueWeight*(1-o.v*o.v));
     this.bv-=lr*dv;for(let i=0;i<CONFIG.hidden2;i++){dh[i]+=dv*this.wv[i];this.wv[i]-=lr*dv*o.h2[i]}
     let loss=Math.abs(o.v-lossTarget);
     for(let k=0;k<legal.length;k++){
-      const a=legal[k],grad=rlAction===null?(p[k]-(target[a]||0))*CONFIG.policyWeight:-reward*((a===rlAction?1:0)-p[k]);
+      const a=legal[k],grad=clipGradient(rlAction===null?(p[k]-(target[a]||0))*CONFIG.policyWeight:-reward*((a===rlAction?1:0)-p[k]));
       if(rlAction!==null&&a===rlAction)loss+=-reward*Math.log(Math.max(1e-8,p[k]));
       const off=a*CONFIG.hidden2;this.bp[a]-=lr*grad;
       for(let i=0;i<CONFIG.hidden2;i++){dh[i]+=grad*this.wp[off+i];this.wp[off+i]-=lr*grad*o.h2[i]}
