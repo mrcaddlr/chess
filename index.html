@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f7f7fb">
-<title>Chess Learning Lab 0.6.12.1</title>
+<title>Chess Learning Lab 0.7.0</title>
 <style>
 :root{
   --bg:#f7f7fb; --bg2:#f0eff8; --surface:#ffffff; --surface-soft:#f7f6fc;
@@ -216,7 +216,7 @@ select,input[type=number]{
       <section class="panel">
         <div class="panel-head"><h2>match</h2><span class="badge" id="modeBadge">learner vs learner</span></div>
         <div class="field"><label>matchup</label><select id="matchType"><option value="learner-learner" selected>Learner vs Learner</option><option value="learner-engine">Learner vs Chess Engine</option><option value="learner-human">Learner vs Human</option></select></div>
-        <div class="field" id="engineField"><label>chess engine</label><select id="engineSelect"><option value="sf19-full-single">Stockfish 19 · Full · Single-threaded</option><option value="sf19-lite-single">Stockfish 19 · Lite · Single-threaded</option><option value="sf19-full-multi">Stockfish 19 · Full · Multi-threaded</option><option value="sf18-full-single">Stockfish 18 · Full · Single-threaded</option><option value="sf18-lite-single">Stockfish 18 · Lite · Single-threaded</option><option value="sf18-full-multi">Stockfish 18 · Full · Multi-threaded</option><option value="custom-wasm">Custom UCI WASM engine</option></select></div>
+        <div class="field" id="engineField"><label>chess engine</label><select id="engineSelect"><option value="sf19-full-single">Stockfish 19 · Full · Single-threaded</option><option value="sf19-lite-single">Stockfish 19 · Lite · Single-threaded</option><option value="sf19-full-multi">Stockfish 19 · Full · Multi-threaded</option><option value="sf18-full-single">Stockfish 18 · Full · Single-threaded</option><option value="sf18-lite-single">Stockfish 18 · Lite · Single-threaded</option><option value="sf18-full-multi">Stockfish 18 · Full · Multi-threaded</option><option value="custom-wasm">Custom UCI WASM engine</option></select></div><div class="field" id="customEngineField" style="display:none"><label>custom UCI WASM URL</label><input id="customEngineUrl" type="url" placeholder="https://example.com/engine.js" autocomplete="off"></div>
         <div class="field"><label>learner search simulations</label><input id="sims" type="number" min="1" max="250" step="1" value="4"></div>
       </section>
 
@@ -725,7 +725,7 @@ document.getElementById('startTraining').type='button';document.getElementById('
 document.getElementById('engineSelect').onchange=async()=>{selectedEngine=document.getElementById('engineSelect').value;document.getElementById('customEngineField').style.display=selectedEngine==='custom-wasm'?'grid':'none';matchEpoch++;await createStockfish(true);updateMatchBadge();setStatus('ready',engineDisplayLabel()+' selected · press Play',0)};
 document.getElementById('customEngineUrl').onchange=async()=>{if(selectedEngine==='custom-wasm'){matchEpoch++;await createStockfish(true);}};document.getElementById('saveBrain').onclick=()=>saveBrain();document.getElementById('loadBrain').onclick=loadBrain;document.getElementById('resetBrain').onclick=resetBrain;document.getElementById('exportBrain').onclick=exportBrain;document.getElementById('importBrain').onclick=importBrain;document.getElementById('promoModal').onclick=e=>{if(e.target.id==='promoModal')e.currentTarget.classList.remove('open')};
 
-brain=new TinyNet(Date.now());loadBrain().catch(e=>log('brain load error: '+e.message));createStockfish();resetRepetition();document.getElementById('engineField').style.display='grid';document.getElementById('customEngineField').style.display='none';updateMatchBadge();renderPlayers();renderAll();log('Chess Learning Lab '+CONFIG.version+' initialized');log('learner uses only chess rules from the environment; strategy starts random and is learned from experience');updateMatchBadge();
+brain=new TinyNet(Date.now());loadBrain().catch(e=>log('brain load error: '+e.message));createStockfish();resetRepetition();document.getElementById('engineField').style.display='grid';document.getElementById('customEngineField').style.display=selectedEngine==='custom-wasm'?'grid':'none';updateMatchBadge();renderPlayers();renderAll();log('Chess Learning Lab '+CONFIG.version+' initialized');log('learner uses only chess rules from the environment; strategy starts random and is learned from experience');updateMatchBadge();
 </script>
 </body>
 </html>
