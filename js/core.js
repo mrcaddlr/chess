@@ -1,7 +1,7 @@
 /* Chess Learning Lab · application state + chess-rule helpers */
 const PIECES={wp:'♙',wn:'♘',wb:'♗',wr:'♖',wq:'♕',wk:'♔',bp:'♟',bn:'♞',bb:'♝',br:'♜',bq:'♛',bk:'♚'};
 const FILES='abcdefgh';
-const CONFIG={version:'0.16.0',architecture:'residual-policy-value-v5',input:837,hidden1:384,hidden2:384,residualBlocks:8,policy:4352,replayMax:50000,lr:0.0015,valueWeight:.55,policyWeight:1.0,rlBatch:64,trainPlies:160,gradientClip:5.0,exploration:1.35,temperature:.9};
+const CONFIG={version:'0.16.0',architecture:'residual-policy-value-v5',input:837,hidden1:384,hidden2:384,residualBlocks:8,policy:4352,replayMax:50000,lr:0.0015,valueWeight:.55,policyWeight:1.0,rlBatch:64,trainPlies:1000,gradientClip:5.0,exploration:1.35,temperature:.9};
 let game=new Chess(), flipped=false, selected=null, legalMoves=[], lastMove=null, busy=false, botWhite='learner', botBlack='learner', training=false, trainTimer=null, cancelRequested=false;
 const ENGINE_CONFIGS={'sf19-full-single':{label:'Stockfish 19 · Full · Single-threaded',url:'stockfish/stockfish-19-single.js',multi:false},'sf19-full-multi':{label:'Stockfish 19 · Full · Multi-threaded',url:'stockfish/stockfish-19.js',multi:true},'sf19-lite-single':{label:'Stockfish 19 · Lite · Single-threaded',url:'stockfish/stockfish-19-lite-single.js',multi:false},'lozza':{label:'Lozza · JavaScript',url:'stockfish/lozza.js',multi:false},'tonnetto':{label:'Tonnetto · JavaScript',native:'tonnetto',multi:false},'js-chess-engine':{label:'js-chess-engine · JavaScript',native:'jce',multi:false}};
 let selectedEngine='sf19-lite-single';
@@ -115,7 +115,7 @@ class TinyNet{
   trainPolicyValue(x,policyPairs,value,legal,lr=CONFIG.lr){const target=Object.create(null);for(const pair of (policyPairs||[]))target[pair[0]]=pair[1];return this._train(x,target,value,legal,lr)}
   trainRL(x,action,reward,legal,lr=CONFIG.lr){return this._train(x,null,0,legal,lr,action,reward)}
   toJSON(){
-    const o={version:CONFIG.version,input:CONFIG.input,hidden1:CONFIG.hidden1,hidden2:CONFIG.hidden2,residualBlocks:CONFIG.residualBlocks,policy:CONFIG.policy,generation,steps,games};
+    const o={version:CONFIG.version,input:CONFIG.input,hidden1:CONFIG.hidden1,hidden2:CONFIG.hidden2,residualBlocks:CONFIG.residualBlocks,policy:CONFIG.policy,generation,steps,games,estimatedElo,trainingTargetElo};
     for(const k of ['w1','b1','wp','bp','wv'])o[k]=Array.from(this[k]);o.bv=this.bv;
     o.rw1=this.rw1.map(a=>Array.from(a));o.rb1=this.rb1.map(a=>Array.from(a));o.rw2=this.rw2.map(a=>Array.from(a));o.rb2=this.rb2.map(a=>Array.from(a));return o;
   }
@@ -124,7 +124,7 @@ class TinyNet{
     if(!o.wp||o.wp.length!==CONFIG.policy*CONFIG.hidden2||!o.rw1||o.rw1.length!==CONFIG.residualBlocks)throw new Error('brain uses an older network format; reset or retrain');
     const n=new TinyNet(1);for(const k of ['w1','b1','wp','bp','wv'])n[k]=Float32Array.from(o[k]);n.bv=o.bv||0;
     n.rw1=o.rw1.map(a=>Float32Array.from(a));n.rb1=o.rb1.map(a=>Float32Array.from(a));n.rw2=o.rw2.map(a=>Float32Array.from(a));n.rb2=o.rb2.map(a=>Float32Array.from(a));
-    generation=o.generation||0;steps=o.steps||0;games=o.games||0;return n;
+    generation=o.generation||0;steps=o.steps||0;games=o.games||0;estimatedElo=Number.isFinite(o.estimatedElo)?o.estimatedElo:400;trainingTargetElo=Number.isFinite(o.trainingTargetElo)?o.trainingTargetElo:1000;return n;
   }
 }
 class Node{constructor(prior=1,move=null){this.prior=prior;this.move=move;this.visits=0;this.valueSum=0;this.children=new Map();this.expanded=false;this.value=0}}
