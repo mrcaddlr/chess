@@ -1,6 +1,8 @@
 name: Train chess learner
 
 on:
+  push:
+    branches: ["main"]
   workflow_dispatch:
     inputs:
       generations:
@@ -27,6 +29,7 @@ concurrency:
 
 jobs:
   train:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
