@@ -168,7 +168,7 @@ async function evaluateGenerationAgainstStockfish(games=10,depth=5){
   estimatedElo=Math.round(Math.max(400,Math.min(3000,3000+400*Math.log10(boundedScore/(1-boundedScore)))));
   evalRecord={generation,engine:'Stockfish 19',strength:'full',games:total,wins,draws,losses,score,elo:estimatedElo,eloChange:estimatedElo-previousElo};
   evaluationHistory=(evaluationHistory||[]).concat([evalRecord]).slice(-100);
-  if(score>bestEvalScore){bestEvalScore=score;championGeneration=generation;log('generation '+generation+' became champion · Stockfish score '+Math.round(score*100)+'%')}
+  if(score>bestEvalScore){bestEvalScore=score;championGeneration=generation;log('generation '+generation+' became champion · Stockfish score '+Math.round(score*100)+'%');if(typeof saveChampionSnapshot==='function')await saveChampionSnapshot()}
   estimatedElo=estimatedElo||400;
   log('generation '+generation+' · Stockfish '+wins+'W '+draws+'D '+losses+'L · score '+Math.round(score*100)+'%');
   return evalRecord;
