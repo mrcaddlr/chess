@@ -1,5 +1,5 @@
 /* Chess Learning Lab · application state + chess-rule helpers */
-const PIECES={wp:'P',wn:'N',wb:'B',wr:'R',wq:'Q',wk:'K',bp:'p',bn:'n',bb:'b',br:'r',bq:'q',bk:'k'};
+const PIECES={wp:'♙',wn:'♘',wb:'♗',wr:'♖',wq:'♕',wk:'♔',bp:'♟',bn:'♞',bb:'♝',br:'♜',bq:'♛',bk:'♚'};
 const FILES='abcdefgh';
 const CONFIG={version:'0.16.0',architecture:'residual-policy-value-v5',input:837,hidden1:384,hidden2:384,residualBlocks:8,policy:4352,replayMax:50000,lr:0.0015,valueWeight:.55,policyWeight:1.0,rlBatch:64,trainPlies:160,gradientClip:5.0,exploration:1.35,temperature:.9};
 let game=new Chess(), flipped=false, selected=null, legalMoves=[], lastMove=null, busy=false, botWhite='learner', botBlack='learner', training=false, trainTimer=null, cancelRequested=false;
