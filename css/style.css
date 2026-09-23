@@ -1012,40 +1012,50 @@ body::after{
 }
 
 
-/* 0.31.3 — CodePen-style CRT screen treatment, adapted without AV-1 */
+/* 0.31.4 — CRT scanlines only, adapted from XJRdrV without AV-1 */
 body::before{
   content:""!important;
   position:fixed!important;
   inset:0!important;
-  z-index:2147483646!important;
-  pointer-events:none!important;
+  z-index:9999!important;
   display:block!important;
+  width:auto!important;
+  height:auto!important;
+  margin:0!important;
+  padding:0!important;
+  pointer-events:none!important;
+  border:0!important;
+  border-radius:0!important;
+  transform:none!important;
   background:
-    linear-gradient(rgba(18,16,16,0) 50%,rgba(18,16,16,.25) 50%),
-    linear-gradient(90deg,rgba(255,0,0,.035),rgba(0,255,0,.018),rgba(0,0,255,.035))!important;
-  background-size:100% 4px,4px 100%!important;
-  box-shadow:inset 0 0 80px rgba(0,0,0,.55)!important;
+    linear-gradient(
+      transparent 50%,
+      rgba(18,16,16,.34) 50%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255,0,0,.035),
+      rgba(0,255,0,.015),
+      rgba(0,0,255,.035)
+    )!important;
+  background-size:100% 4px,3px 100%!important;
+  box-shadow:inset 0 0 90px rgba(0,0,0,.48)!important;
   opacity:1!important;
-  animation:crtFlicker .15s infinite!important;
+  animation:none!important;
 }
 body::after{
   content:""!important;
   position:fixed!important;
   inset:0!important;
-  z-index:2147483647!important;
-  pointer-events:none!important;
+  z-index:10000!important;
   display:block!important;
-  background:rgba(18,16,16,.08)!important;
+  width:auto!important;
+  height:auto!important;
+  pointer-events:none!important;
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
   opacity:0!important;
-  animation:crtFlicker .15s infinite!important;
-}
-@keyframes crtFlicker{
-  0%{opacity:.08}
-  12%{opacity:.04}
-  24%{opacity:.10}
-  37%{opacity:.055}
-  51%{opacity:.085}
-  68%{opacity:.045}
-  83%{opacity:.095}
-  100%{opacity:.06}
+  animation:none!important;
 }
