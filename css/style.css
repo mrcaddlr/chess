@@ -983,3 +983,30 @@ body::after{
   0%,49%{opacity:1}
   50%,100%{opacity:0}
 }
+
+
+/* 0.31.1 — restore thin native chess glyphs */
+.piece{
+  font-family:"Noto Sans Symbols 2","Segoe UI Symbol",serif!important;
+  font-size:clamp(29px,8vw,70px)!important;
+  font-weight:400!important;
+  line-height:1!important;
+  letter-spacing:normal!important;
+  text-shadow:none!important;
+  filter:drop-shadow(0 3px 2px rgba(40,34,48,.17))!important;
+}
+.piece.white-piece{
+  color:#edf5ef!important;
+  text-shadow:0 1px 0 #55645b,0 0 2px #55645b!important;
+}
+.piece.black-piece{
+  color:#172019!important;
+  text-shadow:0 1px 0 rgba(255,255,255,.2)!important;
+}
+.promo{
+  font-family:"Noto Sans Symbols 2","Segoe UI Symbol",serif!important;
+  font-weight:400!important;
+  letter-spacing:normal!important;
+  text-shadow:none!important;
+  filter:none!important;
+}
