@@ -90,6 +90,13 @@
 <div class="toast" id="toast"></div>
 <div class="modal" id="promoModal"><div class="modal-box"><h3>choose promotion</h3><div class="tiny">pick the piece for your pawn</div><div class="modal-actions" id="promoActions"></div></div></div>
 
+<script>
+if('serviceWorker' in navigator && location.protocol==='https:'){
+  navigator.serviceWorker.register('./coi-service-worker.js',{scope:'./'}).then(reg=>{
+    if(!window.crossOriginIsolated && navigator.serviceWorker.controller){location.reload();}
+  }).catch(e=>console.warn('isolation worker:',e));
+}
+</script>
 <script src="js/repetition.js?v=0.22.0"></script>
 <script src="js/core.js?v=0.22.0"></script>
 <script src="js/learner.js?v=0.22.0"></script>
