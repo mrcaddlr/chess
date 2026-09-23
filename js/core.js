@@ -1,7 +1,7 @@
 /* Chess Learning Lab · application state + chess-rule helpers */
 const PIECES={wp:'♙',wn:'♘',wb:'♗',wr:'♖',wq:'♕',wk:'♔',bp:'♟',bn:'♞',bb:'♝',br:'♜',bq:'♛',bk:'♚'};
 const FILES='abcdefgh';
-const CONFIG={version:'0.10.0',architecture:'ml-policy-value-v2',input:832,hidden1:256,hidden2:192,policy:4352,replayMax:2500,lr:0.0015,valueWeight:.55,policyWeight:1.0,rlBatch:64,trainPlies:160};
+const CONFIG={version:'0.10.0',architecture:'residual-policy-value-v3',input:832,hidden1:256,hidden2:256,residualBlocks:3,policy:4352,replayMax:2500,lr:0.0015,valueWeight:.55,policyWeight:1.0,rlBatch:64,trainPlies:160};
 let game=new Chess(), flipped=false, selected=null, legalMoves=[], lastMove=null, busy=false, botWhite='learner', botBlack='learner', training=false, trainTimer=null, cancelRequested=false;
 const ENGINE_CONFIGS={'sf19-full-single':{label:'Stockfish 19 · Full · Single-threaded',url:'stockfish/stockfish-19-single.js',multi:false},'sf19-full-multi':{label:'Stockfish 19 · Full · Multi-threaded',url:'stockfish/stockfish-19.js',multi:true},'sf19-lite-single':{label:'Stockfish 19 · Lite · Single-threaded',url:'stockfish/stockfish-19-lite-single.js',multi:false},'sf18-full-single':{label:'Stockfish 18 · Full · Single-threaded',url:'stockfish/stockfish-18-single.js',multi:false},'sf18-full-multi':{label:'Stockfish 18 · Full · Multi-threaded',url:'stockfish/stockfish-18.js',multi:true},'sf18-lite-single':{label:'Stockfish 18 · Lite · Single-threaded',url:'stockfish/stockfish-18-lite-single.js',multi:false},'lozza':{label:'Lozza · JavaScript',url:'stockfish/lozza.js',multi:false}};
 let selectedEngine='sf19-lite-single';
@@ -39,43 +39,85 @@ function safeRepetitionMove(c,proposed,learnerBrain,hist){const legal=c.moves({v
 class RNG{constructor(seed=Date.now()){this.s=seed>>>0}next(){let x=this.s;x^=x<<13;x^=x>>>17;x^=x<<5;this.s=x>>>0;return this.s/4294967296}gauss(){let a=Math.max(1e-9,this.next()),b=this.next();return Math.sqrt(-2*Math.log(a))*Math.cos(Math.PI*2*b)}}
 
 class TinyNet{
-  constructor(seed){this.rng=new RNG(seed);this.w1=randArr(CONFIG.hidden1*CONFIG.input,this.rng,Math.sqrt(2/CONFIG.input));this.b1=zeros(CONFIG.hidden1);this.w2=randArr(CONFIG.hidden2*CONFIG.hidden1,this.rng,Math.sqrt(2/CONFIG.hidden1));this.b2=zeros(CONFIG.hidden2);this.wp=randArr(CONFIG.policy*CONFIG.hidden2,this.rng,Math.sqrt(2/CONFIG.hidden2));this.bp=zeros(CONFIG.policy);this.wv=randArr(CONFIG.hidden2,this.rng,Math.sqrt(2/CONFIG.hidden2));this.bv=0}
-  trunk(x){const z1=zeros(CONFIG.hidden1),h1=zeros(CONFIG.hidden1),z2=zeros(CONFIG.hidden2),h2=zeros(CONFIG.hidden2);for(let j=0;j<CONFIG.hidden1;j++){let s=this.b1[j],off=j*CONFIG.input;for(let i=0;i<CONFIG.input;i++)s+=this.w1[off+i]*x[i];z1[j]=s;h1[j]=Math.max(0,s)}for(let j=0;j<CONFIG.hidden2;j++){let s=this.b2[j],off=j*CONFIG.hidden1;for(let i=0;i<CONFIG.hidden1;i++)s+=this.w2[off+i]*h1[i];z2[j]=s;h2[j]=Math.max(0,s)}let v=this.bv;for(let i=0;i<CONFIG.hidden2;i++)v+=this.wv[i]*h2[i];return {h1,z1,h2,z2,v:Math.tanh(v)}}
-  legalLogits(h2,legal){const logits=new Float32Array(legal.length);for(let k=0;k<legal.length;k++){const a=legal[k],off=a*CONFIG.hidden2;let z=this.bp[a];for(let i=0;i<CONFIG.hidden2;i++)z+=this.wp[off+i]*h2[i];logits[k]=z}return logits}
-  predict(x,legal){const o=this.trunk(x),logits=this.legalLogits(o.h2,legal);let max=-Infinity;for(const z of logits)if(z>max)max=z;const vals=new Float32Array(logits.length);let sum=0;for(let i=0;i<logits.length;i++){vals[i]=Math.exp(Math.max(-30,logits[i]-max));sum+=vals[i]}if(sum)for(let i=0;i<vals.length;i++)vals[i]/=sum;const probs=new Float32Array(CONFIG.policy);for(let i=0;i<legal.length;i++)probs[legal[i]]=vals[i];return {policy:probs,value:o.v,cache:o}}
-  train(x,target,value,legal,lr=CONFIG.lr){const o=this.trunk(x),logits=this.legalLogits(o.h2,legal),p=new Float32Array(legal.length);let max=-Infinity;for(const z of logits)max=Math.max(max,z);let sum=0;for(let i=0;i<logits.length;i++){p[i]=Math.exp(Math.max(-30,logits[i]-max));sum+=p[i]}for(let i=0;i<p.length;i++)p[i]/=sum||1;
-    const d2=zeros(CONFIG.hidden2),d1=zeros(CONFIG.hidden1);let dv=2*(o.v-value)*CONFIG.valueWeight*(1-o.v*o.v);for(let i=0;i<CONFIG.hidden2;i++)d2[i]+=dv*this.wv[i];this.bv-=lr*dv;for(let i=0;i<CONFIG.hidden2;i++)this.wv[i]-=lr*dv*o.h2[i];
-    for(let k=0;k<legal.length;k++){const a=legal[k],dl=(p[k]-(target[a]||0))*CONFIG.policyWeight,off=a*CONFIG.hidden2;this.bp[a]-=lr*dl;for(let i=0;i<CONFIG.hidden2;i++){d2[i]+=dl*this.wp[off+i];this.wp[off+i]-=lr*dl*o.h2[i]}}
-    for(let i=0;i<CONFIG.hidden2;i++){if(o.z2[i]<=0)d2[i]=0;this.b2[i]-=lr*d2[i];const off=i*CONFIG.hidden1;for(let j=0;j<CONFIG.hidden1;j++){d1[j]+=d2[i]*this.w2[off+j];this.w2[off+j]-=lr*d2[i]*o.h1[j]}}
-    for(let j=0;j<CONFIG.hidden1;j++){if(o.z1[j]<=0)d1[j]=0;this.b1[j]-=lr*d1[j];const off=j*CONFIG.input;for(let i=0;i<CONFIG.input;i++)this.w1[off+i]-=lr*d1[j]*x[i]}
-    return {loss:Math.abs(o.v-value)}
+  constructor(seed){
+    this.rng=new RNG(seed);
+    this.w1=randArr(CONFIG.hidden1*CONFIG.input,this.rng,Math.sqrt(2/CONFIG.input));
+    this.b1=zeros(CONFIG.hidden1);
+    this.rw1=Array.from({length:CONFIG.residualBlocks},()=>randArr(CONFIG.hidden2*CONFIG.hidden1,this.rng,Math.sqrt(2/CONFIG.hidden1)));
+    this.rb1=Array.from({length:CONFIG.residualBlocks},()=>zeros(CONFIG.hidden2));
+    this.rw2=Array.from({length:CONFIG.residualBlocks},()=>randArr(CONFIG.hidden2*CONFIG.hidden2,this.rng,Math.sqrt(2/CONFIG.hidden2)));
+    this.rb2=Array.from({length:CONFIG.residualBlocks},()=>zeros(CONFIG.hidden2));
+    this.wp=randArr(CONFIG.policy*CONFIG.hidden2,this.rng,Math.sqrt(2/CONFIG.hidden2));
+    this.bp=zeros(CONFIG.policy);
+    this.wv=randArr(CONFIG.hidden2,this.rng,Math.sqrt(2/CONFIG.hidden2));
+    this.bv=0;
   }
-  trainRL(x,action,reward,legal,lr=CONFIG.lr){
-    const o=this.trunk(x),logits=this.legalLogits(o.h2,legal),p=new Float32Array(legal.length);
-    let max=-Infinity;for(const z of logits)if(z>max)max=z;let sum=0;
-    for(let i=0;i<logits.length;i++){p[i]=Math.exp(Math.max(-30,logits[i]-max));sum+=p[i]}
-    for(let i=0;i<p.length;i++)p[i]/=sum||1;
-    const d2=zeros(CONFIG.hidden2),d1=zeros(CONFIG.hidden1);
-    const r=Math.max(-1,Math.min(1,Number(reward)||0));
-    let loss=0;
-    for(let k=0;k<legal.length;k++){
-      const a=legal[k],target=a===action?1:0;
-      const grad=-r*((target?1:0)-p[k]);
-      if(target)loss=-r*Math.log(Math.max(1e-8,p[k]));
-      const off=a*CONFIG.hidden2;
-      this.bp[a]-=lr*grad;
-      for(let i=0;i<CONFIG.hidden2;i++){d2[i]+=grad*this.wp[off+i];this.wp[off+i]-=lr*grad*o.h2[i]}
+  trunk(x){
+    const z0=zeros(CONFIG.hidden1),h0=zeros(CONFIG.hidden1);
+    for(let j=0;j<CONFIG.hidden1;j++){let s=this.b1[j],off=j*CONFIG.input;for(let i=0;i<CONFIG.input;i++)s+=this.w1[off+i]*x[i];z0[j]=s;h0[j]=Math.max(0,s)}
+    let h=h0,blocks=[];
+    for(let k=0;k<CONFIG.residualBlocks;k++){
+      const zA=zeros(CONFIG.hidden2),a=zeros(CONFIG.hidden2),zB=zeros(CONFIG.hidden2),out=zeros(CONFIG.hidden2);
+      for(let j=0;j<CONFIG.hidden2;j++){let s=this.rb1[k][j],off=j*CONFIG.hidden1;for(let i=0;i<CONFIG.hidden1;i++)s+=this.rw1[k][off+i]*h[i];zA[j]=s;a[j]=Math.max(0,s)}
+      for(let j=0;j<CONFIG.hidden2;j++){let s=this.rb2[k][j],off=j*CONFIG.hidden2;for(let i=0;i<CONFIG.hidden2;i++)s+=this.rw2[k][off+i]*a[i];zB[j]=s;out[j]=Math.max(0,h[j]+s)}
+      blocks.push({input:h,zA,a,zB,out});h=out;
     }
-    const targetValue=r;
-    const dv=2*(o.v-targetValue)*CONFIG.valueWeight*(1-o.v*o.v);
-    for(let i=0;i<CONFIG.hidden2;i++)d2[i]+=dv*this.wv[i];
-    this.bv-=lr*dv;for(let i=0;i<CONFIG.hidden2;i++)this.wv[i]-=lr*dv*o.h2[i];
-    for(let i=0;i<CONFIG.hidden2;i++){if(o.z2[i]<=0)d2[i]=0;this.b2[i]-=lr*d2[i];const off=i*CONFIG.hidden1;for(let j=0;j<CONFIG.hidden1;j++){d1[j]+=d2[i]*this.w2[off+j];this.w2[off+j]-=lr*d2[i]*o.h1[j]}}
-    for(let j=0;j<CONFIG.hidden1;j++){if(o.z1[j]<=0)d1[j]=0;this.b1[j]-=lr*d1[j];const off=j*CONFIG.input;for(let i=0;i<CONFIG.input;i++)this.w1[off+i]-=lr*d1[j]*x[i]}
-    return loss+Math.abs(o.v-targetValue);
+    let v=this.bv;for(let i=0;i<CONFIG.hidden2;i++)v+=this.wv[i]*h[i];
+    return {h0,z0,blocks,h2:h,v:Math.tanh(v)};
   }
-  toJSON(){const o={version:CONFIG.version,input:CONFIG.input,hidden1:CONFIG.hidden1,hidden2:CONFIG.hidden2,policy:CONFIG.policy,generation,steps,games};for(const k of ['w1','b1','w2','b2','wp','bp','wv'])o[k]=Array.from(this[k]);o.bv=this.bv;return o}
-  static fromJSON(o){if(!o||o.input!==undefined&&o.input!==CONFIG.input||o.hidden1!==undefined&&o.hidden1!==CONFIG.hidden1||o.hidden2!==undefined&&o.hidden2!==CONFIG.hidden2||o.policy!==undefined&&o.policy!==CONFIG.policy)throw new Error('incompatible brain architecture');if(!o.wp||o.wp.length!==CONFIG.policy*CONFIG.hidden2)throw new Error('brain uses an older policy encoding; reset or retrain');const n=new TinyNet(1);for(const k of ['w1','b1','w2','b2','wp','bp','wv'])n[k]=Float32Array.from(o[k]);n.bv=o.bv||0;generation=o.generation||0;steps=o.steps||0;games=o.games||0;return n}
+  legalLogits(h2,legal){
+    const logits=new Float32Array(legal.length);
+    for(let k=0;k<legal.length;k++){const a=legal[k],off=a*CONFIG.hidden2;let z=this.bp[a];for(let i=0;i<CONFIG.hidden2;i++)z+=this.wp[off+i]*h2[i];logits[k]=z}
+    return logits;
+  }
+  predict(x,legal){
+    const o=this.trunk(x),logits=this.legalLogits(o.h2,legal);let max=-Infinity;
+    for(const z of logits)if(z>max)max=z;
+    const vals=new Float32Array(logits.length);let sum=0;
+    for(let i=0;i<logits.length;i++){vals[i]=Math.exp(Math.max(-30,logits[i]-max));sum+=vals[i]}
+    if(sum)for(let i=0;i<vals.length;i++)vals[i]/=sum;
+    const probs=new Float32Array(CONFIG.policy);for(let i=0;i<legal.length;i++)probs[legal[i]]=vals[i];
+    return {policy:probs,value:o.v,cache:o};
+  }
+  _train(x,target,value,legal,lr,rlAction=null,rlReward=0){
+    const o=this.trunk(x),logits=this.legalLogits(o.h2,legal),p=new Float32Array(legal.length);let max=-Infinity;
+    for(const z of logits)max=Math.max(max,z);let sum=0;
+    for(let i=0;i<logits.length;i++){p[i]=Math.exp(Math.max(-30,logits[i]-max));sum+=p[i]}for(let i=0;i<p.length;i++)p[i]/=sum||1;
+    const dh=zeros(CONFIG.hidden2),lossTarget=rlAction===null?value:Math.max(-1,Math.min(1,Number(rlReward)||0));
+    const dv=2*(o.v-lossTarget)*CONFIG.valueWeight*(1-o.v*o.v);
+    this.bv-=lr*dv;for(let i=0;i<CONFIG.hidden2;i++){dh[i]+=dv*this.wv[i];this.wv[i]-=lr*dv*o.h2[i]}
+    let loss=Math.abs(o.v-lossTarget);
+    for(let k=0;k<legal.length;k++){
+      const a=legal[k],grad=rlAction===null?(p[k]-(target[a]||0))*CONFIG.policyWeight:-Math.max(-1,Math.min(1,Number(rlReward)||0))*((a===rlAction?1:0)-p[k]);
+      if(rlAction!==null&&a===rlAction)loss+=-Math.max(-1,Math.min(1,Number(rlReward)||0))*Math.log(Math.max(1e-8,p[k]));
+      const off=a*CONFIG.hidden2;this.bp[a]-=lr*grad;
+      for(let i=0;i<CONFIG.hidden2;i++){dh[i]+=grad*this.wp[off+i];this.wp[off+i]-=lr*grad*o.h2[i]}
+    }
+    for(let k=CONFIG.residualBlocks-1;k>=0;k--){
+      const bl=o.blocks[k],dIn=zeros(CONFIG.hidden1),dA=zeros(CONFIG.hidden2),dZ=zeros(CONFIG.hidden2);
+      for(let j=0;j<CONFIG.hidden2;j++){const d=bl.zB[j]>0?dh[j]:0;dZ[j]=d;dIn[j]+=d}
+      for(let j=0;j<CONFIG.hidden2;j++){const off=j*CONFIG.hidden2;for(let i=0;i<CONFIG.hidden2;i++){dA[i]+=dZ[j]*this.rw2[k][off+i];this.rw2[k][off+i]-=lr*dZ[j]*bl.a[i]}this.rb2[k][j]-=lr*dZ[j]}
+      for(let i=0;i<CONFIG.hidden2;i++)if(bl.zA[i]<=0)dA[i]=0;
+      for(let j=0;j<CONFIG.hidden2;j++){const off=j*CONFIG.hidden1;for(let i=0;i<CONFIG.hidden1;i++){dIn[i]+=dA[j]*this.rw1[k][off+i];this.rw1[k][off+i]-=lr*dA[j]*bl.input[i]}this.rb1[k][j]-=lr*dA[j]}
+      for(let i=0;i<CONFIG.hidden1;i++)dh[i]=dIn[i];
+    }
+    const d0=zeros(CONFIG.hidden1);for(let j=0;j<CONFIG.hidden1;j++){const d=o.z0[j]>0?dh[j]:0;d0[j]=d;this.b1[j]-=lr*d;const off=j*CONFIG.input;for(let i=0;i<CONFIG.input;i++)this.w1[off+i]-=lr*d*x[i]}
+    return loss;
+  }
+  train(x,target,value,legal,lr=CONFIG.lr){return this._train(x,target,value,legal,lr)}
+  trainRL(x,action,reward,legal,lr=CONFIG.lr){return this._train(x,null,0,legal,lr,action,reward)}
+  toJSON(){
+    const o={version:CONFIG.version,input:CONFIG.input,hidden1:CONFIG.hidden1,hidden2:CONFIG.hidden2,residualBlocks:CONFIG.residualBlocks,policy:CONFIG.policy,generation,steps,games};
+    for(const k of ['w1','b1','wp','bp','wv'])o[k]=Array.from(this[k]);o.bv=this.bv;
+    o.rw1=this.rw1.map(a=>Array.from(a));o.rb1=this.rb1.map(a=>Array.from(a));o.rw2=this.rw2.map(a=>Array.from(a));o.rb2=this.rb2.map(a=>Array.from(a));return o;
+  }
+  static fromJSON(o){
+    if(!o||o.input!==CONFIG.input||o.hidden1!==CONFIG.hidden1||o.hidden2!==CONFIG.hidden2||o.policy!==CONFIG.policy||o.residualBlocks!==CONFIG.residualBlocks)throw new Error('incompatible brain architecture; reset or retrain');
+    if(!o.wp||o.wp.length!==CONFIG.policy*CONFIG.hidden2||!o.rw1||o.rw1.length!==CONFIG.residualBlocks)throw new Error('brain uses an older network format; reset or retrain');
+    const n=new TinyNet(1);for(const k of ['w1','b1','wp','bp','wv'])n[k]=Float32Array.from(o[k]);n.bv=o.bv||0;
+    n.rw1=o.rw1.map(a=>Float32Array.from(a));n.rb1=o.rb1.map(a=>Float32Array.from(a));n.rw2=o.rw2.map(a=>Float32Array.from(a));n.rb2=o.rb2.map(a=>Float32Array.from(a));
+    generation=o.generation||0;steps=o.steps||0;games=o.games||0;return n;
+  }
 }
 
 class Node{constructor(prior=1,move=null){this.prior=prior;this.move=move;this.visits=0;this.valueSum=0;this.children=new Map();this.expanded=false;this.value=0}}
