@@ -17,7 +17,7 @@
   </header>
 
   <main class="dashboard">
-    <section class="workspace match-workspace">
+    <section class="workspace match-workspace"><div class="terminal-titlebar"><span>~/chess/match</span><span>● ● ●</span></div>
       <div class="workspace-head"><div><span class="eyebrow">PLAY</span><h2>match</h2><p>run the learner against itself, an engine, or you.</p></div><span class="badge" id="modeBadge">learner vs learner</span></div>
       <div class="match-layout">
         <div class="match-board">
@@ -51,7 +51,7 @@
         </div>
       </div>
     </section>
-    <section class="workspace training-workspace">
+    <section class="workspace training-workspace"><div class="terminal-titlebar"><span>~/chess/training</span><span>● ● ●</span></div>
       <div class="workspace-head"><div><span class="eyebrow">LEARN</span><h2>training</h2><p>turn played positions into better weights.</p></div><span class="badge" id="generationBadge">gen 0</span></div>
       <div class="training-layout">
         <div class="training-controls">      <section class="panel">
@@ -86,7 +86,7 @@
         <div class="review-grid" id="reviewGrid"></div>
       </section></div>
     </section>
-    <section class="workspace debug-workspace">      <section class="panel log-panel">
+    <section class="workspace debug-workspace"><div class="terminal-titlebar"><span>~/chess/debug</span><span>● ● ●</span></div>      <section class="panel log-panel">
         <div class="panel-head"><h2>system log</h2><span class="tiny">events + errors</span><button class="btn" id="clearLog" type="button">Clear</button></div>
         <pre class="log" id="log" aria-live="polite"></pre>
       </section></section>
