@@ -81,8 +81,7 @@ def ensure_lozza():
 def ensure_all():
     ENGINE_DIR.mkdir(parents=True, exist_ok=True)
     results = {}
-    for name, fn in (("stockfish-18", lambda: ensure_stockfish("18")),
-                     ("fairy-stockfish", ensure_fairy),
+    for name, fn in (("fairy-stockfish", ensure_fairy),
                      ("lozza.js", ensure_lozza)):
         try:
             results[name] = str(fn())
