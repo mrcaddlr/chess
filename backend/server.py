@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Chess Lab local PC bridge."""
-import base64, hashlib, json, os, secrets, socket, ssl, struct, subprocess, threading, time
+import base64, hashlib, json, os, secrets, socket, ssl, struct, subprocess, threading, time, shutil
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -339,7 +339,7 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self,fmt,*args): pass
     def _json(self,obj,status=200):
         raw=json.dumps(obj).encode()
-        self.send_response(status);self.send_header("Content-Type","application/json")
+        self.send_response(status);self.send_header("Content-Type","application/json");origin=self.headers.get("Origin","");self.send_header("Access-Control-Allow-Origin",origin if origin.startswith("http://localhost:") or origin.startswith("http://127.0.0.1:") else "null");self.send_header("Access-Control-Allow-Headers","Content-Type, X-Chess-Lab-Token");self.send_header("Access-Control-Allow-Methods","GET, POST, OPTIONS")
         self.send_header("Cache-Control","no-store");self.send_header("Content-Length",str(len(raw)));self.end_headers();self.wfile.write(raw)
     def _training_command_http(self, command):
         if self.headers.get("X-Chess-Lab-Token","")!=TOKEN:
@@ -375,6 +375,8 @@ class Handler(BaseHTTPRequestHandler):
         state["updated"]=time.time();broadcast({"type":"status","data":state})
         return self._json({"ok":True,"command":command})
 
+    def do_OPTIONS(self):
+        self.send_response(204);self.send_header("Access-Control-Allow-Origin",self.headers.get("Origin",""));self.send_header("Access-Control-Allow-Headers","Content-Type, X-Chess-Lab-Token");self.send_header("Access-Control-Allow-Methods","GET, POST, OPTIONS");self.end_headers()
     def do_POST(self):
         p=urlparse(self.path)
         if p.path in ("/api/training/start","/api/training/stop","/api/training/pause","/api/training/resume","/api/training/checkpoint"):
@@ -424,7 +426,7 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:return self._json({"error":str(e)},400)
     def do_GET(self):
         p=urlparse(self.path)
-        if p.path=="/api/health": return self._json({"ok":True,"service":"chess-lab-pc-bridge","version":"0.60.0","origin":"local"})
+        if p.path=="/api/health": return self._json({"ok":True,"service":"chess-lab-pc-bridge","version":"0.62.0","origin":"local","host":"127.0.0.1:8787"})
         if p.path=="/api/status":
             with clients_lock: connected=len(clients)
             return self._json({**state,"connectedClients":connected,"pairingRequired":True,"nativeCompute":native_available(),"trainingAvailable":native_available(),"nativeRunning":bool(native_proc and native_proc.poll() is None),"generation":native_generation,"stockfishInfo":state.get("stockfishInfo") or STOCKFISH_INFO,"localOrigin":True,"websocketPath":"/ws"})
