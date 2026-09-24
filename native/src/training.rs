@@ -145,7 +145,7 @@ pub fn evaluate_network(root:&Path,network:&Network,generation:u64,games:u64,max
   for _ in 0..max_plies{
    if let Some(_) = adjudicate(&board,&history,true){break}
    let legal=board.legal_moves();if legal.is_empty(){break}
-   let mv=if board.white_to_move==learner_white{Some(mcts.search_with_policy(&board,network,32,false).0).flatten()}else{let allowed:Vec<String>=legal.iter().map(|m|move_uci(*m)).collect();let u=engine.best_move(&fen(&board),depth,&allowed)?;legal.iter().find(|m|move_uci(**m)==u).copied().ok_or("Stockfish returned an illegal move")?};
+   let mv=if board.white_to_move==learner_white{Some(mcts.search_with_policy(&board,network,32,false).0).flatten()}else{let allowed:Vec<String>=legal.iter().map(|m|move_uci(*m)).collect();let u=engine.best_move(&fen(&board),depth,&allowed)?;Some(legal.iter().find(|m|move_uci(**m)==u).copied().ok_or("Stockfish returned an illegal move")?)};
    if board.make(mv).is_err(){return Err("learner produced an illegal move".into())}*history.entry(board.position_key()).or_insert(0)+=1;
   }
   let outcome=if let Some(r)=adjudicate(&board,&history,true){r}else{GameResult::Draw};
