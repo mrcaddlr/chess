@@ -8,7 +8,7 @@ let stockfishBlobUrls=[];
 let nativeEngine=null;
 let engineLoadedFromCache=false;
 
-const ENGINE_CACHE_VERSION='stockfish-cache-v2';
+const ENGINE_CACHE_VERSION='stockfish-cache-v3';
 const engineWasmCache={
   db:null,
   async open(){
@@ -45,163 +45,19 @@ const engineWasmCache={
 };
 function waitForStockfish(timeout=125000){return new Promise(resolve=>{if(stockfishReady){resolve(true);return}const started=Date.now();const timer=setInterval(()=>{if(stockfishReady||Date.now()-started>=timeout){clearInterval(timer);resolve(stockfishReady)}},100)})}
 async function buildBundledEngineWorker(engineUrl){
-  engineLoadedFromCache=false;
-  const manifestUrl=new URL('stockfish/engine-manifest.json',document.baseURI).href;
-  let manifest=null;
-  try{
-    const r=await fetch(manifestUrl,{cache:'no-store'});
-    if(r.ok)manifest=await r.json();
-  }catch(err){log('engine manifest fetch failed: '+err.message)}
-
   if(engineUrl.endsWith('/lozza.js')){
     log('loading Lozza · native UCI worker');
     return new Worker(engineUrl);
   }
-
-  if(engineUrl.endsWith('/fairy-stockfish.js')){
-    const directUrl=new URL('stockfish/fairy-stockfish.wasm',document.baseURI).href;
-    const cacheKey=ENGINE_CACHE_VERSION+':fairy-stockfish.wasm';
-    let wasmUrl;
-    const cached=await engineWasmCache.get(cacheKey);
-    if(cached){
-      wasmUrl=URL.createObjectURL(new Blob([cached],{type:'application/wasm'}));
-      stockfishBlobUrls.push(wasmUrl);
-      engineLoadedFromCache=true;
-      log('fairy-stockfish.wasm loaded from local cache · no download needed');
-    }else{
-      const r=await fetch(directUrl,{cache:'force-cache'});
-      if(!r.ok)throw new Error('fairy-stockfish.wasm returned HTTP '+r.status);
-      const data=await r.arrayBuffer();
-      await engineWasmCache.put(cacheKey,data);
-      wasmUrl=URL.createObjectURL(new Blob([data],{type:'application/wasm'}));
-      stockfishBlobUrls.push(wasmUrl);
-      log('fairy-stockfish.wasm downloaded once and cached locally');
-    }
-    const workerHelperUrl=new URL('stockfish/fairy-stockfish.worker.js',document.baseURI).href;
-    const bootstrap=`
-      self.Module=self.Module||{};
-      self.Module.locateFile=function(path){
-        if(/\\.wasm$/i.test(path))return ${JSON.stringify(wasmUrl)};
-        if(/stockfish\\.worker\\.js$/i.test(path))return ${JSON.stringify(workerHelperUrl)};
-        return ${JSON.stringify(engineUrl)};
-      };
-      importScripts(${JSON.stringify(engineUrl)});
-      Promise.resolve(Stockfish(self.Module)).then(function(sf){
-        self.__sf=sf;
-        sf.addMessageListener(function(line){self.postMessage(line);});
-        self.onmessage=function(e){sf.postMessage(e.data);};
-      }).catch(function(err){
-        self.postMessage('ENGINE_ERROR: '+(err&&err.message||String(err)));
-      });
-    `;
-    const workerUrl=URL.createObjectURL(new Blob([bootstrap],{type:'text/javascript'}));
-    stockfishBlobUrls.push(workerUrl);
-    log('loading Fairy-Stockfish · bundled NNUE WASM worker');
-    return new Worker(workerUrl);
-  }
-
   const jsName=engineUrl.split('/').pop();
-  const wasmName=jsName.replace(/\\.js$/i,'.wasm');
-  const parts=manifest?.[wasmName];
-  let wasmUrl='';
-
-  if(Array.isArray(parts)&&parts.length){
-    const cacheKey=ENGINE_CACHE_VERSION+':'+wasmName+':'+parts.join('|');
-    const cached=await engineWasmCache.get(cacheKey);
-    if(cached){
-      wasmUrl=URL.createObjectURL(new Blob([cached],{type:'application/wasm'}));
-      stockfishBlobUrls.push(wasmUrl);
-      engineLoadedFromCache=true;
-      log(wasmName+' loaded from local cache · no download needed');
-    }else{
-      log('downloading '+wasmName+' for first use · '+parts.length+' chunks');
-      const blobs=[];
-      let total=0;
-      for(let i=0;i<parts.length;i++){
-        const part=String(parts[i]||'').replace(/^\/+/, '');
-        const url=new URL('stockfish/'+part,document.baseURI);
-        const r=await fetch(url.href,{cache:'force-cache'});
-        if(!r.ok)throw new Error('Stockfish chunk '+part+' returned HTTP '+r.status);
-        const data=new Uint8Array(await r.arrayBuffer());
-        if(!data.byteLength)throw new Error('Stockfish chunk '+part+' is empty');
-        if(i===0&&data.length>=4&&!(data[0]===0x00&&data[1]===0x61&&data[2]===0x73&&data[3]===0x6d)){
-          throw new Error('Stockfish chunk '+part+' is not the start of a WASM binary');
-        }
-        blobs.push(data);
-        total+=data.byteLength;
-        log('chunk '+(i+1)+'/'+parts.length+' loaded · '+Math.round(data.byteLength/1048576)+' MiB');
-      }
-      if(total<1024*1024)throw new Error('assembled '+wasmName+' is only '+total+' bytes; incomplete WASM bundle');
-      const combined=new Uint8Array(total);
-      let offset=0;
-      for(const data of blobs){combined.set(data,offset);offset+=data.byteLength}
-      await engineWasmCache.put(cacheKey,combined.buffer);
-      wasmUrl=URL.createObjectURL(new Blob([combined],{type:'application/wasm'}));
-      stockfishBlobUrls.push(wasmUrl);
-      log(wasmName+' cached locally for future visits');
-    }
-  }else{
-    const directUrl=new URL('stockfish/'+wasmName,document.baseURI).href;
-    const cacheKey=ENGINE_CACHE_VERSION+':direct:'+wasmName;
-    const cached=await engineWasmCache.get(cacheKey);
-    if(cached){
-      wasmUrl=URL.createObjectURL(new Blob([cached],{type:'application/wasm'}));
-      stockfishBlobUrls.push(wasmUrl);
-      log(wasmName+' loaded from local cache · no download needed');
-    }else{
-      const r=await fetch(directUrl,{cache:'force-cache'});
-      if(!r.ok)throw new Error(wasmName+' returned HTTP '+r.status);
-      const data=await r.arrayBuffer();
-      await engineWasmCache.put(cacheKey,data);
-      wasmUrl=URL.createObjectURL(new Blob([data],{type:'application/wasm'}));
-      stockfishBlobUrls.push(wasmUrl);
-      log(wasmName+' downloaded once and cached locally');
-    }
-  }
-
-  // Stockfish.js contains its own browser-worker bootstrap, but its worker
-  // bootstrap resolves the WASM path from self.location.hash. That breaks when
-  // the worker is created from a normal GitHub Pages URL or when the WASM itself
-  // comes from IndexedDB. Build a tiny patched copy of the engine script instead:
-  // force worker mode and inject the exact WASM URL we already downloaded/cached.
-  const jsResponse=await fetch(engineUrl,{cache:'force-cache'});
-  if(!jsResponse.ok)throw new Error(jsName+' returned HTTP '+jsResponse.status);
-  let source=await jsResponse.text();
-  const workerModePatterns=[
-    '"worker"===self.location.hash.split(",")[1]',
-    '"worker"===self.location.hash.split(",")[1]||'
-  ];
-  let workerPatched=false;
-  for(const needle of workerModePatterns){
-    if(source.includes(needle)){source=source.replace(needle,'true');workerPatched=true;break}
-  }
-  if(!workerPatched)throw new Error(jsName+' does not contain the expected Stockfish worker bootstrap');
-  // Stockfish.js 19 builds resolve their browser WASM through locateFile.
-  // Force that resolver to the exact cached/assembled WASM Blob URL instead
-  // of relying on the worker's URL/hash or GitHub Pages relative paths.
-  const wasmResolverPatterns=[
-    'n||u:self.location.origin+self.location.pathname+"#"+u+",worker"',
-    't||u:self.location.origin+self.location.pathname+"#"+u+",worker"'
-  ];
-  let wasmPatched=false;
-  for(const needle of wasmResolverPatterns){
-    if(source.includes(needle)){
-      source=source.replace(needle,JSON.stringify(wasmUrl));
-      wasmPatched=true;break;
-    }
-  }
-  if(!wasmPatched){
-    // Keep compatibility with other Stockfish.js browser builds by replacing
-    // the generic WASM fallback expression if present.
-    const generic=/([nt])\|\|u:self\.location\.origin\+self\.location\.pathname\+"#"+u+",worker"/;
-    if(generic.test(source)){source=source.replace(generic,JSON.stringify(wasmUrl));wasmPatched=true}
-  }
-  if(!wasmPatched)throw new Error(jsName+' does not contain a patchable Stockfish WASM resolver');
-  const patchedUrl=URL.createObjectURL(new Blob([source],{type:'text/javascript'}));
-  stockfishBlobUrls.push(patchedUrl);
-  log('starting '+jsName+' in a patched browser worker with explicit WASM URL');
-  return new Worker(patchedUrl);
-}function cfgIsMultiEngine(engineUrl){
+  // The service worker caches the engine files on the device after the first request.
+  // Keep Stockfish's original worker/bootstrap untouched: it expects its WASM beside
+  // the generated JS and can therefore resolve it normally.
+  log('loading '+jsName+' from device cache/network');
+  const worker=new Worker(engineUrl+'#stockfish-worker');
+  return worker;
+}
+function cfgIsMultiEngine(engineUrl){
   return Object.values(ENGINE_CONFIGS||{}).some(cfg=>cfg?.multi&&new URL(cfg.url,document.baseURI).href===engineUrl);
 }
 async function createNativeEngine(cfg){
