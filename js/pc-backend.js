@@ -11,9 +11,9 @@
   function connect(){
     if(ws&&[0,1].includes(ws.readyState))return;
     try{const u=new URL(apiBase);u.protocol=u.protocol==='https:'?'wss:':'ws:';u.pathname='/ws';u.search='';u.hash='';ws=new WebSocket(u.href)}catch(e){schedule();return}
-    ws.onopen=()=>{connected=true;ws.send(JSON.stringify({type:'register',role,token:token()}));emit('connection',{connected:true,role})};
+    ws.onopen=()=>{connected=true;if(role==='controller'){stockfishReady=true;setEngineUi('PC Stockfish backend ready',true)}ws.send(JSON.stringify({type:'register',role,token:token()}));emit('connection',{connected:true,role})};
     ws.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.type==='hello'||m.type==='registered')emit('status',m.state);else if(m.type==='status')emit('status',m.data);else if(m.type==='command')emit('command',m);else if(m.type==='connection')emit('connection',m);else if(m.type==='reload'){location.reload()} }catch(_){}};
-    ws.onclose=()=>{connected=false;emit('connection',{connected:false,role});schedule()}; ws.onerror=()=>{};
+    ws.onclose=()=>{connected=false;if(role==='controller'){stockfishReady=false;setEngineUi('PC backend offline',false)}emit('connection',{connected:false,role});schedule()}; ws.onerror=()=>{};
   }
   function schedule(){clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connect,2000)}
   function send(type,payload){if(!ws||ws.readyState!==1)return false;ws.send(JSON.stringify({type,token:token(),...payload}));return true}
