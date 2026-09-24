@@ -18,7 +18,7 @@ const chessLabDeviceProfile=(()=>{
   const kind=mobile?'mobile':/Tablet/i.test(ua)?'tablet':'desktop';
   return {kind,cores,memoryGB,webgpu};
 })();
-window.chessLabDeviceProfile=chessLabDeviceProfile;
+if(typeof window!=='undefined')window.chessLabDeviceProfile=chessLabDeviceProfile;
 // Optional fast-training worker hooks. Keep them defined even when the fast path is unused.
 let fastBatchAbort=null, fastWorkers=[];
 function stopFastWorkers(){for(const w of fastWorkers){try{w.terminate()}catch(e){}}fastWorkers=[];}
