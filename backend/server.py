@@ -71,10 +71,9 @@ def native_stop():
 def native_train(data):
     global native_generation
     if not start_native():raise RuntimeError("Node.js is required for native PC training")
-    with native_lock:
-        native_proc.stdin.write(json.dumps({"type":"train",**data})+"\n")
-        native_proc.stdin.flush()
-        while True:
+    native_proc.stdin.write(json.dumps({"type":"train",**data})+"\n")
+    native_proc.stdin.flush()
+    while True:
             line=native_proc.stdout.readline()
             if not line:raise RuntimeError("native trainer exited")
             msg=json.loads(line)
