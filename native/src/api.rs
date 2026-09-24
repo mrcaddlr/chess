@@ -22,6 +22,7 @@ pub fn router(state:AppState)->Router{
  .route("/api/status",get(status))
  .route("/api/hardware",get(hw))
  .route("/api/engines",get(engines))
+ .route("/api/engine-move",post(engine_move))
  .route("/api/training/start",post(start_training))
  .route("/api/training/stop",post(stop_training))
  .route("/api/training/pause",post(pause_training))
@@ -39,6 +40,12 @@ async fn status(State(s):State<Arc<AppState>>)->Json<Value>{
 }
 async fn hw()->Json<hardware::HardwareInfo>{Json(hardware::detect())}
 async fn engines(State(s):State<Arc<AppState>>)->Json<Vec<engine::EngineInfo>>{Json(engine::list(&s.root))}
+#[derive(serde::Deserialize,Default)]struct EngineMoveRequest{fen:String,depth:Option<u8>,allowedMoves:Option<Vec<String>>,engine:Option<String>,threads:Option<u32>}
+async fn engine_move(State(s):State<Arc<AppState>>,Json(req):Json<EngineMoveRequest>)->Json<Value>{
+ let root=s.root.clone();
+ let result=tokio::task::spawn_blocking(move||engine::best_move(&root,req.engine.as_deref().unwrap_or("sf19-full-single"),&req.fen,req.depth.unwrap_or(12),req.allowedMoves.as_deref().unwrap_or(&[]),req.threads.unwrap_or(1))).await;
+ match result{Ok(Ok(mv))=>Json(serde_json::json!({"ok":true,"move":mv})),Ok(Err(e))=>Json(serde_json::json!({"ok":false,"error":e})),Err(e)=>Json(serde_json::json!({"ok":false,"error":format!("engine worker failed: {e}")}))}
+}
 async fn training_status(State(s):State<Arc<AppState>>)->Json<TrainingStatus>{Json(s.training.lock().map(|v|v.clone()).unwrap_or_default())}
 
 fn set_status(s:&AppState,f:impl FnOnce(&mut TrainingStatus)){if let Ok(mut x)=s.training.lock(){f(&mut x);}}
