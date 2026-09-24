@@ -12,7 +12,7 @@ function legalActions(c){return c.moves({verbose:true}).map(actionIndex)}
 
 function moveFromAction(c,idx){const moves=c.moves({verbose:true});return moves.find(m=>actionIndex(m)===idx)||null}
 
-function softmaxLegal(c,temperature=1,learnerBrain=brain){const legal=c.moves({verbose:true});if(!legal.length)return null;if(!learnerBrain)return legal[Math.floor(Math.random()*legal.length)];const actions=legal.map(actionIndex),pred=learnerBrain.predictLegal(encode(c),actions);if(temperature<=0){let best=legal[0],bs=-Infinity;for(let i=0;i<legal.length;i++){const s=pred.policy[i];if(s>bs){bs=s;best=legal[i]}}return best}const vals=legal.map(m=>Math.pow(Math.max(1e-8,pred.policy[actionIndex(m)]),1/temperature));let z=vals.reduce((a,b)=>a+b,0),r=Math.random()*z;for(let i=0;i<legal.length;i++){r-=vals[i];if(r<=0)return legal[i]}return legal.at(-1)}
+function softmaxLegal(c,temperature=1,learnerBrain=brain){const legal=c.moves({verbose:true});if(!legal.length)return null;if(!learnerBrain)return legal[Math.floor(Math.random()*legal.length)];const actions=legal.map(actionIndex),pred=learnerBrain.predictLegal(encode(c),actions);if(temperature<=0){let best=legal[0],bs=-Infinity;for(let i=0;i<legal.length;i++){const s=pred.policy[i];if(s>bs){bs=s;best=legal[i]}}return best}const vals=legal.map((m,i)=>Math.pow(Math.max(1e-8,Number(pred.policy[i])||0),1/temperature));let z=vals.reduce((a,b)=>a+b,0),r=Math.random()*z;for(let i=0;i<legal.length;i++){r-=vals[i];if(r<=0)return legal[i]}return legal.at(-1)}
 
 function terminalValue(c){if(isCheckmate(c))return c.turn()==='w'?-1:1;if(isStalemate(c)||isInsufficientMaterial(c))return 0;const f=c.fen().split(' ');if(Number(f[4])>=100)return 0;return null}
 
@@ -93,7 +93,8 @@ async function mcts(c,sims,learnerBrain=brain,detailed=false,searchState=null){
   }
   if(!best)best=softmaxLegal(c,0,learnerBrain);
   if(!best||typeof best.from!=='string'||typeof best.to!=='string'){
-    resetMctsTree();
+    if(searchState){searchState.root=null;searchState.rootKey=null;searchState.pendingKey=null;searchState.transpositions.clear()}
+    else resetMctsTree();
     best=softmaxLegal(c,0,learnerBrain);
   }
   if(!detailed)return best;
