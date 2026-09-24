@@ -1,116 +1,214 @@
-/* Chess Learning Lab 0.14.0 — final layout pass
-   Keep the board dominant, keep controls readable, and stop long panels
-   from creating uneven columns. */
-.dashboard{gap:14px}
+/* Chess Lab desktop/mobile layout rebuilt from scratch.
+   This file is the single layout authority. Visual styling remains in style.css. */
+
+*,
+*::before,
+*::after{box-sizing:border-box}
+
+html,body{width:100%;min-width:0;overflow-x:hidden}
+body{margin:0}
+.app{
+  width:min(1480px,calc(100% - 32px));
+  margin:0 auto;
+  padding:20px 0 40px;
+}
+.dashboard{
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+  width:100%;
+  min-width:0;
+}
+.workspace{
+  width:100%;
+  min-width:0;
+  overflow:visible;
+}
+.workspace-head{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+}
+.workspace-head>div{min-width:0}
+.workspace-head h2,
+.workspace-head p{min-width:0}
+
 .match-layout{
-  grid-template-columns:minmax(0,1fr) 340px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 360px;
+  gap:20px;
   align-items:start;
+  width:100%;
+  min-width:0;
+  padding:18px;
 }
-.match-board{min-width:0;display:grid;align-content:start}
-.match-board .board-wrap{
-  width:min(620px,100%);
-  margin-inline:auto;
+.match-board{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
 }
-.match-tools{min-width:0}
-.match-tools .status-card{min-height:0}
-.match-tools .move-list{max-height:240px}
-.match-tools .panel{min-width:0}
-.training-layout{
-  grid-template-columns:minmax(300px,.82fr) minmax(0,1.18fr);
-  align-items:stretch;
-}
-.training-controls,.training-view{min-width:0}
-.training-controls .panel,.training-view .panel{height:100%}
-.training-visual-panel{min-width:0}
-.lower-grid{align-items:stretch}
-.compact-workspace{min-width:0}
-.debug-workspace{min-width:0}
-
-/* The controls belong to the board column, so they never stretch the
-   settings column or squeeze the board. */
+.match-board .players,
+.match-board .board-wrap,
 .match-board .controls{
-  width:min(620px,100%);
+  width:min(760px,100%);
+  max-width:760px;
+}
+.match-board .players{margin-inline:auto}
+.match-board .board-wrap{
+  aspect-ratio:1;
   margin-inline:auto;
 }
-
-/* Prevent long labels and select values from forcing horizontal overflow. */
-.field label,.field select,.field input{min-width:0}
-select,input[type=number],input[type=url]{text-overflow:ellipsis}
-
-/* Small screens: board first, then settings, then training. */
-@media(max-width:1050px){
-  .match-layout{grid-template-columns:minmax(0,1fr) 300px}
-  .match-board .board-wrap,.match-board .controls{width:min(600px,100%)}
+.match-board .board{
+  width:100%;
+  height:100%;
+  aspect-ratio:1;
 }
-@media(max-width:820px){
-  .match-layout,.training-layout{grid-template-columns:1fr}
+.match-board .controls{
+  margin-inline:auto;
+}
+.match-tools{
+  min-width:0;
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.match-tools>*{width:100%;min-width:0}
+.match-tools .move-list{
+  max-height:360px;
+  overflow:auto;
+}
+
+.training-layout{
+  display:block;
+  width:100%;
+  min-width:0;
+  padding:18px;
+}
+.training-controls{
+  width:100%;
+  min-width:0;
+}
+.training-controls-panel{
+  width:100%;
+  min-width:0;
+}
+.training-live-inline{width:100%}
+
+.lower-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:20px;
+  width:100%;
+  min-width:0;
+}
+.compact-workspace,
+.debug-workspace{
+  width:100%;
+  min-width:0;
+}
+.debug-workspace .log{
+  width:100%;
+  max-width:100%;
+  overflow:auto;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+}
+
+.panel,
+.status-card,
+.terminal-titlebar,
+.workspace-head{
+  min-width:0;
+}
+
+.field,
+.field>*{min-width:0}
+select,
+input[type=number],
+input[type=url]{
+  max-width:100%;
+  min-width:0;
+}
+
+/* desktop */
+@media (min-width:1000px){
+  .app{width:min(1480px,calc(100% - 48px));padding-top:24px}
+  .dashboard{gap:22px}
+
+  .match-layout{
+    grid-template-columns:minmax(600px,760px) minmax(320px,1fr);
+    justify-content:center;
+    gap:24px;
+    padding:22px;
+  }
+  .match-board{width:100%}
+  .match-board .players,
+  .match-board .board-wrap,
+  .match-board .controls{width:min(720px,100%);max-width:720px}
+
+  .match-tools{
+    align-self:stretch;
+    max-width:none;
+  }
+
+  .training-layout{padding:22px}
+  .training-controls-panel{height:auto}
+
+  .lower-grid{
+    grid-template-columns:minmax(0,1fr);
+  }
+}
+
+/* medium desktop / laptop */
+@media (min-width:1000px) and (max-width:1240px){
+  .app{width:calc(100% - 32px)}
+  .match-layout{
+    grid-template-columns:minmax(0,1.35fr) minmax(290px,.65fr);
+    gap:16px;
+    padding:16px;
+  }
+  .match-board .players,
+  .match-board .board-wrap,
+  .match-board .controls{width:min(620px,100%);max-width:620px}
+}
+
+/* tablet */
+@media (max-width:999px){
+  .app{width:min(100% - 20px,900px);padding-top:12px}
+  .match-layout{grid-template-columns:1fr}
   .match-tools{
     display:grid;
     grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:8px;
+    align-items:start;
   }
-  .match-tools .status-card,.match-tools .move-panel{grid-column:1/-1}
-  .match-board .board-wrap,.match-board .controls{width:min(620px,100%)}
-  .training-layout{gap:8px}
+  .match-tools .status-card,
+  .match-tools .move-panel{grid-column:1/-1}
 }
-@media(max-width:560px){
-  .dashboard{gap:8px}
-  .workspace-head{align-items:flex-start}
-  .workspace-head .badge{flex:none}
-  .match-layout{padding:7px}
+
+/* phone */
+@media (max-width:640px){
+  .app{width:100%;padding:10px 10px 24px}
+  .dashboard{gap:12px}
+  .match-layout,
+  .training-layout{padding:10px}
   .match-tools{grid-template-columns:1fr}
-  .match-tools .status-card,.match-tools .move-panel{grid-column:auto}
-  .match-board .board-wrap,.match-board .controls{width:100%}
-  .match-board .controls{grid-template-columns:repeat(2,1fr)}
-  .match-board .controls .btn{min-width:0}
-  .training-layout{padding:7px}
-  .training-controls .stats{grid-template-columns:repeat(2,1fr)}
+  .match-tools .status-card,
+  .match-tools .move-panel{grid-column:auto}
+  .match-board .players,
+  .match-board .board-wrap,
+  .match-board .controls{width:100%;max-width:none}
+  .match-board .controls{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-@media(max-width:360px){
+
+@media (max-width:400px){
   .match-board .controls{grid-template-columns:1fr}
-  .player-card .player-name{max-width:90px}
+  .player-card .player-name{max-width:100px}
 }
 
-/* Remote benchmark card */
-.remote-benchmark{
-  display:grid;
-  gap:10px;
-  margin-top:10px;
-  padding:12px;
-  border:1px solid var(--line);
-  border-radius:16px;
-  background:var(--stat);
-}
-.remote-benchmark-head{display:flex;justify-content:space-between;gap:8px;align-items:center}
-.remote-benchmark-head b{font-size:12px}
-.remote-benchmark-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-.remote-benchmark-stat{padding:8px 5px;border:1px solid var(--line);border-radius:12px;background:var(--card);text-align:center}
-.remote-benchmark-stat b{display:block;font-size:13px}
-.remote-benchmark-stat span{display:block;margin-top:2px;color:var(--muted);font-size:7px;font-weight:900}
-.remote-history{display:grid;gap:4px;max-height:125px;overflow:auto}
-.remote-history-row{display:grid;grid-template-columns:52px 1fr 52px;gap:6px;align-items:center;padding:6px 8px;border-radius:9px;background:var(--move);font-size:8px;font-weight:900}
-.remote-history-row span:last-child{text-align:right}
-@media(max-width:560px){
-  .remote-benchmark-grid{grid-template-columns:repeat(2,1fr)}
-}
-
-
-/* 0.31.14 compact training merge: keep live progress inside the training panel. */
-.training-layout{grid-template-columns:1fr;gap:8px}
-.training-controls-panel{min-width:0}
-.training-controls-head{margin-bottom:6px}
-.training-live-inline{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;margin-bottom:9px;padding:8px 10px;border:1px solid var(--line);border-radius:14px;background:var(--stat)}
-.training-live-inline .live-top{display:contents}
-.training-live-inline .live-top>div:first-child{display:grid;gap:2px;min-width:0}
-.training-live-inline #livePhase{font-size:10px}
-.training-live-inline #liveDetail{font-size:8px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.training-live-inline .live-rate{display:none}
-.training-live-inline .training-game-counter{display:flex;align-items:baseline;gap:5px;white-space:nowrap}
-.training-live-inline .training-game-counter b{font-size:20px;line-height:1}
-.training-live-inline .training-game-counter span{font-size:7px;color:var(--muted);font-weight:900}
-.training-live-inline.is-training{border-color:color-mix(in srgb,var(--mint) 35%,var(--line))}
-@media(max-width:560px){
-  .training-live-inline{grid-template-columns:minmax(0,1fr) auto;gap:7px;padding:7px 8px}
-  .training-live-inline #liveDetail{font-size:7px}
-  .training-live-inline .training-game-counter b{font-size:18px}
-}
+/* The old CRT layer was a full-page visual effect and must never participate
+   in layout or cover interactive panels. */
+.crt-overlay{display:none!important}
