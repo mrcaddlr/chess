@@ -338,8 +338,25 @@ def native_engine_move(fen, depth=12, allowed_moves=None, engine_id="sf19-full-s
         except Exception:pass
 
 def engine_availability():
-    sf19=bool(STOCKFISH_INFO.get('available')); sf18=Path(ROOT/'.chess-lab/stockfish-18').is_file(); lozza=Path(ROOT/'.chess-lab/lozza.js').is_file(); fairy=Path(ROOT/'.chess-lab/fairy-stockfish').is_file()
-    return {'sf19-full-single':{'available':sf19},'sf19-full-multi':{'available':sf19},'sf19-lite-single':{'available':sf19},'sf19-lite-multi':{'available':sf19},'sf18-full-single':{'available':sf18},'sf18-full-multi':{'available':sf18},'sf18-lite-single':{'available':sf18},'sf18-lite-multi':{'available':sf18},'lozza':{'available':lozza},'fairy-stockfish':{'available':fairy},'custom-wasm':{'available':True}}
+    sf19=bool(STOCKFISH_INFO.get('available'))
+    sf18=Path(ROOT/'.chess-lab/stockfish-18').is_file()
+    sf19lite=Path(ROOT/'.chess-lab/stockfish-19-lite').is_file()
+    sf18lite=Path(ROOT/'.chess-lab/stockfish-18-lite').is_file()
+    lozza=Path(ROOT/'.chess-lab/lozza.js').is_file()
+    fairy=Path(ROOT/'.chess-lab/fairy-stockfish').is_file()
+    return {
+        'sf19-full-single':{'available':sf19,'source':'native'},
+        'sf19-full-multi':{'available':sf19,'source':'native'},
+        'sf19-lite-single':{'available':sf19lite,'source':'native'},
+        'sf19-lite-multi':{'available':sf19lite,'source':'native'},
+        'sf18-full-single':{'available':sf18,'source':'native'},
+        'sf18-full-multi':{'available':sf18,'source':'native'},
+        'sf18-lite-single':{'available':sf18lite,'source':'native'},
+        'sf18-lite-multi':{'available':sf18lite,'source':'native'},
+        'lozza':{'available':lozza,'source':'native'},
+        'fairy-stockfish':{'available':fairy,'source':'native'},
+        'custom-wasm':{'available':False,'source':'browser','note':'loaded by the browser engine layer'}
+    }
 
 class Handler(BaseHTTPRequestHandler):
     protocol_version="HTTP/1.1"
