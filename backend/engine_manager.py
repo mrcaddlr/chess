@@ -65,7 +65,7 @@ def ensure_fairy():
     if destination.is_file() and os.access(destination, os.X_OK):
         return destination
     tag = "fairy_sf_14_0_1_xq"
-    url = _asset("fairy-stockfish/Fairy-Stockfish", tag, lambda n: n == "fairy-stockfish_x86-64")
+    url = _asset("fairy-stockfish/Fairy-Stockfish", tag, lambda n: n == "fairy-stockfish-largeboard_x86-64")
     _download(url, destination)
     destination.chmod(destination.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     return destination
