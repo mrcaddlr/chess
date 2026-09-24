@@ -13,37 +13,22 @@ clients=[]; clients_lock=threading.Lock()
 state={"compute":False,"training":False,"paused":False,"history":[],"generation":0,"game":0,"totalGames":0,"positions":0,"updates":0,"totalUpdates":0,"ply":0,"fen":"start","turn":"w","loss":None,"gamesPerMinute":0,"phase":"idle","updated":time.time(),"stockfish":None,"evaluation":None,"completedGames":0,"completedPositions":0,"completedLoss":None,"error":""}
 
 def start_public_https():
-    """Start a temporary public HTTPS tunnel when cloudflared is installed."""
-    import shutil
-    binary=shutil.which("cloudflared")
-    if not binary:
-        print("Public HTTPS: cloudflared not installed; using local HTTP.")
+    """
+    Start a stable Cloudflare Tunnel only when explicitly configured.
+    Quick tunnels are kept as a fallback for development, but the stable
+    named-tunnel mode uses CHESS_LAB_CLOUDFLARE_TOKEN.
+    """
+    token=os.environ.get("CHESS_LAB_CLOUDFLARE_TOKEN","").strip()
+    if not token or shutil.which("cloudflared") is None:
         return None
+    cmd=["cloudflared","tunnel","run","--token",token]
     try:
-        proc=subprocess.Popen(
-            [binary,"tunnel","--no-autoupdate","--url",f"http://127.0.0.1:{PORT}"],
-            stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,bufsize=1
-        )
-        deadline=time.time()+15
-        while time.time()<deadline:
-            line=proc.stdout.readline()
-            if not line:
-                if proc.poll() is not None: break
-                continue
-            import re
-            m=re.search(r"https://[A-Za-z0-9.-]+\.trycloudflare\.com",line)
-            if m:
-                url=m.group(0)
-                Path(ROOT/".chess-lab-public-url").write_text(url+"\n")
-                print("Public HTTPS endpoint: "+url)
-                print("GitHub webhook: "+url+"/api/github-webhook")
-                return proc
-        try: proc.terminate()
-        except Exception: pass
-        print("Public HTTPS: cloudflared tunnel did not provide a URL.")
+        proc=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+        state["publicTunnel"]="configured"
+        return proc
     except Exception as e:
-        print("Public HTTPS failed: "+str(e))
-    return None
+        state["publicTunnelError"]=str(e)
+        return None
 
 def pairing_token():
     if TOKEN_FILE.exists(): return TOKEN_FILE.read_text().strip()
@@ -506,7 +491,7 @@ if __name__=="__main__":
         if not Path(tls_cert).is_file() or not Path(tls_key).is_file():
             raise SystemExit("CHESS_LAB_TLS_CERT and CHESS_LAB_TLS_KEY must point to existing certificate/key files.")
     print("Chess Lab PC bridge")
-    public_tunnel=None
+    public_tunnel=start_public_https()
     print("%s://127.0.0.1:%d/"%("https" if https_enabled else "http",PORT))
     print("Pairing token: %s"%TOKEN)
     print("LAN clients can use this PC's local IP on port %d."%PORT)
