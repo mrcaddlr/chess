@@ -315,10 +315,6 @@ def native_engine_move(fen, depth=12, allowed_moves=None, engine_id="sf19-full-s
         "sf19-full-multi":{"path":STOCKFISH_INFO.get("path"),"threads":max(2,int(threads or 2))},
         "sf19-lite-single":{"path":STOCKFISH_INFO.get("path"),"threads":1},
         "sf19-lite-multi":{"path":STOCKFISH_INFO.get("path"),"threads":max(2,int(threads or 2))},
-        "sf18-full-single":{"path":str(ROOT/".chess-lab/stockfish-18"),"threads":1},
-        "sf18-full-multi":{"path":str(ROOT/".chess-lab/stockfish-18"),"threads":max(2,int(threads or 2))},
-        "sf18-lite-single":{"path":str(ROOT/".chess-lab/stockfish-18"),"threads":1},
-        "sf18-lite-multi":{"path":str(ROOT/".chess-lab/stockfish-18"),"threads":max(2,int(threads or 2))},
         "fairy-stockfish":{"path":str(ROOT/".chess-lab/fairy-stockfish"),"threads":max(1,int(threads or 1))},
         "lozza":{"path":str(ROOT/".chess-lab/lozza.js"),"threads":1,"node":find_node()}
     }
@@ -347,9 +343,7 @@ def native_engine_move(fen, depth=12, allowed_moves=None, engine_id="sf19-full-s
 
 def engine_availability():
     sf19=bool(STOCKFISH_INFO.get('available'))
-    sf18=Path(ROOT/'.chess-lab/stockfish-18').is_file()
     sf19lite=sf19
-    sf18lite=sf18
     lozza=Path(ROOT/'.chess-lab/lozza.js').is_file()
     fairy=Path(ROOT/'.chess-lab/fairy-stockfish').is_file()
     return {
@@ -357,13 +351,8 @@ def engine_availability():
         'sf19-full-multi':{'available':sf19,'source':'native'},
         'sf19-lite-single':{'available':sf19lite,'source':'native'},
         'sf19-lite-multi':{'available':sf19lite,'source':'native'},
-        'sf18-full-single':{'available':sf18,'source':'native'},
-        'sf18-full-multi':{'available':sf18,'source':'native'},
-        'sf18-lite-single':{'available':sf18lite,'source':'native'},
-        'sf18-lite-multi':{'available':sf18lite,'source':'native'},
         'lozza':{'available':lozza and bool(find_node()),'source':'native'},
-        'fairy-stockfish':{'available':fairy,'source':'native'},
-        'custom-wasm':{'available':False,'source':'browser','note':'loaded by the browser engine layer'}
+        'fairy-stockfish':{'available':fairy,'source':'native'}
     }
 
 class Handler(BaseHTTPRequestHandler):
