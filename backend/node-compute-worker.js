@@ -45,8 +45,8 @@ async function selfPlay(requestedGames,maxPlies,sims,opponent='self',mixRatio=25
     const c=new Chess(),hist=newRepetitionHistory(c),state={detections:0,forcedDraw:false},local=[];let p=0;
     while(!terminalPosition(c)&&!state.forcedDraw&&p<maxPlies&&!cancelRequested){
       const legal=safeRepetitionMoves(c,hist);if(!legal.length)break;
-      const learnerTurn=opponent==='self'||opponent==='mix'?true:(c.turn()==='w' ? g%2===0 : g%2!==0);
       const useStockfish=opponent==='stockfish'||(opponent==='mix' && ((g*100/Math.max(1,requestedGames))<mixRatio));
+      const learnerTurn=useStockfish ? (c.turn()==='w' ? g%2===0 : g%2!==0) : true;
       let moveResult=null;
       if(useStockfish && !learnerTurn){
         const uci=await uciRequest(c.fen(),stockfishDepth);const engineMove=legal.find(m=>m.from+m.to+(m.promotion||'')===uci)||legal[0];moveResult={move:engineMove,policy:[{a:actionIndex(engineMove),p:1}]};
