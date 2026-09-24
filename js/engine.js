@@ -8,7 +8,7 @@ let stockfishBlobUrls=[];
 let nativeEngine=null;
 let engineLoadedFromCache=false;
 
-const ENGINE_CACHE_VERSION='stockfish-cache-v3';
+const ENGINE_CACHE_VERSION='stockfish-cache-v4';
 const engineWasmCache={
   db:null,
   async open(){
@@ -46,18 +46,66 @@ const engineWasmCache={
 function waitForStockfish(timeout=125000){return new Promise(resolve=>{if(stockfishReady){resolve(true);return}const started=Date.now();const timer=setInterval(()=>{if(stockfishReady||Date.now()-started>=timeout){clearInterval(timer);resolve(stockfishReady)}},100)})}
 async function buildBundledEngineWorker(engineUrl){
   if(engineUrl.endsWith('/lozza.js')){
-    log('loading Lozza · native UCI worker');
+    log('loading Lozza · browser worker');
     return new Worker(engineUrl);
   }
+
   const jsName=engineUrl.split('/').pop();
-  // The service worker caches the engine files on the device after the first request.
-  // Keep Stockfish's original worker/bootstrap untouched: it expects its WASM beside
-  // the generated JS and can therefore resolve it normally.
-  log('loading '+jsName+' from device cache/network');
+  const wasmName=jsName.replace(/\\.js$/i,'.wasm');
+  const cacheName='chess-lab-engines-v2';
+  const cacheUrl=new URL('stockfish/'+wasmName,document.baseURI).href;
+  const cache=await caches.open(cacheName);
+
+  // The repo stores the large Stockfish WASM as chunks. Assemble it once,
+  // store the completed binary in the browser's persistent Cache storage,
+  // then run Stockfish from that same-origin cached URL forever after.
+  let cached=await cache.match(cacheUrl);
+  if(!cached){
+    const manifestUrl=new URL('stockfish/engine-manifest.json',document.baseURI).href;
+    const manifestResponse=await fetch(manifestUrl,{cache:'no-store'});
+    if(!manifestResponse.ok)throw new Error('engine manifest returned HTTP '+manifestResponse.status);
+    const manifest=await manifestResponse.json();
+    const parts=manifest[wasmName];
+
+    if(Array.isArray(parts)&&parts.length){
+      log('first run: downloading '+wasmName+' directly to browser storage · '+parts.length+' chunks');
+      const buffers=[];
+      let total=0;
+      for(let i=0;i<parts.length;i++){
+        const partUrl=new URL('stockfish/'+String(parts[i]).replace(/^\\/+/,''),document.baseURI).href;
+        const r=await fetch(partUrl,{cache:'force-cache'});
+        if(!r.ok)throw new Error('engine chunk '+parts[i]+' returned HTTP '+r.status);
+        const b=new Uint8Array(await r.arrayBuffer());
+        if(!b.byteLength)throw new Error('engine chunk '+parts[i]+' is empty');
+        buffers.push(b);total+=b.byteLength;
+        log('downloaded engine chunk '+(i+1)+'/'+parts.length);
+      }
+      const combined=new Uint8Array(total);
+      let offset=0;
+      for(const b of buffers){combined.set(b,offset);offset+=b.byteLength}
+      if(combined[0]!==0||combined[1]!==0x61||combined[2]!==0x73||combined[3]!==0x6d){
+        throw new Error(wasmName+' is not a valid WASM binary after assembly');
+      }
+      cached=new Response(combined,{status:200,headers:{'Content-Type':'application/wasm','Cache-Control':'public, max-age=31536000'}});
+      await cache.put(cacheUrl,cached.clone());
+      log(wasmName+' is now stored on this device · future loads use the local copy');
+    }else{
+      const r=await fetch(cacheUrl,{cache:'force-cache'});
+      if(!r.ok)throw new Error(wasmName+' returned HTTP '+r.status);
+      await cache.put(cacheUrl,r.clone());
+      cached=r;
+      log(wasmName+' downloaded once and stored on this device');
+    }
+  }else{
+    log(wasmName+' loaded from device storage · no engine download');
+  }
+
+  // Keep the official Stockfish JS worker bootstrap intact. Its locateFile()
+  // resolves stockfish.wasm relative to this script, and the service worker/cache
+  // supplies the cached binary for that exact URL.
   const worker=new Worker(engineUrl+'#stockfish-worker');
   return worker;
-}
-function cfgIsMultiEngine(engineUrl){
+}function cfgIsMultiEngine(engineUrl){
   return Object.values(ENGINE_CONFIGS||{}).some(cfg=>cfg?.multi&&new URL(cfg.url,document.baseURI).href===engineUrl);
 }
 async function createNativeEngine(cfg){
