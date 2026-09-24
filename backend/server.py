@@ -332,9 +332,46 @@ class Handler(BaseHTTPRequestHandler):
         raw=json.dumps(obj).encode()
         self.send_response(status);self.send_header("Content-Type","application/json")
         self.send_header("Cache-Control","no-store");self.send_header("Content-Length",str(len(raw)));self.end_headers();self.wfile.write(raw)
+    def _training_command_http(self, command):
+        if self.headers.get("X-Chess-Lab-Token","")!=TOKEN:
+            return self._json({"error":"invalid pairing token"},401)
+        if command=="start-training":
+            n=int(self.headers.get("Content-Length","0"))
+            data=json.loads(self.rfile.read(n) or b"{}")
+            if state.get("training"): return self._json({"ok":True,"alreadyRunning":True})
+            if not native_available():
+                state["phase"]="error";state["error"]="PC training worker is unavailable. Node.js could not be launched by the backend.";state["updated"]=time.time()
+                broadcast({"type":"status","data":state})
+                return self._json({"error":state["error"]},503)
+            state["training"]=True;state["paused"]=False;state["phase"]="starting";state["error"]="";state["trainingStartedAt"]=time.time()
+            state["game"]=0;state["totalGames"]=int(data.get("games",data.get("gamesPerGeneration",100)) or 100)
+            state["positions"]=0;state["updates"]=0;state["totalUpdates"]=int(data.get("updates",400) or 400);state["updated"]=time.time()
+            broadcast({"type":"status","data":state})
+            threading.Thread(target=run_native_training,args=(data,),daemon=True).start()
+            return self._json({"ok":True,"started":True})
+        if command=="stop-training":
+            native_stop();state["training"]=False;state["paused"]=False;state["phase"]="stopping"
+        elif command in ("pause-training","resume-training"):
+            with native_lock:
+                if native_proc and native_proc.poll() is None:
+                    native_proc.stdin.write(json.dumps({"type":"pause" if command=="pause-training" else "resume"})+"\n");native_proc.stdin.flush()
+            state["paused"]=command=="pause-training";state["phase"]="paused" if state["paused"] else "resuming"
+        elif command=="checkpoint-training":
+            with native_lock:
+                if native_proc and native_proc.poll() is None:
+                    native_proc.stdin.write(json.dumps({"type":"checkpoint"})+"\n");native_proc.stdin.flush()
+            state["phase"]="checkpoint-saving"
+        else:
+            return self._json({"error":"unknown training command"},400)
+        state["updated"]=time.time();broadcast({"type":"status","data":state})
+        return self._json({"ok":True,"command":command})
+
     def do_POST(self):
         p=urlparse(self.path)
-
+        if p.path in ("/api/training/start","/api/training/stop","/api/training/pause","/api/training/resume","/api/training/checkpoint"):
+            command={"/api/training/start":"start-training","/api/training/stop":"stop-training","/api/training/pause":"pause-training","/api/training/resume":"resume-training","/api/training/checkpoint":"checkpoint-training"}[p.path]
+            return self._training_command_http(command)
+        
         if p.path=="/api/github-webhook":
             n=int(self.headers.get("Content-Length","0"))
             body=self.rfile.read(n)
