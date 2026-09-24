@@ -2,7 +2,7 @@
 (function(){
   const TOKEN_KEY='chess-lab-pairing-token';
   const params=new URLSearchParams(location.search);
-  const role=params.get('controller')==='1'?'controller':'compute';
+  const role='controller';
   const apiBase=localStorage.getItem('chess-lab-backend-url')||location.origin;
   let ws=null,reconnectTimer=null,connected=false,nativeCompute=false;
   const listeners={command:[],status:[],connection:[]};
