@@ -8,13 +8,8 @@ const ENGINE_CONFIGS={
 'sf19-full-multi':{label:'Stockfish 19 · Full · Multi',version:'19',path:'.chess-lab/stockfish-19',multi:true,native:true},
 'sf19-lite-single':{label:'Stockfish 19 · Lite · Single',version:'19',path:'.chess-lab/stockfish-19',multi:false,native:true,flavor:'lite'},
 'sf19-lite-multi':{label:'Stockfish 19 · Lite · Multi',version:'19',path:'.chess-lab/stockfish-19',multi:true,native:true,flavor:'lite'},
-'sf18-full-single':{label:'Stockfish 18 · Full · Single',version:'18',path:'.chess-lab/stockfish-18',multi:false,native:true},
-'sf18-full-multi':{label:'Stockfish 18 · Full · Multi',version:'18',path:'.chess-lab/stockfish-18',multi:true,native:true},
-'sf18-lite-single':{label:'Stockfish 18 · Lite · Single',version:'18',path:'.chess-lab/stockfish-18',multi:false,native:true,flavor:'lite'},
-'sf18-lite-multi':{label:'Stockfish 18 · Lite · Multi',version:'18',path:'.chess-lab/stockfish-18',multi:true,native:true,flavor:'lite'},
 'lozza':{label:'Lozza · JavaScript',version:'lozza',path:'.chess-lab/lozza.js',multi:false,native:true},
 'fairy-stockfish':{label:'Fairy-Stockfish · NNUE',version:'fairy',path:'',multi:true,native:false},
-'custom-wasm':{label:'Custom UCI WASM engine',version:'custom',path:'',multi:false,native:false}
 };
 let selectedEngine='sf19-full-single';
 let replay=[], games=0, steps=0, generation=0, evalRecord=null, evaluationHistory=[], bestEvalScore=-1, championGeneration=0, points=0, estimatedElo=400, trainingTargetElo=1000, trainingStartedAt=0, trainingSpeed=0;
