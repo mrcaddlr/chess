@@ -59,7 +59,7 @@ $('startTraining')?.addEventListener('click',async()=>{
     trainingLogLine('PC backend unavailable; switching to browser training');
   }
   if(typeof trainBatch==='function'){
-    applyRemoteTrainingConfig?.(config);
+    if(typeof trainingMode!=='undefined'){}
     trainBatch().catch(e=>{trainingLogLine('ERROR: browser training failed: '+e.message);setStatus('error','training failed · '+e.message,0);setTrainingButtonState(false)});
     setTrainingButtonState(true);
     toast('browser training started');
