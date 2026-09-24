@@ -44,8 +44,31 @@
 
   $('clearLog')?.addEventListener('click',()=>{$('log').textContent='';log('log cleared')});
 
-  $('startTraining')?.addEventListener('click',()=>trainBatch().catch(e=>{log('training launch error: '+e.message);setStatus('error','training failed to start',0)}));
-  $('stopTraining')?.addEventListener('click',()=>{cancelRequested=true;cancelEngine();training=false;busy=false;setStatus('paused','training stopped',0);renderStats();toast('training stopped')});
+  function remoteTrainingConfig(){
+  const ids=['trainingMode','targetElo','trainOpponent','mixRatio','batchGames','parallelGames','mutationRate','trainUpdates','evalGames','trainSims'];
+  const data={};for(const id of ids){const e=$(id);if(e)data[id]=e.value}
+  return data;
+}
+function applyRemoteTrainingConfig(data){
+  if(!data)return;
+  for(const [id,value] of Object.entries(data)){const e=$(id);if(e&&value!=null)e.value=String(value)}
+}
+$('startTraining')?.addEventListener('click',()=>{
+  if(window.chessLabBackend?.role==='controller'){
+    if(!window.chessLabBackend.command('start-training',remoteTrainingConfig())){toast('PC is offline');setStatus('error','connect to the PC backend first',0)}
+    else {setStatus('remote','sent training command to PC',0);toast('training command sent')}
+    return;
+  }
+  trainBatch().catch(e=>{log('training launch error: '+e.message);setStatus('error','training failed to start',0)})
+});
+  $('stopTraining')?.addEventListener('click',()=>{
+  if(window.chessLabBackend?.role==='controller'){
+    if(!window.chessLabBackend.command('stop-training'))toast('PC is offline');
+    else {setStatus('remote','sent stop command to PC',0);toast('stop command sent')}
+    return;
+  }
+  cancelRequested=true;cancelEngine();training=false;busy=false;setStatus('paused','training stopped',0);renderStats();toast('training stopped')
+});
   $('playMatch')?.addEventListener('click',()=>playMatch().catch(e=>{busy=false;log('Play error: '+e.message);setStatus('error',e.message,0);renderAll()}));
   $('simulateMove')?.addEventListener('click',()=>simulateOneMove().catch(e=>{busy=false;log('1 move error: '+e.message);setStatus('error',e.message,0);renderAll()}));
   $('newGame')?.addEventListener('click',()=>newGame());
@@ -61,6 +84,29 @@
 
   const tm=$('trainingMode');if(tm){const e=$('targetEloField');if(e)e.style.display=tm.value==='target'?'grid':'none'}
   const to=$('trainOpponent');if(to){const e=$('mixRatioField');if(e)e.style.display=to.value==='mix'?'grid':'none'}
+})();
+(function(){
+  const b=window.chessLabBackend;if(!b)return;
+  b.on('connection',m=>{if(m?.connected)log((m.role||'PC')+' backend connected');else log((m.role||'PC')+' backend disconnected')});
+  b.on('status',s=>{
+    if(!s)return;
+    if(b.role==='controller'){
+      const pct=s.totalGames?Math.round((Number(s.game||0)/Number(s.totalGames))*100):0;
+      setStatus(s.training?'remote training':'remote ready',s.training?((s.phase||'training')+' · '+(s.game||0)+' / '+(s.totalGames||0)+' games'):'PC backend connected',pct);
+      const live=document.getElementById('liveGames');if(live)live.textContent=String(s.game||0);
+      const rate=document.getElementById('liveGamesRate');if(rate)rate.textContent=String(s.gamesPerMinute||0);
+      const gen=document.getElementById('generationBadge');if(gen)gen.textContent='gen '+(s.generation||0);
+    }
+  });
+  b.on('command',m=>{
+    if(b.role!=='compute')return;
+    if(m.command==='start-training'){
+      applyRemoteTrainingConfig(m.data||{});
+      trainBatch().catch(e=>{log('remote training launch error: '+e.message);setStatus('error',e.message,0)})
+    }else if(m.command==='stop-training'){
+      cancelRequested=true;cancelEngine();training=false;busy=false;setStatus('paused','remote training stopped',0);renderStats()
+    }else if(m.command==='request-status'){ /* next heartbeat publishes state */ }
+  });
 })();/* Panels, moves, review and status rendering */
 function renderMoves(){const list=document.getElementById('moveList'),hist=game.history();list.innerHTML='';for(let i=0;i<hist.length;i++){const d=document.createElement('div');d.className='move';const q=moveRecords[i]?.quality||'';const pd=moveRecords[i]?.pointDelta;d.innerHTML='<b>'+((i>>1)+1)+(i%2?'...':'.')+'</b>'+hist[i]+(q?' <span style="float:right;font-weight:900">'+q+(Number.isFinite(pd)?' '+(pd>=0?'+':'')+pd:'')+'</span>':'');list.appendChild(d)}document.getElementById('moveCount').textContent=hist.length+' plies'}
 
