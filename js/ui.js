@@ -100,6 +100,7 @@ $('startTraining')?.addEventListener('click',()=>{
   });
   b.on('command',m=>{
     if(b.role!=='compute')return;
+    if(b.nativeCompute?.())return;
     if(m.command==='start-training'){
       applyRemoteTrainingConfig(m.data||{});
       trainBatch().catch(e=>{log('remote training launch error: '+e.message);setStatus('error',e.message,0)})
