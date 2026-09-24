@@ -1,0 +1,21 @@
+name: Native Rust CI
+
+on:
+  push:
+    paths:
+      - "native/**"
+      - ".github/workflows/native-ci.yml"
+  pull_request:
+    paths:
+      - "native/**"
+      - ".github/workflows/native-ci.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cargo test
+        working-directory: native
+        run: cargo test --all-targets
