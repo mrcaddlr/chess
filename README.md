@@ -197,3 +197,12 @@ Source: [Stockfish.js](https://github.com/nmrugg/stockfish.js/).
 ### Fairy-Stockfish
 
 The engine selector includes **Fairy-Stockfish NNUE · WASM** as a separate local engine. The upstream project describes its WASM port as an in-browser Fairy-Stockfish build with NNUE support and notes that the WASM port is used for local analysis on pychess. urlFairy-Stockfish WASM repositoryhttps://github.com/fairy-stockfish/fairy-stockfish.wasm
+
+
+## Local PC launcher
+
+The actual PC application is served by the local backend at `http://127.0.0.1:8787/`.
+
+Use `start-chess-lab.sh` on Linux to start the backend, wait for `/api/health`, and open the local UI. The launcher reuses an already-running backend instead of starting a second copy. `ChessLab.desktop` can be used as a desktop launcher on Linux.
+
+The backend itself performs its normal Git auto-update check when it starts. The launcher waits for the backend to be healthy before opening the browser.
