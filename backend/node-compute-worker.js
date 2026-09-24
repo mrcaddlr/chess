@@ -48,7 +48,8 @@ function stockfishProbe(){
 }
 function uciRequest(fen,depth,threads=1){
   return new Promise(async(resolve,reject)=>{
-    const info=await stockfishProbe();
+    if(!stockfishIdentity.available)stockfishIdentity=await stockfishProbe();
+    const info=stockfishIdentity;
     if(!info.available)return reject(new Error(info.error||"Stockfish 19 is not available"));
     const p=cp.spawn(info.path,[],{stdio:["pipe","pipe","pipe"]});let buf="",done=false,best=null;
     const finish=(err,val)=>{if(done)return;done=true;try{p.kill()}catch(e){};err?reject(err):resolve(val)};
