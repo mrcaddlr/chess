@@ -9,6 +9,8 @@ importScripts('js/chess.js','js/repetition.js','js/core.js','js/learner.js');
 
 let brain=null,replay=[],initialized=false,cancelRequested=false,pauseRequested=false,generation=0,gamesCompleted=0,currentConfig=null;
 let lastEvaluation=null;
+let perfStats={games:0,positions:0,inferenceMs:0,trainingMs:0,stockfishMs:0,startedAt:0};
+const replayXCache=new WeakMap();
 const CHECKPOINT_VERSION=2;
 function out(o){process.stdout.write(JSON.stringify(o)+"\n")}
 function terminal(c){if(isCheckmate(c))return c.turn()==="w"?-1:1;if(isStalemate(c)||isInsufficientMaterial(c))return 0;const f=c.fen().split(" ");return Number(f[4])>=100?0:null}
@@ -61,6 +63,7 @@ function uciRequest(fen,depth,threads=1){
   });
 }
 async function playTrainingGame(g,maxPlies,sims,opponent,mixRatio,stockfishDepth,stockfishThreads){
+  const gameStarted=Date.now();
   const useStockfish=opponent==="stockfish"||(opponent==="mix"&&((g*100/Math.max(1,currentConfig.games))<mixRatio));
   const c=new Chess(),hist=newRepetitionHistory(c),state={detections:0,forcedDraw:false},local=[];let p=0;
   while(!terminalPosition(c)&&!state.forcedDraw&&p<maxPlies&&!cancelRequested){
@@ -69,7 +72,7 @@ async function playTrainingGame(g,maxPlies,sims,opponent,mixRatio,stockfishDepth
     const learnerTurn=useStockfish?(c.turn()==="w"?g%2===0:g%2!==0):true;
     let moveResult;
     if(useStockfish&&!learnerTurn){
-      const uci=await uciRequest(c.fen(),stockfishDepth,stockfishThreads);
+      const sfStart=Date.now();const uci=await uciRequest(c.fen(),stockfishDepth,stockfishThreads);perfStats.stockfishMs+=Date.now()-sfStart;
       const engineMove=legal.find(m=>m.from+m.to+(m.promotion||"")===uci)||legal[0];
       moveResult={move:engineMove,policy:[{a:actionIndex(engineMove),p:1}]};
     }else moveResult=await mcts(c,sims,brain,true);
@@ -83,7 +86,8 @@ async function playTrainingGame(g,maxPlies,sims,opponent,mixRatio,stockfishDepth
   }
   let result=terminal(c);if(result===null)result=0;
   for(const s of local)replay.push({...s,reward:s.side==="w"?result:-result});
-  return {samples:local.length,plies:p,fen:c.fen(),result,useStockfish};
+  perfStats.games++;perfStats.positions+=local.length;
+  return {samples:local.length,plies:p,fen:c.fen(),result,useStockfish,durationMs:Date.now()-gameStarted};
 }
 let positionsForProgress=0;
 async function selfPlay(requestedGames,maxPlies,sims,opponent="self",mixRatio=25,stockfishDepth=8,stockfishThreads=1,parallelGames=1){
@@ -101,7 +105,7 @@ async function train(updates,lr,batchSize){
   for(let i=0;i<updates&&!cancelRequested;i++){
     await yieldNow();if(!replay.length)break;
     const batch=Math.max(1,Math.min(batchSize,replay.length));let loss=0;
-    for(let j=0;j<batch;j++){const s=replay[(Math.random()*replay.length)|0];if(!s?.legal?.length)continue;loss+=brain.trainPolicyValue(Float32Array.from(s.x),s.policy,s.reward,s.legal,lr);used++;}
+    for(let j=0;j<batch;j++){const s=replay[(Math.random()*replay.length)|0];if(!s?.legal?.length)continue;let x=replayXCache.get(s);if(!x){x=Float32Array.from(s.x||[]);replayXCache.set(s,x)}const t0=Date.now();loss+=brain.trainPolicyValue(x,s.policy,s.reward,s.legal,lr);perfStats.trainingMs+=Date.now()-t0;used++;}
     total+=loss/Math.max(1,batch);
     if((i&3)===3)out({type:"progress",phase:"training",update:i+1,totalUpdates:updates,loss:used?total/Math.max(1,Math.ceil(used/batch)):0,positions:replay.length});
   }
@@ -150,7 +154,8 @@ async function handle(d){
   if(d.type==="stockfish-info"){stockfishIdentity=await stockfishProbe();out({type:"stockfish-info",...stockfishIdentity});return}
   if(d.type!=="train"||!initialized)throw new Error("native trainer is not initialized");
   cancelRequested=false;
-  const requestedGames=Math.max(1,Number(d.games||d.gamesPerGeneration)||1),maxPlies=Math.max(20,Number(d.maxPlies)||160),sims=Math.max(1,Math.min(128,Number(d.sims)||8)),updates=Math.max(1,Number(d.updates)||Math.min(requestedGames*8,512)),lr=Math.max(.00001,Math.min(.01,Number(d.lr)||.001)),batchSize=Math.max(1,Math.min(512,Number(d.batchSize)||64)),parallelGames=Math.max(1,Math.min(32,Number(d.parallelGames)||1)),stockfishThreads=Math.max(1,Math.min(64,Number(d.stockfishThreads)||1));
+  perfStats={games:0,positions:0,inferenceMs:0,trainingMs:0,stockfishMs:0,startedAt:Date.now()};
+  const requestedGames=Math.max(1,Number(d.games||d.gamesPerGeneration)||1),maxPlies=Math.max(20,Number(d.maxPlies)||160),sims=Math.max(1,Math.min(128,Number(d.sims)||8)),updates=Math.max(1,Number(d.updates)||Math.min(requestedGames*8,512)),lr=Math.max(.00001,Math.min(.01,Number(d.lr)||.001)),batchSize=Math.max(1,Math.min(512,Number(d.batchSize)||64)),parallelGames=1,stockfishThreads=Math.max(1,Math.min(64,Number(d.stockfishThreads)||1));
   currentConfig={...d,games:requestedGames,replaySize:Number(d.replaySize)||50000,opponent:d.opponent||"self",mixRatio:Number(d.mixRatio)||25,stockfishDepth:Number(d.stockfishDepth)||12,sims,batchSize,parallelGames,stockfishThreads};
   const samples=await selfPlay(requestedGames,maxPlies,sims,currentConfig.opponent,currentConfig.mixRatio,currentConfig.stockfishDepth,stockfishThreads,parallelGames);
   const loss=await train(updates,lr,batchSize);
@@ -158,7 +163,7 @@ async function handle(d){
   if(!cancelRequested&&d.stockfishEval!==false)evaluation=await evaluateAgainstStockfish(Math.max(1,Math.min(100,Number(d.evalGames)||10)),Math.max(20,Number(d.evalPlies)||300),sims,Math.max(1,Math.min(30,Number(d.stockfishDepth)||12)),stockfishThreads);
   if(!cancelRequested){generation++;gamesCompleted+=requestedGames;lastEvaluation=evaluation}
   const checkpoint=checkpointPayload();if(!cancelRequested){try{checkpointFile()}catch(e){out({type:"warning",message:"checkpoint save failed: "+e.message})}}
-  out({type:"complete",brain:brain.toJSON(),games:cancelRequested?0:requestedGames,positions:samples.samples,replaySize:replay.length,loss,evaluation,cancelled:cancelRequested,generation,gamesCompleted,checkpoint});
+  out({type:"complete",performance:{...perfStats,durationMs:Date.now()-perfStats.startedAt},brain:brain.toJSON(),games:cancelRequested?0:requestedGames,positions:samples.samples,replaySize:replay.length,loss,evaluation,cancelled:cancelRequested,generation,gamesCompleted,checkpoint});
 }
 const rl=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
 rl.on("line",async line=>{try{await handle(JSON.parse(line))}catch(e){out({type:"error",message:e?.stack||String(e)})}});
