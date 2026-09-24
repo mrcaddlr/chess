@@ -29,7 +29,7 @@
   }
   function openThemes(){const m=$('themeModal');if(m)m.classList.add('open')}
   function closeThemes(){const m=$('themeModal');if(m)m.classList.remove('open')}
-  const savedTheme=read('chess-theme','light');
+  const savedTheme=read('chess-theme',window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
   const savedUi=read('chess-ui-theme','sakura');
   const savedBoard=read('chess-board-theme','classic');
   applyTheme(savedTheme);applyUiTheme(savedUi);applyBoardTheme(savedBoard);
