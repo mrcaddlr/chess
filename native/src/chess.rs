@@ -1,6 +1,6 @@
 use serde::{Deserialize,Serialize};
 
-#[derive(Clone,Copy,Debug,PartialEq,Eq,Serialize,Deserialize)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash,Serialize,Deserialize)]
 pub struct Move{pub from:u8,pub to:u8,pub promotion:Option<char>}
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq,Serialize,Deserialize)]
