@@ -59,7 +59,24 @@ async function buildBundledEngineWorker(engineUrl){
   }
 
   if(engineUrl.endsWith('/fairy-stockfish.js')){
-    const wasmUrl=new URL('stockfish/fairy-stockfish.wasm',document.baseURI).href;
+    const directUrl=new URL('stockfish/fairy-stockfish.wasm',document.baseURI).href;
+    const cacheKey=ENGINE_CACHE_VERSION+':fairy-stockfish.wasm';
+    let wasmUrl;
+    const cached=await engineWasmCache.get(cacheKey);
+    if(cached){
+      wasmUrl=URL.createObjectURL(new Blob([cached],{type:'application/wasm'}));
+      stockfishBlobUrls.push(wasmUrl);
+      engineLoadedFromCache=true;
+      log('fairy-stockfish.wasm loaded from local cache · no download needed');
+    }else{
+      const r=await fetch(directUrl,{cache:'force-cache'});
+      if(!r.ok)throw new Error('fairy-stockfish.wasm returned HTTP '+r.status);
+      const data=await r.arrayBuffer();
+      await engineWasmCache.put(cacheKey,data);
+      wasmUrl=URL.createObjectURL(new Blob([data],{type:'application/wasm'}));
+      stockfishBlobUrls.push(wasmUrl);
+      log('fairy-stockfish.wasm downloaded once and cached locally');
+    }
     const workerHelperUrl=new URL('stockfish/fairy-stockfish.worker.js',document.baseURI).href;
     const bootstrap=`
       self.Module=self.Module||{};
@@ -94,7 +111,6 @@ async function buildBundledEngineWorker(engineUrl){
     if(cached){
       wasmUrl=URL.createObjectURL(new Blob([cached],{type:'application/wasm'}));
       stockfishBlobUrls.push(wasmUrl);
-      engineLoadedFromCache=true;
       engineLoadedFromCache=true;
       log(wasmName+' loaded from local cache · no download needed');
     }else{
