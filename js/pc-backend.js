@@ -42,7 +42,16 @@
     async getModel(){const r=await fetch(apiBase+'/api/model',{headers:{'X-Chess-Lab-Token':token()}});if(!r.ok)throw new Error('model download failed: '+r.status);return r.json()},
     async setModel(model){const r=await fetch(apiBase+'/api/model',{method:'POST',headers:{'Content-Type':'application/json','X-Chess-Lab-Token':token()},body:JSON.stringify({model})});if(!r.ok)throw new Error('model upload failed: '+r.status);return r.json()},
     on:(type,fn)=>{(listeners[type]||(listeners[type]=[])).push(fn);return()=>{listeners[type]=listeners[type].filter(x=>x!==fn)}},
-    command:(command,data={})=>send('command',{command,data}),
+    async command(command,data={}){
+    if(send('command',{command,data}))return true;
+    const routes={'start-training':'/api/training/start','stop-training':'/api/training/stop','pause-training':'/api/training/pause','resume-training':'/api/training/resume','checkpoint-training':'/api/training/checkpoint'};
+    const route=routes[command];
+    if(!route)return false;
+    try{
+      const r=await fetch(apiBase+route,{method:'POST',headers:{'Content-Type':'application/json','X-Chess-Lab-Token':token()},body:JSON.stringify(data||{})});
+      return r.ok;
+    }catch(e){return false}
+  },
     publishStatus:data=>send('status',{data})
   };
   if(!token())fetch(apiBase+'/api/pairing').then(r=>r.ok?r.json():null).then(x=>{if(x?.token){localStorage.setItem(TOKEN_KEY,x.token);connect()}}).catch(()=>connect()); else connect();
