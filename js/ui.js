@@ -51,7 +51,24 @@
 function trainingLogLine(message){const root=$('trainingLog');if(!root)return;root.textContent+='['+new Date().toLocaleTimeString()+'] '+String(message)+'\n';root.scrollTop=root.scrollHeight}
 function setTrainingConfigVisibility(){const mode=$('trainingMode')?.value||'generation',opp=$('trainOpponent')?.value||'self';if($('targetEloField'))$('targetEloField').style.display=mode==='target'?'grid':'none';if($('mixRatioField'))$('mixRatioField').style.display=opp==='mix'?'grid':'none'}
 function setTrainingButtonState(running){if($('startTraining'))$('startTraining').disabled=running;if($('pauseTraining'))$('pauseTraining').disabled=!running;if($('stopTraining'))$('stopTraining').disabled=!running}
-$('startTraining')?.addEventListener('click',async()=>{if(!window.chessLabBackend?.command){toast('Local backend client unavailable');return}const config=remoteTrainingConfig();const ok=await window.chessLabBackend.command('start-training',config);if(!ok){trainingLogLine('ERROR: local training command failed');toast('Local backend did not accept the training command');setTrainingButtonState(false);return}trainingLogLine('training run requested');setTrainingButtonState(true);toast('training started')});
+$('startTraining')?.addEventListener('click',async()=>{
+  const config=remoteTrainingConfig();
+  if(window.chessLabBackend?.command){
+    const ok=await window.chessLabBackend.command('start-training',config);
+    if(ok){trainingLogLine('PC training run requested');setTrainingButtonState(true);toast('training started');return}
+    trainingLogLine('PC backend unavailable; switching to browser training');
+  }
+  if(typeof trainBatch==='function'){
+    applyRemoteTrainingConfig?.(config);
+    trainBatch().catch(e=>{trainingLogLine('ERROR: browser training failed: '+e.message);setStatus('error','training failed · '+e.message,0);setTrainingButtonState(false)});
+    setTrainingButtonState(true);
+    toast('browser training started');
+  }else{
+    trainingLogLine('ERROR: no training runtime is available');
+    toast('training runtime unavailable');
+    setTrainingButtonState(false);
+  }
+});
 $('pauseTraining')?.addEventListener('click',async()=>{if(await window.chessLabBackend?.command('pause-training')){trainingLogLine('pause requested');toast('pause requested')}});
 $('resumeTraining')?.addEventListener('click',async()=>{if(await window.chessLabBackend?.command('resume-training')){trainingLogLine('resume requested');toast('resume requested')}});
 $('stopTraining')?.addEventListener('click',async()=>{if(await window.chessLabBackend?.command('stop-training')){trainingLogLine('stop requested');toast('stop requested')}});
@@ -100,6 +117,14 @@ $('trainingMode')?.addEventListener('change',setTrainingConfigVisibility);$('tra
   const ev=s.evaluation;if(ev){const total=Number(ev.games||0),score=total?((Number(ev.wins||0)+Number(ev.draws||0)*.5)/total*100):0;set('generationScore',total?score.toFixed(1)+'%':'—');set('evaluationBadge',total?'evaluated':'not evaluated');set('evaluationLine',total?('Stockfish 19: '+ev.wins+'W · '+ev.draws+'D · '+ev.losses+'L · '+score.toFixed(1)+'% score'):(ev.error||'evaluation unavailable'))}
   const progress=s.phase==='training'?(s.totalUpdates?Math.round(Number(s.updates||0)/Number(s.totalUpdates)*100):0):pct;const bar=$('trainingProgressBar');if(bar)bar.style.width=Math.max(0,Math.min(100,progress))+'%';set('trainingProgressText',Math.max(0,Math.min(100,progress))+'%');setTrainingButtonState(!!s.training);if(s.fen)renderTrainingLiveBoard(s.fen);
   if(Array.isArray(s.history)){const root=$('trainingHistory');if(root){root.innerHTML=s.history.length?s.history.slice().reverse().map(h=>{const ev=h.evaluation||{};const total=Number(ev.games||0),score=total?((Number(ev.wins||0)+Number(ev.draws||0)*.5)/total*100):null;return '<div class="history-row"><b>gen '+h.generation+'</b><span>'+h.games+' games</span><span>'+h.positions+' positions</span><span>loss '+(Number.isFinite(Number(h.loss))?Number(h.loss).toFixed(4):'—')+'</span><span>'+ (score==null?'—':score.toFixed(1)+'% SF') +'</span></div>'}).join(''):'<div class="history-empty">No completed generations yet.</div>'}}
+  if(s.performance){
+    const p=s.performance;
+    set('performanceBadge','LAST RUN');
+    set('perfDuration',p.durationMs?((Number(p.durationMs)/1000).toFixed(1)+'s'):'—');
+    set('perfPositions',p.positions??'—');
+    set('perfTraining',p.trainingMs!=null?((Number(p.trainingMs)/1000).toFixed(1)+'s'):'—');
+    set('perfStockfish',p.stockfishMs!=null?((Number(p.stockfishMs)/1000).toFixed(1)+'s'):'—');
+  }
   if(s.phase==='generation-complete')trainingLogLine('generation '+(s.generation||0)+' completed');if(s.phase==='error')trainingLogLine('ERROR: '+(s.error||'unknown training error'));
 });
   b.on('command',m=>{
