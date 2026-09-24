@@ -7,11 +7,11 @@ global.window=undefined; global.document={getElementById:()=>null}; global.self=
 global.importScripts=(...paths)=>{for(const p of paths){const file=path.resolve(ROOT,p);vm.runInThisContext(fs.readFileSync(file,'utf8'),{filename:file})}};
 importScripts('js/chess.js','js/repetition.js','js/core.js','js/learner.js');
 
-let brain=null,replay=[],initialized=false,cancelRequested=false;
-function advanceTrainingCounters(count){generation=(Number(generation)||0)+1;games=(Number(games)||0)+Number(count||0);}
+let brain=null,replay=[],initialized=false,cancelRequested=false,pauseRequested=false,generation=0,gamesCompleted=0,currentConfig=null;
+function advanceTrainingCounters(count){generation=(Number(generation)||0)+1;gamesCompleted=(Number(gamesCompleted)||0)+Number(count||0);}
 function out(o){process.stdout.write(JSON.stringify(o)+'\n')}
 function terminal(c){if(isCheckmate(c))return c.turn()==='w'?-1:1;if(isStalemate(c)||isInsufficientMaterial(c))return 0;const f=c.fen().split(' ');return Number(f[4])>=100?0:null}
-function yieldNow(){return new Promise(r=>setImmediate(r))}
+async function yieldNow(){await new Promise(r=>setImmediate(r));while(pauseRequested&&!cancelRequested){out({type:'paused',phase:'paused',generation});await new Promise(r=>setTimeout(r,150));}}
 function findStockfish(){
   const candidates=(process.env.CHESS_LAB_STOCKFISH||'').split(path.delimiter).filter(Boolean);
   candidates.push('stockfish','stockfish-ubuntu','stockfish.exe');
@@ -39,9 +39,9 @@ function uciRequest(fen,depth){
     p.stdin.write('uci\n');p.stdin.write('isready\n');p.stdin.write('ucinewgame\n');p.stdin.write('position fen '+fen+'\n');p.stdin.write('go depth '+Math.max(1,Math.min(20,depth||8))+'\n');
   });
 }
-async function selfPlay(games,maxPlies,sims){
+async function selfPlay(requestedGames,maxPlies,sims){
   const all=[];let positions=0;
-  for(let g=0;g<games&&!cancelRequested;g++){
+  for(let g=0;g<requestedGames&&!cancelRequested;g++){
     const c=new Chess(),hist=newRepetitionHistory(c),state={detections:0,forcedDraw:false},local=[];let p=0;
     while(!terminalPosition(c)&&!state.forcedDraw&&p<maxPlies&&!cancelRequested){
       const legal=safeRepetitionMoves(c,hist);if(!legal.length)break;
@@ -49,10 +49,10 @@ async function selfPlay(games,maxPlies,sims){
       const safe=safeRepetitionMove(c,result.move,brain,hist,state);if(safe.forcedDraw||!safe.move)break;
       local.push({x:Array.from(encode(c)),action:actionIndex(safe.move),legal:legal.map(actionIndex),policy:result.policy||[{a:actionIndex(safe.move),p:1}],side:c.turn()});
       if(!c.move({from:safe.move.from,to:safe.move.to,promotion:safe.move.promotion}))break;
-      p++;recordPosition(c,hist);out({type:'live',phase:'self-play',game:g+1,totalGames:games,positions:positions+p,plies:p,fen:c.fen(),turn:c.turn()});if((p&3)===0)await yieldNow();
+      p++;recordPosition(c,hist);out({type:'live',phase:'self-play',game:g+1,totalGames:requestedGames,positions:positions+p,plies:p,fen:c.fen(),turn:c.turn()});if((p&3)===0)await yieldNow();
     }
     let r=terminal(c);if(r===null)r=0;for(const s of local)all.push({...s,reward:s.side==='w'?r:-r});
-    positions+=local.length;out({type:'progress',phase:'self-play',game:g+1,totalGames:games,positions,plies:p});
+    positions+=local.length;out({type:'progress',phase:'self-play',game:g+1,totalGames:requestedGames,positions,plies:p});
   }
   replay.push(...all);if(replay.length>50000)replay=replay.slice(-50000);return all;
 }
@@ -88,16 +88,18 @@ async function evaluateAgainstStockfish(games,plies,sims,depth){
   return {available:true,games:played,wins,draws,losses};
 }
 async function handle(d){
-  if(d.type==='stop'){cancelRequested=true;return}
+  if(d.type==='stop'){cancelRequested=true;pauseRequested=false;return}
+  if(d.type==='pause'){pauseRequested=true;out({type:'paused',phase:'paused'});return}
+  if(d.type==='resume'){pauseRequested=false;out({type:'resumed',phase:'resuming'});return}
   if(d.type==='init'){brain=d.brain?TinyNet.fromJSON(d.brain):new TinyNet(Date.now());replay=Array.isArray(d.replay)?d.replay:[];initialized=true;out({type:'ready',generation:Number(d.generation)||0,stockfish:!!stockfishPath,stockfishPath:stockfishPath||null});return}
   if(d.type==='stockfish-info'){out({type:'stockfish-info',available:!!stockfishPath,path:stockfishPath});return}
   if(d.type!=='train'||!initialized)throw new Error('native trainer is not initialized');
   cancelRequested=false;
-  const games=Math.max(1,Number(d.games)||1),maxPlies=Math.max(40,Number(d.maxPlies)||160),sims=Math.max(1,Math.min(64,Number(d.sims)||4)),updates=Math.max(1,Number(d.updates)||Math.min(games*8,512)),lr=Math.max(.0001,Math.min(.01,Number(d.lr)||.0015));
-  const samples=await selfPlay(games,maxPlies,sims);const loss=await train(updates,lr);
+  const requestedGames=Math.max(1,Number(d.games)||1),maxPlies=Math.max(40,Number(d.maxPlies)||160),sims=Math.max(1,Math.min(128,Number(d.sims)||8)),updates=Math.max(1,Number(d.updates)||Math.min(requestedGames*8,512)),lr=Math.max(.00001,Math.min(.01,Number(d.lr)||.001));currentConfig={games:requestedGames};
+  const samples=await selfPlay(requestedGames,maxPlies,sims);const loss=await train(updates,lr);
   let evaluation=null;
   if(!cancelRequested&&d.stockfishEval!==false) evaluation=await evaluateAgainstStockfish(Math.max(1,Math.min(20,Number(d.evalGames)||4)),Math.max(40,Number(d.evalPlies)||120),Math.max(1,Math.min(16,Number(d.evalSims)||sims)),Math.max(4,Math.min(16,Number(d.stockfishDepth)||8)));
-  if(!cancelRequested)advanceTrainingCounters(games);out({type:'complete',brain:brain.toJSON(),games:cancelRequested?0:games,positions:samples.length,replaySize:replay.length,loss,evaluation,cancelled:cancelRequested,generation:Number(generation)||0});
+  if(!cancelRequested)advanceTrainingCounters(requestedGames);out({type:'complete',brain:brain.toJSON(),games:cancelRequested?0:requestedGames,positions:samples.length,replaySize:replay.length,loss,evaluation,cancelled:cancelRequested,generation:Number(generation)||0});
 }
 const rl=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
 rl.on('line',async line=>{try{await handle(JSON.parse(line))}catch(e){out({type:'error',message:e?.stack||String(e)})}});
