@@ -18,7 +18,7 @@ jobs:
 
       - name: Build
         working-directory: native
-        run: cargo build --release --locked
+        run: cargo build --release
 
       - name: Package
         run: |
