@@ -45,30 +45,19 @@
   $('clearLog')?.addEventListener('click',()=>{$('log').textContent='';log('log cleared')});
 
   function remoteTrainingConfig(){
-  const ids=['trainingMode','targetElo','trainOpponent','mixRatio','batchGames','parallelGames','mutationRate','trainUpdates','evalGames','trainSims'];
-  const data={};for(const id of ids){const e=$(id);if(e)data[id]=e.value}
-  return data;
+  const num=(id,f)=>{const n=Number($(id)?.value);return Number.isFinite(n)?n:f};
+  return {mode:$('trainingMode')?.value||'generation',opponent:$('trainOpponent')?.value||'self',games:num('batchGames',100),maxPlies:num('trainSims',300),parallelGames:num('parallelGames',4),sims:num('learnerSims',8),updates:num('trainUpdates',400),lr:num('mutationRate',0.001),replaySize:num('replaySize',50000),batchSize:num('trainBatchSize',64),mixRatio:num('mixRatio',25),targetElo:num('targetElo',1800),evalGames:num('evalGames',10),evalPlies:num('evalPlies',300),stockfishDepth:num('stockfishDepth',12),stockfishThreads:$('stockfishThreads')?.value||'auto'};
 }
-function applyRemoteTrainingConfig(data){
-  if(!data)return;
-  for(const [id,value] of Object.entries(data)){const e=$(id);if(e&&value!=null)e.value=String(value)}
-}
-$('startTraining')?.addEventListener('click',()=>{
-  if(window.chessLabBackend?.nativeCompute?.() || window.chessLabBackend?.role==='controller'){
-    if(!window.chessLabBackend.command('start-training',remoteTrainingConfig())){toast('PC backend is offline');setStatus('error','connect to the PC backend first',0)}
-    else {setStatus('remote','PC training starting',0);toast('PC training started')}
-    return;
-  }
-  trainBatch().catch(e=>{log('training launch error: '+e.message);setStatus('error','training failed to start',0)})
-});
-  $('stopTraining')?.addEventListener('click',()=>{
-  if(window.chessLabBackend?.nativeCompute?.() || window.chessLabBackend?.role==='controller'){
-    if(!window.chessLabBackend.command('stop-training'))toast('PC backend is offline');
-    else {setStatus('remote','stop requested',0);toast('stop requested')}
-    return;
-  }
-  cancelRequested=true;cancelEngine();training=false;busy=false;setStatus('paused','training stopped',0);renderStats();toast('training stopped')
-});
+function trainingLogLine(message){const root=$('trainingLog');if(!root)return;root.textContent+='['+new Date().toLocaleTimeString()+'] '+String(message)+'\n';root.scrollTop=root.scrollHeight}
+function setTrainingConfigVisibility(){const mode=$('trainingMode')?.value||'generation',opp=$('trainOpponent')?.value||'self';if($('targetEloField'))$('targetEloField').style.display=mode==='target'?'grid':'none';if($('mixRatioField'))$('mixRatioField').style.display=opp==='mix'?'grid':'none'}
+function setTrainingButtonState(running){if($('startTraining'))$('startTraining').disabled=running;if($('pauseTraining'))$('pauseTraining').disabled=!running;if($('stopTraining'))$('stopTraining').disabled=!running}
+$('startTraining')?.addEventListener('click',()=>{if(!window.chessLabBackend?.command){toast('PC backend is unavailable');return}const config=remoteTrainingConfig();if(!window.chessLabBackend.command('start-training',config)){toast('PC backend is offline');return}trainingLogLine('training run requested');setTrainingButtonState(true);toast('training started')});
+$('pauseTraining')?.addEventListener('click',()=>{if(window.chessLabBackend?.command('pause-training')){trainingLogLine('pause requested');toast('pause requested')}});
+$('resumeTraining')?.addEventListener('click',()=>{if(window.chessLabBackend?.command('resume-training')){trainingLogLine('resume requested');toast('resume requested')}});
+$('stopTraining')?.addEventListener('click',()=>{if(window.chessLabBackend?.command('stop-training')){trainingLogLine('stop requested');toast('stop requested')}});
+$('checkpointTraining')?.addEventListener('click',()=>{if(window.chessLabBackend?.command('checkpoint-training')){trainingLogLine('checkpoint requested');toast('checkpoint requested')}});
+$('clearTrainingLog')?.addEventListener('click',()=>{if($('trainingLog'))$('trainingLog').textContent=''});
+$('trainingMode')?.addEventListener('change',setTrainingConfigVisibility);$('trainOpponent')?.addEventListener('change',setTrainingConfigVisibility);setTrainingConfigVisibility();
   $('playMatch')?.addEventListener('click',()=>playMatch().catch(e=>{busy=false;log('Play error: '+e.message);setStatus('error',e.message,0);renderAll()}));
   $('simulateMove')?.addEventListener('click',()=>simulateOneMove().catch(e=>{busy=false;log('1 move error: '+e.message);setStatus('error',e.message,0);renderAll()}));
   $('newGame')?.addEventListener('click',()=>newGame());
@@ -89,23 +78,15 @@ $('startTraining')?.addEventListener('click',()=>{
   const b=window.chessLabBackend;if(!b)return;
   b.on('connection',m=>{if(m?.connected)log((m.role||'PC')+' backend connected');else log((m.role||'PC')+' backend disconnected')});
   b.on('status',s=>{
-    if(!s)return;
-    if(b.role==='controller'){
-      const pct=s.totalGames?Math.round((Number(s.game||0)/Number(s.totalGames))*100):0;
-      if(s.error) setStatus('error',String(s.error),pct);
-      else setStatus(s.training?'remote training':'remote ready',s.training?((s.phase||'training')+' · '+(s.game||0)+' / '+(s.totalGames||0)+' games'):'PC backend connected',pct);
-      const live=document.getElementById('liveGames');if(live)live.textContent=String(s.game||0);
-      const rate=document.getElementById('liveGamesRate');if(rate)rate.textContent=String(s.gamesPerMinute||0);
-      const pos=document.getElementById('livePositions');if(pos)pos.textContent=String(s.positions||0);
-      const upd=document.getElementById('liveUpdates');if(upd)upd.textContent=String(s.updates||0);
-      const ply=document.getElementById('livePly');if(ply)ply.textContent='ply '+String(s.ply||0);
-      const turn=document.getElementById('liveTurn');if(turn)turn.textContent=(s.turn==='b'?'black':'white')+' to move';
-      const phase=document.getElementById('livePhase');if(phase)phase.textContent=String(s.phase||'waiting');
-      const detail=document.getElementById('liveDetail');if(detail)detail.textContent=s.training?(String(s.phase||'training')+' · game '+(s.game||0)+' / '+(s.totalGames||0)):(s.error||'PC backend connected');
-      const gen=document.getElementById('generationBadge');if(gen)gen.textContent='gen '+(s.generation||0);
-      if(s.fen)renderTrainingLiveBoard(s.fen);
-    }
-  });
+  if(!s)return;
+  const pct=s.totalGames?Math.round(Number(s.game||0)/Number(s.totalGames)*100):0;
+  if(s.error)setStatus('error',String(s.error),pct);else setStatus(s.training?'training':'ready',s.training?((s.phase||'training')+' · '+(s.game||0)+' / '+(s.totalGames||0)):'PC backend connected',pct);
+  const set=(id,v)=>{const el=$(id);if(el)el.textContent=String(v)};
+  set('liveGames',(s.game||0)+' / '+(s.totalGames||0));set('liveGamesRate',s.gamesPerMinute||0);set('livePositions',s.positions||0);set('liveUpdates',(s.updates||0)+' / '+(s.totalUpdates||0));set('livePly',s.ply||0);set('liveTurn',(s.turn==='b'?'black':'white')+' to move');set('livePhase',s.phase||'waiting');set('liveDetail',s.error||((s.phase||'waiting')+(s.training?'':' · ready')));set('liveLoss',Number.isFinite(Number(s.loss))?Number(s.loss).toFixed(4):'—');set('generationBadge','gen '+(s.generation||0));set('trainingGenerationText','generation '+(s.generation||0));set('generationGames',s.completedGames||s.game||0);set('generationPositions',s.completedPositions||s.positions||0);set('generationLoss',Number.isFinite(Number(s.completedLoss))?Number(s.completedLoss).toFixed(4):'—');
+  const ev=s.evaluation;if(ev){const total=Number(ev.games||0),score=total?((Number(ev.wins||0)+Number(ev.draws||0)*.5)/total*100):0;set('generationScore',total?score.toFixed(1)+'%':'—');set('evaluationBadge',total?'evaluated':'not evaluated');set('evaluationLine',total?('Stockfish 19: '+ev.wins+'W · '+ev.draws+'D · '+ev.losses+'L · '+score.toFixed(1)+'% score'):(ev.error||'evaluation unavailable'))}
+  const progress=s.phase==='training'?(s.totalUpdates?Math.round(Number(s.updates||0)/Number(s.totalUpdates)*100):0):pct;const bar=$('trainingProgressBar');if(bar)bar.style.width=Math.max(0,Math.min(100,progress))+'%';set('trainingProgressText',Math.max(0,Math.min(100,progress))+'%');setTrainingButtonState(!!s.training);if(s.fen)renderTrainingLiveBoard(s.fen);
+  if(s.phase==='generation-complete')trainingLogLine('generation '+(s.generation||0)+' completed');if(s.phase==='error')trainingLogLine('ERROR: '+(s.error||'unknown training error'));
+});
   b.on('command',m=>{
     if(b.role!=='compute')return;
     if(b.nativeCompute?.())return;
