@@ -9,7 +9,7 @@ ROOT=Path(__file__).resolve().parent.parent
 HOST=os.environ.get("CHESS_LAB_HOST","0.0.0.0")
 PORT=int(os.environ.get("CHESS_LAB_PORT","8787"))
 TOKEN_FILE=ROOT/".chess-lab-pairing"
-clients=set(); clients_lock=threading.Lock()
+clients=[]; clients_lock=threading.Lock()
 state={"compute":False,"training":False,"generation":0,"game":0,"totalGames":0,"positions":0,"gamesPerMinute":0,"phase":"idle","updated":time.time(),"stockfish":None,"evaluation":None}
 
 def pairing_token():
@@ -163,7 +163,9 @@ def broadcast(message,exclude=None):
         if c is exclude: continue
         try: ws_send(c["sock"],message)
         except Exception:
-            with clients_lock: clients.discard(c)
+            with clients_lock:
+                try: clients.remove(c)
+                except ValueError: pass
 
 class Handler(BaseHTTPRequestHandler):
     server_version="ChessLabBridge/0.1"
@@ -208,7 +210,7 @@ class Handler(BaseHTTPRequestHandler):
         accept=base64.b64encode(hashlib.sha1((key+"258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()).digest()).decode()
         self.send_response(101,"Switching Protocols");self.send_header("Upgrade","websocket");self.send_header("Connection","Upgrade");self.send_header("Sec-WebSocket-Accept",accept);self.end_headers()
         client={"sock":self.connection,"role":"unknown"}
-        with clients_lock:clients.add(client)
+        with clients_lock:clients.append(client)
         try:
             ws_send(client["sock"],{"type":"hello","version":"0.1.0","state":state})
             while True:
@@ -239,7 +241,9 @@ class Handler(BaseHTTPRequestHandler):
                         if k in data:state[k]=data[k]
                     state["updated"]=time.time();broadcast({"type":"status","data":state},exclude=client)
         finally:
-            with clients_lock:clients.discard(client)
+            with clients_lock:
+                try: clients.remove(client)
+                except ValueError: pass
             if client["role"]=="compute":
                 state["compute"]=False;broadcast({"type":"connection","role":"compute","connected":False},exclude=client)
 
