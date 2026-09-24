@@ -51,13 +51,13 @@ async fn start_training(State(s):State<Arc<AppState>>,Json(body):Json<Value>)->J
  let state=s.clone();
  thread::spawn(move||{
   let dir=state.root.join(".chess-lab");let _=std::fs::create_dir_all(&dir);
-  let generation_path=dir.join("generation.ckpt");let champion_path=dir.join("champion.ckpt");let replay_path=dir.join("replay.json");
+  let generation_path=dir.join("generation.ckpt");let champion_path=dir.join("champion.ckpt");let champion_meta=dir.join("champion.json");let replay_path=dir.join("replay.json");
   let mut trainer=Trainer::new();trainer.replay=training::ReplayBuffer::new(replay_capacity);
   let mut generation=0u64;
   if generation_path.exists(){if let Ok(g)=checkpoint::load(&generation_path,&mut trainer.network,&mut trainer.optimizer){generation=g;}}
   if replay_path.exists(){if let Ok(r)=training::ReplayBuffer::load(&replay_path,replay_capacity){trainer.replay=r;}}
   let mut total_games=0u64;let mut total_positions=0u64;let mut champion_score=0.0;let mut champion_generation=0u64;
-  if champion_path.exists(){let mut n=trainer.network.clone();let mut o=trainer.optimizer.clone();if let Ok(g)=checkpoint::load(&champion_path,&mut n,&mut o){champion_generation=g;champion_score=0.5;}}
+  if champion_path.exists(){let mut n=trainer.network.clone();let mut o=trainer.optimizer.clone();if let Ok(g)=checkpoint::load(&champion_path,&mut n,&mut o){champion_generation=g;champion_score=std::fs::read_to_string(&champion_meta).ok().and_then(|x|serde_json::from_str::<Value>(&x).ok()).and_then(|x|x.get("score").and_then(Value::as_f64)).unwrap_or(0.5) as f32;}}
   while !state.stop.load(Ordering::SeqCst)&&generation<generations{
    while state.pause.load(Ordering::SeqCst)&&!state.stop.load(Ordering::SeqCst){set_status(&state,|x|{x.paused=true;x.phase="paused".into()});thread::sleep(Duration::from_millis(200));}
    if state.stop.load(Ordering::SeqCst){break}
@@ -83,7 +83,7 @@ async fn start_training(State(s):State<Arc<AppState>>,Json(body):Json<Value>)->J
     Ok(eval)=>{
      let promoted=!champion_path.exists()||eval.score>champion_score+0.01;
      if promoted{
-      if let Err(e)=checkpoint::save(&champion_path,&trainer.network,generation,&trainer.optimizer){set_status(&state,|x|x.last_error=Some(format!("champion checkpoint: {e}")))}else{champion_score=eval.score;champion_generation=generation;}
+      if let Err(e)=checkpoint::save(&champion_path,&trainer.network,generation,&trainer.optimizer){set_status(&state,|x|x.last_error=Some(format!("champion checkpoint: {e}")))}else{champion_score=eval.score;champion_generation=generation;let _=std::fs::write(&champion_meta,serde_json::json!({"generation":generation,"score":champion_score,"games":eval.games,"wins":eval.wins,"draws":eval.draws,"losses":eval.losses}).to_string());}
      }
      set_status(&state,|x|{x.evaluation_games=eval.games;x.evaluation_wins=eval.wins;x.evaluation_draws=eval.draws;x.evaluation_losses=eval.losses;x.evaluation_score=eval.score;x.champion_generation=champion_generation;x.champion_score=champion_score;x.phase=if promoted{"promoted".into()}else{"complete".into()};});
     }
