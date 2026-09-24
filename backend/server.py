@@ -56,14 +56,15 @@ def start_native():
         if not line:return False
         msg=json.loads(line)
         native_ready=msg.get("type")=="ready"
-        native_generation=int(msg.get("generation") or 0)\n        state["stockfish"]=bool(msg.get("stockfish"))
+        native_generation=int(msg.get("generation") or 0)
+        state["stockfish"]=bool(msg.get("stockfish"))
         return native_ready
 
 def native_stop():
     with native_lock:
         if native_proc and native_proc.poll() is None:
             try:
-                native_proc.stdin.write(json.dumps({"type":"stop"})+"\\n");native_proc.stdin.flush()
+                native_proc.stdin.write(json.dumps({"type":"stop"})+"\n");native_proc.stdin.flush()
                 return True
             except Exception:return False
     return False
