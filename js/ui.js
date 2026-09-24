@@ -110,6 +110,9 @@ $('trainingMode')?.addEventListener('change',setTrainingConfigVisibility);$('tra
   });
   b.on('status',s=>{
   if(!s)return;
+  trainingLiveState={...trainingLiveState,...s};
+  if(s.training)training=true;
+  if(s.phase==='generation-complete'||s.phase==='target-reached'||s.error)training=false;
   const pct=s.totalGames?Math.round(Number(s.game||0)/Number(s.totalGames)*100):0;
   if(s.error)setStatus('error',String(s.error),pct);else setStatus(s.training?'training':'ready',s.training?((s.phase||'training')+' · '+(s.game||0)+' / '+(s.totalGames||0)):'PC backend connected',pct);
   const set=(id,v)=>{const el=$(id);if(el)el.textContent=String(v)};
