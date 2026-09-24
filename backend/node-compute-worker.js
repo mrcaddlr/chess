@@ -65,7 +65,7 @@ function uciRequest(fen,depth,threads=1){
 async function playTrainingGame(g,maxPlies,sims,opponent,mixRatio,stockfishDepth,stockfishThreads){
   const gameStarted=Date.now();
   const useStockfish=opponent==="stockfish"||(opponent==="mix"&&((g*100/Math.max(1,currentConfig.games))<mixRatio));
-  const c=new Chess(),hist=newRepetitionHistory(c),state={detections:0,forcedDraw:false},local=[];let p=0;
+  const c=new Chess(),hist=newRepetitionHistory(c),state={detections:0,forcedDraw:false},local=[];const searchState={root:null,rootKey:null,pendingKey:null,transpositions:new Map()};let p=0;
   while(!terminalPosition(c)&&!state.forcedDraw&&p<maxPlies&&!cancelRequested){
     await yieldNow();if(cancelRequested)break;
     const legal=safeRepetitionMoves(c,hist);if(!legal.length)break;
@@ -75,7 +75,7 @@ async function playTrainingGame(g,maxPlies,sims,opponent,mixRatio,stockfishDepth
       const sfStart=Date.now();const uci=await uciRequest(c.fen(),stockfishDepth,stockfishThreads);perfStats.stockfishMs+=Date.now()-sfStart;
       const engineMove=legal.find(m=>m.from+m.to+(m.promotion||"")===uci)||legal[0];
       moveResult={move:engineMove,policy:[{a:actionIndex(engineMove),p:1}]};
-    }else moveResult=await mcts(c,sims,brain,true);
+    }else moveResult=await mcts(c,sims,brain,true,searchState);
     if(!moveResult?.move)break;
     const safe=safeRepetitionMove(c,moveResult.move,brain,hist,state);if(safe.forcedDraw||!safe.move)break;
     if(learnerTurn)local.push({x:Array.from(encode(c)),action:actionIndex(safe.move),legal:legal.map(actionIndex),policy:moveResult.policy||[{a:actionIndex(safe.move),p:1}],side:c.turn()});
