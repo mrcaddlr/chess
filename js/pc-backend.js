@@ -4,7 +4,7 @@
   const params=new URLSearchParams(location.search);
   const role=params.get('controller')==='1'?'controller':'compute';
   const apiBase=localStorage.getItem('chess-lab-backend-url')||location.origin;
-  let ws=null,reconnectTimer=null,connected=false;
+  let ws=null,reconnectTimer=null,connected=false,nativeCompute=false;
   const listeners={command:[],status:[],connection:[]};
   function emit(type,data){for(const fn of listeners[type]||[])try{fn(data)}catch(e){console.error(e)}}
   function token(){return localStorage.getItem(TOKEN_KEY)||''}
@@ -17,8 +17,9 @@
   }
   function schedule(){clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connect,2000)}
   function send(type,payload){if(!ws||ws.readyState!==1)return false;ws.send(JSON.stringify({type,token:token(),...payload}));return true}
+  fetch(apiBase+'/api/status').then(r=>r.ok?r.json():null).then(s=>{nativeCompute=!!s?.nativeCompute;emit('backend-info',s)}).catch(()=>{});
   window.chessLabBackend={
-    role,connect,isConnected:()=>connected,
+    role,connect,isConnected:()=>connected,nativeCompute:()=>nativeCompute,
     setToken:t=>{localStorage.setItem(TOKEN_KEY,String(t||''));connect()},
     setUrl:u=>{localStorage.setItem('chess-lab-backend-url',String(u||location.origin));location.reload()},
     getUrl:()=>apiBase,
