@@ -16,7 +16,7 @@ if(window.chessLabBackend?.role==='controller'){
   log('remote controller mode · compute stays on the PC');
   setEngineUi('PC backend controller',true);
 }else{
-  try{createStockfish()}catch(e){log('Stockfish startup error: '+e.message);setEngineUi('engine unavailable',false)}
+  setEngineUi('PC backend required for Stockfish',false);
 }
 if(window.chessLabBackend?.role==='compute'){
   setInterval(()=>{
