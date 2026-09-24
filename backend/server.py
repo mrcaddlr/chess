@@ -137,6 +137,16 @@ class Handler(BaseHTTPRequestHandler):
         raw=json.dumps(obj).encode()
         self.send_response(status);self.send_header("Content-Type","application/json")
         self.send_header("Cache-Control","no-store");self.send_header("Content-Length",str(len(raw)));self.end_headers();self.wfile.write(raw)
+    def do_POST(self):
+        p=urlparse(self.path)
+        if p.path!="/api/model":return self.send_error(404)
+        if self.headers.get("X-Chess-Lab-Token","")!=TOKEN:return self._json({"error":"invalid pairing token"},401)
+        try:
+            n=int(self.headers.get("Content-Length","0")); data=json.loads(self.rfile.read(n) or b"{}"); model=data.get("model")
+            if not isinstance(model,dict):return self._json({"error":"model must be an object"},400)
+            save_native_model(model)
+            return self._json({"ok":True,"generation":native_generation})
+        except Exception as e:return self._json({"error":str(e)},400)
     def do_GET(self):
         p=urlparse(self.path)
         if p.path=="/api/health": return self._json({"ok":True,"service":"chess-lab-pc-bridge","version":"0.1.0"})
@@ -144,6 +154,10 @@ class Handler(BaseHTTPRequestHandler):
             with clients_lock: connected=len(clients)
             return self._json({**state,"connectedClients":connected,"pairingRequired":True,"nativeCompute":native_available(),"nativeRunning":bool(native_proc and native_proc.poll() is None),"generation":native_generation})
         if p.path=="/api/pairing": return self._json({"token":TOKEN})
+        if p.path=="/api/model":
+            if self.headers.get("X-Chess-Lab-Token","")!=TOKEN:return self._json({"error":"invalid pairing token"},401)
+            model=load_native_model()
+            return self._json({"model":model,"generation":native_generation} if model else {"model":None,"generation":native_generation})
         if p.path=="/ws" and self.headers.get("Upgrade","").lower()=="websocket": return self.websocket()
         return self.static()
     def static(self):
