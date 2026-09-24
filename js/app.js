@@ -1,3 +1,5 @@
+/* Device-specific presentation */
+try{document.documentElement.classList.add((window.chessLabDeviceProfile?.kind||'desktop')+'-mode')}catch(e){}
 // Bootstrap in layers: the board is rendered first; persistence and Stockfish are allowed to fail independently.
 brain=new TinyNet(Date.now());
 resetRepetition();
