@@ -19,3 +19,11 @@ jobs:
           find . -type f -name '*.js' -not -path './node_modules/*' -print0 | xargs -0 -n1 node --check
       - name: Check Python
         run: python -m compileall -q backend
+
+      - name: Check Rust backend
+        working-directory: native
+        run: cargo check
+
+      - name: Test Rust backend
+        working-directory: native
+        run: cargo test
