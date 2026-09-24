@@ -2,6 +2,7 @@ mod api;
 mod chess;
 mod engine;
 mod hardware;
+mod neural;
 mod training;
 mod update;
 
