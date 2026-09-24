@@ -209,6 +209,40 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control","no-store");self.send_header("Content-Length",str(len(raw)));self.end_headers();self.wfile.write(raw)
     def do_POST(self):
         p=urlparse(self.path)
+
+        if p.path=="/api/github-webhook":
+            n=int(self.headers.get("Content-Length","0"))
+            body=self.rfile.read(n)
+            secret=os.environ.get("CHESS_LAB_GITHUB_WEBHOOK_SECRET","")
+            signature=self.headers.get("X-Hub-Signature-256","")
+            if not secret:
+                return self._json({"error":"webhook secret is not configured"},503)
+            expected="sha256="+__import__("hmac").new(secret.encode(),body,__import__("hashlib").sha256).hexdigest()
+            if not __import__("hmac").compare_digest(signature,expected):
+                return self._json({"error":"invalid webhook signature"},401)
+            if self.headers.get("X-GitHub-Event","")!="push":
+                return self._json({"ok":True,"ignored":True})
+            try:
+                payload=json.loads(body or b"{}")
+                ref=payload.get("ref","")
+                if ref!="refs/heads/main":
+                    return self._json({"ok":True,"ignored":True,"ref":ref})
+                threading.Thread(target=check_for_updates,daemon=True).start()
+                return self._json({"ok":True,"update":"queued"})
+            except Exception as e:
+                return self._json({"error":str(e)},400)
+
+        if p.path=="/api/engine-move":
+            if self.headers.get("X-Chess-Lab-Token","")!=TOKEN:
+                return self._json({"error":"invalid pairing token"},401)
+            try:
+                n=int(self.headers.get("Content-Length","0"))
+                data=json.loads(self.rfile.read(n) or b"{}")
+                move=native_engine_move(data.get("fen",""),data.get("depth",12),data.get("allowedMoves",[]))
+                return self._json({"move":move})
+            except Exception as e:
+                return self._json({"error":str(e)},400)
+
         if p.path!="/api/model":return self.send_error(404)
         if self.headers.get("X-Chess-Lab-Token","")!=TOKEN:return self._json({"error":"invalid pairing token"},401)
         try:
