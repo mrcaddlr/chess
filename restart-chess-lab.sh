@@ -42,7 +42,7 @@ else
   fi
 fi
 
-# Fetch the current GitHub version, then make the working tree exactly match
+# Remove engines that are no longer part of Chess Lab. These are generated local files, so git reset cannot remove them.\nrm -f "$ROOT/.chess-lab/stockfish-18" "$ROOT/.chess-lab/stockfish-18-lite"\n\n# Fetch the current GitHub version, then make the working tree exactly match
 # origin/main. This avoids pull/merge conflicts from stale local files.
 log "Updating from GitHub..."
 git fetch --prune origin main || die "Could not fetch origin/main."
