@@ -38,3 +38,18 @@ rm -rf "$TMP18" "$ARCHIVE18"
 # Lozza is a standalone UCI JavaScript engine and runs through the installed Node.js.
 echo "Downloading Lozza..."
 curl -fL --retry 3 "https://raw.githubusercontent.com/namanthanki/lozza/master/lozza.js" -o "$DIR/lozza.js"
+
+# Stockfish.js profiles
+ENGINE_DIR="$DIR/engines"
+mkdir -p "$ENGINE_DIR"
+for V in 19 18; do
+  TAG="v${V}.0.0"
+  for FLAVOR in "" "-single" "-lite" "-lite-single"; do
+    JS="stockfish-${V}${FLAVOR}.js"
+    WASM="stockfish-${V}${FLAVOR}.wasm"
+    curl -fL --retry 3 "https://github.com/nmrugg/stockfish.js/releases/download/${TAG}/${JS}" -o "$ENGINE_DIR/$JS"
+    curl -fL --retry 3 "https://github.com/nmrugg/stockfish.js/releases/download/${TAG}/${WASM}" -o "$ENGINE_DIR/$WASM"
+  done
+done
+curl -fL --retry 3 "https://github.com/fairy-stockfish/Fairy-Stockfish/releases/download/fairy_sf_14_0_1_xq/fairy-stockfish_x86-64-bmi2" -o "$DIR/fairy-stockfish"
+chmod +x "$DIR/fairy-stockfish"
