@@ -1068,7 +1068,42 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
 }
 
 
-/* 0.31.23 — keep CRT effects from becoming a solid overlay over training UI */
-.crt-overlay{display:none!important;}
-body::before,body::after{display:none!important;}
-.training-layout,.training-workspace,.training-controls,.training-view,.training-visual-panel{position:relative;z-index:1;}
+/* 0.31.24 — PC desktop layout overhaul */
+@media (min-width:1000px){
+html.desktop-mode,html.desktop-mode body{min-width:0!important;width:100%!important;overflow-x:hidden!important}
+html.desktop-mode .app{width:min(1560px,calc(100vw - 32px))!important;max-width:none!important;margin:0 auto!important;padding:18px 0 32px!important;box-sizing:border-box!important}
+html.desktop-mode .dashboard{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:18px!important;width:100%!important;min-width:0!important;align-items:start!important}
+html.desktop-mode .workspace{width:100%!important;min-width:0!important;box-sizing:border-box!important;overflow:hidden!important}
+html.desktop-mode .match-workspace{grid-column:1!important;grid-row:1!important}
+html.desktop-mode .match-layout{display:grid!important;grid-template-columns:minmax(560px,760px) minmax(300px,1fr)!important;gap:22px!important;align-items:start!important;padding:18px!important;min-width:0!important;box-sizing:border-box!important}
+html.desktop-mode .match-board{min-width:0!important;display:flex!important;flex-direction:column!important;align-items:center!important}
+html.desktop-mode .match-board .players{width:min(760px,100%)!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:10px!important;margin-bottom:12px!important}
+html.desktop-mode .match-board .board-wrap{width:min(700px,100%)!important;max-width:700px!important;margin:0 auto!important;aspect-ratio:1!important;flex:none!important}
+html.desktop-mode .match-board .board{width:100%!important;height:100%!important;aspect-ratio:1!important}
+html.desktop-mode .match-tools{display:grid!important;grid-template-columns:1fr!important;gap:12px!important;min-width:0!important;align-content:start!important}
+html.desktop-mode .match-tools>*{min-width:0!important;width:100%!important;box-sizing:border-box!important}
+html.desktop-mode .match-tools .controls{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+html.desktop-mode .training-workspace{grid-column:1!important;grid-row:2!important}
+html.desktop-mode .training-layout{display:grid!important;grid-template-columns:minmax(0,1.35fr) minmax(360px,.65fr)!important;gap:18px!important;padding:18px!important;min-width:0!important;box-sizing:border-box!important;align-items:start!important}
+html.desktop-mode .training-controls,html.desktop-mode .training-view{min-width:0!important;width:100%!important;box-sizing:border-box!important}
+html.desktop-mode .training-controls{display:flex!important;flex-direction:column!important;gap:12px!important}
+html.desktop-mode .training-controls-panel{width:100%!important;box-sizing:border-box!important}
+html.desktop-mode .training-view{border-left:1px solid var(--line)!important;border-top:0!important;padding:0 0 0 18px!important}
+html.desktop-mode .training-visual-panel{position:relative!important;top:auto!important;width:100%!important;box-sizing:border-box!important}
+html.desktop-mode .lower-grid{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:18px!important;width:100%!important;box-sizing:border-box!important}
+html.desktop-mode .compact-workspace,html.desktop-mode .debug-workspace{min-width:0!important}
+html.desktop-mode .debug-workspace{grid-column:1/-1!important}
+html.desktop-mode .panel,html.desktop-mode .status-card,html.desktop-mode .workspace-head,html.desktop-mode .terminal-titlebar{min-width:0!important;box-sizing:border-box!important}
+html.desktop-mode .move-list,html.desktop-mode .log{max-width:100%!important;overflow:auto!important}
+}
+@media (min-width:1000px) and (max-width:1240px){
+html.desktop-mode .app{width:calc(100vw - 24px)!important}
+html.desktop-mode .match-layout{grid-template-columns:minmax(480px,1.2fr) minmax(280px,.8fr)!important;gap:14px!important;padding:14px!important}
+html.desktop-mode .match-board .board-wrap{max-width:620px!important}
+html.desktop-mode .training-layout{grid-template-columns:minmax(0,1.1fr) minmax(300px,.9fr)!important;gap:14px!important;padding:14px!important}
+html.desktop-mode .training-view{padding-left:14px!important}
+}
+@media (min-width:1500px){
+html.desktop-mode .app{width:min(1560px,calc(100vw - 48px))!important}
+}
+.crt-overlay,body::before,body::after{display:none!important}
