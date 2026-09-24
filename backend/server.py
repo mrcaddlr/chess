@@ -293,7 +293,7 @@ class Handler(BaseHTTPRequestHandler):
         if p.path=="/api/health": return self._json({"ok":True,"service":"chess-lab-pc-bridge","version":"0.1.0"})
         if p.path=="/api/status":
             with clients_lock: connected=len(clients)
-            return self._json({**state,"connectedClients":connected,"pairingRequired":True,"nativeCompute":native_available(),"nativeRunning":bool(native_proc and native_proc.poll() is None),"generation":native_generation})
+            return self._json({**state,"connectedClients":connected,"pairingRequired":True,"nativeCompute":native_available(),"trainingAvailable":native_available(),"nativeRunning":bool(native_proc and native_proc.poll() is None),"generation":native_generation})
         if p.path=="/api/pairing": return self._json({"token":TOKEN})
         if p.path=="/api/engine-move":
             if self.headers.get("X-Chess-Lab-Token","")!=TOKEN:return self._json({"error":"invalid pairing token"},401)
