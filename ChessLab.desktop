@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Chess Lab
+Comment=Start the local Chess Lab PC app
+Exec=bash -lc 'cd "$(dirname "%k")" && ./start-chess-lab.sh'
+Icon=applications-games
+Terminal=false
+Categories=Game;Utility;
