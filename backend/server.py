@@ -111,16 +111,19 @@ def check_for_updates():
             if not remote_sha or remote_sha==local_sha:return
             dirty=subprocess.run(["git","status","--porcelain"],cwd=ROOT,capture_output=True,text=True,timeout=5)
             if dirty.stdout.strip():
-                print("Update detected, but auto-update is paused because local changes exist.")
-                return
+                print("Local changes detected. Auto-update is resetting the local checkout to the GitHub version.")
             print("Update detected on GitHub. Pulling...")
-            pulled=subprocess.run(["git","pull","--ff-only"],cwd=ROOT,capture_output=True,text=True,timeout=30)
-            if pulled.returncode==0:
+            pulled=subprocess.run(["git","fetch","origin","main"],cwd=ROOT,capture_output=True,text=True,timeout=30)
+            if pulled.returncode!=0:
+                print("Auto-update fetch failed: "+(pulled.stdout+pulled.stderr).strip())
+                return
+            reset=subprocess.run(["git","reset","--hard","origin/main"],cwd=ROOT,capture_output=True,text=True,timeout=30)
+            if reset.returncode==0:
                 UPDATE_LAST=remote_sha
                 print("Update pulled. Refreshing connected pages...")
                 broadcast({"type":"reload","reason":"github-update","commit":remote_sha})
             else:
-                print("Auto-update failed: "+(pulled.stdout+pulled.stderr).strip())
+                print("Auto-update reset failed: "+(reset.stdout+reset.stderr).strip())
         except Exception as e:
             print("Auto-update check failed: "+str(e))
 
