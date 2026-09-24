@@ -58,9 +58,10 @@ $('stopTraining')?.addEventListener('click',async()=>{if(await window.chessLabBa
 $('checkpointTraining')?.addEventListener('click',async()=>{if(await window.chessLabBackend?.command('checkpoint-training')){trainingLogLine('checkpoint requested');toast('checkpoint requested')}});
 $('clearTrainingLog')?.addEventListener('click',()=>{if($('trainingLog'))$('trainingLog').textContent=''});
 $('trainingMode')?.addEventListener('change',setTrainingConfigVisibility);$('trainOpponent')?.addEventListener('change',setTrainingConfigVisibility);setTrainingConfigVisibility();
-  $('playMatch')?.addEventListener('click',()=>playMatch().catch(e=>{busy=false;log('Play error: '+e.message);setStatus('error',e.message,0);renderAll()}));
+  $('playMatch')?.addEventListener('click',async()=>{try{const root=document.querySelector('.match-layout');root?.classList.add('is-playing');const b=$('matchStateBadge');if(b)b.textContent='PLAYING';await playMatch()}catch(e){busy=false;log('Play error: '+e.message);setStatus('error',e.message,0)}finally{if(!busy){document.querySelector('.match-layout')?.classList.remove('is-playing');const b=$('matchStateBadge');if(b)b.textContent='READY'}}});
   $('simulateMove')?.addEventListener('click',()=>simulateOneMove().catch(e=>{busy=false;log('1 move error: '+e.message);setStatus('error',e.message,0);renderAll()}));
-  $('newGame')?.addEventListener('click',()=>newGame());
+  $('newGame')?.addEventListener('click',()=>{cancelEngine();busy=false;document.querySelector('.match-layout')?.classList.remove('is-playing');const b=$('matchStateBadge');if(b)b.textContent='READY';newGame()});
+  $('stopMatch')?.addEventListener('click',()=>{cancelEngine();busy=false;training=false;document.querySelector('.match-layout')?.classList.remove('is-playing');const b=$('matchStateBadge');if(b)b.textContent='STOPPED';setStatus('ready','match stopped',0);renderAll();toast('match stopped')});
   $('flip')?.addEventListener('click',()=>{flipped=!flipped;renderBoard()});
   $('stopTrain')?.addEventListener('click',()=>{cancelEngine();training=false;busy=false;setStatus('paused','stopped');renderAll();toast('stopped')});
   $('trainingMode')?.addEventListener('change',()=>{const e=$('targetEloField');if(e)e.style.display=$('trainingMode').value==='target'?'grid':'none';renderStats()});
@@ -71,6 +72,7 @@ $('trainingMode')?.addEventListener('change',setTrainingConfigVisibility);$('tra
   $('saveBrain')?.addEventListener('click',()=>saveBrain());$('loadBrain')?.addEventListener('click',loadBrain);$('restoreChampion')?.addEventListener('click',()=>restoreChampionSnapshot().catch(e=>{log('champion restore error: '+e.message)}));$('resetBrain')?.addEventListener('click',resetBrain);$('exportBrain')?.addEventListener('click',exportBrain);$('importBrain')?.addEventListener('click',importBrain);
   $('promoModal')?.addEventListener('click',e=>{if(e.target.id==='promoModal')e.currentTarget.classList.remove('open')});
 
+  document.querySelector('.match-layout')?.classList.remove('is-playing');
   const tm=$('trainingMode');if(tm){const e=$('targetEloField');if(e)e.style.display=tm.value==='target'?'grid':'none'}
   const to=$('trainOpponent');if(to){const e=$('mixRatioField');if(e)e.style.display=to.value==='mix'?'grid':'none'}
 })();
