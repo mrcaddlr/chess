@@ -211,7 +211,25 @@ class Handler(BaseHTTPRequestHandler):
             if client["role"]=="compute":
                 state["compute"]=False;broadcast({"type":"connection","role":"compute","connected":False},exclude=client)
 
+def auto_pull():
+    """Fast-forward the local checkout when it has no uncommitted changes."""
+    import subprocess
+    try:
+        dirty=subprocess.run(["git","status","--porcelain"],cwd=ROOT,capture_output=True,text=True,timeout=10)
+        if dirty.returncode!=0 or dirty.stdout.strip():
+            print("Auto-update skipped: local changes detected.")
+            return
+        result=subprocess.run(["git","pull","--ff-only"],cwd=ROOT,capture_output=True,text=True,timeout=30)
+        output=(result.stdout+result.stderr).strip()
+        if result.returncode==0:
+            print("Auto-update: "+(output or "already up to date."))
+        else:
+            print("Auto-update skipped: "+(output or "git pull failed."))
+    except Exception as e:
+        print("Auto-update skipped: "+str(e))
+
 if __name__=="__main__":
+    auto_pull()
     print("Chess Lab PC bridge")
     print("Open: http://127.0.0.1:%d/"%PORT)
     print("Pairing token: %s"%TOKEN)
