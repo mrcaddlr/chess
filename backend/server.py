@@ -59,6 +59,7 @@ NATIVE_SCRIPT=ROOT/"backend"/"node-compute-worker.js"
 NATIVE_STATE=ROOT/".chess-lab-native-model.json"
 CHECKPOINT_STATE=ROOT/".chess-lab-checkpoint.json"
 HISTORY_STATE=ROOT/".chess-lab-training-history.json"
+MODEL_DIR=ROOT/".chess-lab-models"
 native_proc=None
 native_lock=threading.Lock()
 native_ready=False
@@ -110,6 +111,17 @@ def save_native_model(model):
     tmp=NATIVE_STATE.with_suffix(".tmp")
     tmp.write_text(json.dumps(model,separators=(",",":")))
     tmp.replace(NATIVE_STATE)
+
+def save_versioned_model(model,generation):
+    MODEL_DIR.mkdir(parents=True,exist_ok=True)
+    target=MODEL_DIR/f"generation-{int(generation):06d}.json"
+    tmp=target.with_suffix(".tmp")
+    tmp.write_text(json.dumps(model,separators=(",",":")))
+    tmp.replace(target)
+    latest=MODEL_DIR/"latest.json"
+    latest_tmp=latest.with_suffix(".tmp")
+    latest_tmp.write_text(json.dumps({"generation":int(generation),"file":target.name},separators=(",",":")))
+    latest_tmp.replace(latest)
 
 def start_native():
     global native_proc,native_ready,native_generation
@@ -177,7 +189,7 @@ def native_train(data):
                 state["paused"]=False;state["phase"]="resuming";state["updated"]=time.time();broadcast({"type":"status","data":state})
             elif typ=="complete":
                 save_native_model(msg["brain"]);native_generation=int(msg.get("generation") or (native_generation+1))
-                state["generation"]=native_generation;state["training"]=False;state["paused"]=False;state["phase"]="generation-complete";state["error"]="";entry={"generation":native_generation,"games":msg.get("games",0),"positions":msg.get("positions",0),"loss":msg.get("loss"),"evaluation":msg.get("evaluation"),"savedAt":time.time()};state["history"]=list(state.get("history") or [])[-99:]+[entry];save_training_history(state["history"]);state["evaluation"]=msg.get("evaluation");state["stockfish"]=bool(msg.get("evaluation",{}).get("available")) if isinstance(msg.get("evaluation"),dict) else state.get("stockfish")
+                state["generation"]=native_generation;state["training"]=False;state["paused"]=False;state["phase"]="generation-complete";state["error"]="";entry={"generation":native_generation,"games":msg.get("games",0),"positions":msg.get("positions",0),"loss":msg.get("loss"),"evaluation":msg.get("evaluation"),"savedAt":time.time()};state["history"]=list(state.get("history") or [])[-99:]+[entry];save_training_history(state["history"]);save_versioned_model(msg.get("brain") or {},native_generation);state["evaluation"]=msg.get("evaluation");state["stockfish"]=bool(msg.get("evaluation",{}).get("available")) if isinstance(msg.get("evaluation"),dict) else state.get("stockfish")
                 state["game"]=msg.get("games",0);state["totalGames"]=msg.get("games",0);state["completedGames"]=msg.get("games",0);state["completedPositions"]=msg.get("positions",0);state["completedLoss"]=msg.get("loss");state["loss"]=msg.get("loss");state["positions"]=msg.get("positions",0);state["ply"]=0;state["fen"]="start";state["turn"]="w";state["updates"]=0;state["totalUpdates"]=0
                 state["updated"]=time.time();broadcast({"type":"status","data":state});return msg
             elif typ=="error":raise RuntimeError(msg.get("message","native trainer error"))
