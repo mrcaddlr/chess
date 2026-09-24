@@ -15,27 +15,29 @@ async function buildBundledEngineWorker(engineUrl){
     if(r.ok)manifest=await r.json();
   }catch(err){log('engine manifest fetch failed: '+err.message)}
 
-  // Lozza is already a browser UCI worker.
   if(engineUrl.endsWith('/lozza.js')){
     log('loading Lozza · native UCI worker');
     return new Worker(engineUrl);
   }
 
-  // Fairy-Stockfish's distributed worker is a pthread helper, not the main
-  // UCI worker. Start the actual Stockfish module inside our own browser worker.
   if(engineUrl.endsWith('/fairy-stockfish.js')){
     const wasmUrl=new URL('stockfish/fairy-stockfish.wasm',document.baseURI).href;
     const workerHelperUrl=new URL('stockfish/fairy-stockfish.worker.js',document.baseURI).href;
     const bootstrap=`
       self.Module=self.Module||{};
-      self.Module.locateFile=function(path){if(/\\.wasm$/i.test(path))return ${JSON.stringify(wasmUrl)};if(/stockfish\\.worker\\.js$/i.test(path))return ${JSON.stringify(workerHelperUrl)};return ${JSON.stringify(engineUrl)};};
+      self.Module.locateFile=function(path){
+        if(/\\.wasm$/i.test(path))return ${JSON.stringify(wasmUrl)};
+        if(/stockfish\\.worker\\.js$/i.test(path))return ${JSON.stringify(workerHelperUrl)};
+        return ${JSON.stringify(engineUrl)};
+      };
       importScripts(${JSON.stringify(engineUrl)});
       Promise.resolve(Stockfish(self.Module)).then(function(sf){
         self.__sf=sf;
         sf.addMessageListener(function(line){self.postMessage(line);});
         self.onmessage=function(e){sf.postMessage(e.data);};
-        self.postMessage('readyok');
-      }).catch(function(err){self.postMessage('ENGINE_ERROR: '+(err&&err.message||String(err)));throw err;});
+      }).catch(function(err){
+        self.postMessage('ENGINE_ERROR: '+(err&&err.message||String(err)));
+      });
     `;
     const workerUrl=URL.createObjectURL(new Blob([bootstrap],{type:'text/javascript'}));
     stockfishBlobUrls.push(workerUrl);
@@ -74,22 +76,10 @@ async function buildBundledEngineWorker(engineUrl){
     log('using direct WASM '+wasmName);
   }
 
-  // Stockfish.js 19 is itself a UCI worker when its URL contains #<wasm>,worker.
-  // The old loader wrapped the module in a blob without that fragment, causing
-  // it to look for a nonexistent blob-relative "stockfish.wasm" and never emit uciok.
-  const source=await (await fetch(engineUrl,{cache:'no-store'})).text();
-  const workerSource=`
-    // The fragment is consumed by Stockfish.js's own browser-worker bootstrap.
-    importScripts(${JSON.stringify(engineUrl)});
-  `;
-  const workerUrl=URL.createObjectURL(new Blob([workerSource],{type:'text/javascript'}));
-  stockfishBlobUrls.push(workerUrl);
-
-  // The worker must see the wasm URL in its location.hash.
-  // For multi-threaded builds the same engine source also uses
-  // stockfish.worker.js for pthreads; if that helper is absent we fail with a
-  // useful diagnostic rather than a generic "unavailable".
-  const launchUrl=workerUrl+'#'+encodeURIComponent(wasmUrl)+',worker';
+  // Stockfish.js 19 already contains its browser UCI-worker bootstrap.
+  // Launch it directly with the WASM URL in the worker fragment. This avoids
+  // blob-relative paths, which previously prevented uciok from being emitted.
+  const launchUrl=engineUrl+'#'+encodeURIComponent(wasmUrl)+',worker';
   log('starting '+jsName+' with explicit WASM worker URL');
   return new Worker(launchUrl);
 }function cfgIsMultiEngine(engineUrl){
