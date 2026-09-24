@@ -10,7 +10,7 @@ HOST=os.environ.get("CHESS_LAB_HOST","0.0.0.0")
 PORT=int(os.environ.get("CHESS_LAB_PORT","8787"))
 TOKEN_FILE=ROOT/".chess-lab-pairing"
 clients=set(); clients_lock=threading.Lock()
-state={"compute":False,"training":False,"generation":0,"game":0,"totalGames":0,"positions":0,"gamesPerMinute":0,"phase":"idle","updated":time.time()}
+state={"compute":False,"training":False,"generation":0,"game":0,"totalGames":0,"positions":0,"gamesPerMinute":0,"phase":"idle","updated":time.time(),"stockfish":None,"evaluation":None}
 
 def pairing_token():
     if TOKEN_FILE.exists(): return TOKEN_FILE.read_text().strip()
@@ -56,7 +56,7 @@ def start_native():
         if not line:return False
         msg=json.loads(line)
         native_ready=msg.get("type")=="ready"
-        native_generation=int(msg.get("generation") or 0)
+        native_generation=int(msg.get("generation") or 0)\n        state["stockfish"]=bool(msg.get("stockfish"))
         return native_ready
 
 def native_stop():
@@ -78,13 +78,15 @@ def native_train(data):
             if not line:raise RuntimeError("native trainer exited")
             msg=json.loads(line)
             typ=msg.get("type")
-            if typ=="progress":
+            if typ=="evaluation-progress":
+                state["phase"]="stockfish-eval";state["evaluation"]={k:msg.get(k,0) for k in ("game","totalGames","wins","draws","losses")};state["updated"]=time.time();broadcast({"type":"status","data":state})
+            elif typ=="progress":
                 for k in ("game","totalGames","positions","phase"):
                     if k in msg:state[k]=msg[k]
                 state["updated"]=time.time();broadcast({"type":"status","data":state})
             elif typ=="complete":
                 save_native_model(msg["brain"]);native_generation+=1
-                state["generation"]=native_generation;state["training"]=False;state["phase"]="generation-complete"
+                state["generation"]=native_generation;state["training"]=False;state["phase"]="generation-complete";state["evaluation"]=msg.get("evaluation");state["stockfish"]=bool(msg.get("evaluation",{}).get("available")) if isinstance(msg.get("evaluation"),dict) else state.get("stockfish")
                 state["game"]=msg.get("games",0);state["totalGames"]=msg.get("games",0);state["positions"]=msg.get("positions",0)
                 state["updated"]=time.time();broadcast({"type":"status","data":state});return msg
             elif typ=="error":raise RuntimeError(msg.get("message","native trainer error"))
