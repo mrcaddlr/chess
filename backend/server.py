@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Chess Lab local PC bridge."""
-import base64, hashlib, json, os, secrets, socket, struct, subprocess, threading, time
+import base64, hashlib, json, os, secrets, socket, ssl, struct, subprocess, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -341,8 +341,23 @@ def auto_pull():
 if __name__=="__main__":
     auto_pull()
     threading.Thread(target=update_loop,daemon=True).start()
+    tls_cert=os.environ.get("CHESS_LAB_TLS_CERT","").strip()
+    tls_key=os.environ.get("CHESS_LAB_TLS_KEY","").strip()
+    https_enabled=bool(tls_cert and tls_key)
+    if https_enabled:
+        if not Path(tls_cert).is_file() or not Path(tls_key).is_file():
+            raise SystemExit("CHESS_LAB_TLS_CERT and CHESS_LAB_TLS_KEY must point to existing certificate/key files.")
     print("Chess Lab PC bridge")
-    print("Open: http://127.0.0.1:%d/"%PORT)
+    print("%s://127.0.0.1:%d/"%("https" if https_enabled else "http",PORT))
     print("Pairing token: %s"%TOKEN)
     print("LAN clients can use this PC's local IP on port %d."%PORT)
-    ThreadingHTTPServer((HOST,PORT),Handler).serve_forever()
+    server=ThreadingHTTPServer((HOST,PORT),Handler)
+    if https_enabled:
+        context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.minimum_version=ssl.TLSVersion.TLSv1_2
+        context.load_cert_chain(certfile=tls_cert,keyfile=tls_key)
+        server.socket=context.wrap_socket(server.socket,server_side=True)
+        print("HTTPS enabled with TLS 1.2+.")
+    else:
+        print("HTTPS disabled. Set CHESS_LAB_TLS_CERT and CHESS_LAB_TLS_KEY to enable it.")
+    server.serve_forever()
