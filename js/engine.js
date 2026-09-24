@@ -85,7 +85,7 @@ async function nativeBestMove(fen,depth=6){
 function stockfishMove(c,depth=12,allowedMoves=null){return new Promise(async resolve=>{
   const legal=c.moves({verbose:true}),allowed=Array.isArray(allowedMoves)?allowedMoves:legal;
   if(window.chessLabBackend?.role==='controller'||window.chessLabBackend?.nativeCompute?.()){
-    try{const uci=await window.chessLabBackend.getEngineMove(c.fen(),depth,allowed);resolve(legal.find(x=>x.from+x.to+(x.promotion||'')===uci)||null)}
+    try{const uci=await window.chessLabBackend.getEngineMove(c.fen(),depth,allowed,selectedEngine,selectedEngine.includes('multi')?Math.max(2,navigator.hardwareConcurrency||2):1);resolve(legal.find(x=>x.from+x.to+(x.promotion||'')===uci)||null)}
     catch(e){log('PC Stockfish request failed: '+e.message);resolve(null)}
     return;
   }
