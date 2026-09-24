@@ -9,6 +9,16 @@ let replay=[], games=0, steps=0, generation=0, evalRecord=null, evaluationHistor
 let brain=null, matchBrainWhite=null, matchBrainBlack=null, stockfishWorker=null, stockfishReady=false, stockfishLoading=false, stockfishQueue=[];
 let trainingLiveState={phase:'idle',detail:'start training to watch the learner learn',game:0,totalGames:0,ply:0,maxPlies:0,updates:0,workers:0,sims:0,fen:'start'};
 let brainDBPromise=null, matchEpoch=0, matchNonce=0;
+const chessLabDeviceProfile=(()=>{
+  const ua=navigator.userAgent||'';
+  const mobile=/Android|iPhone|iPad|iPod/i.test(ua);
+  const cores=Math.max(1,navigator.hardwareConcurrency||2);
+  const memoryGB=Number(navigator.deviceMemory)||0;
+  let webgpu=false; try{webgpu=!!navigator.gpu}catch(e){}
+  const kind=mobile?'mobile':/Tablet/i.test(ua)?'tablet':'desktop';
+  return {kind,cores,memoryGB,webgpu};
+})();
+window.chessLabDeviceProfile=chessLabDeviceProfile;
 // Optional fast-training worker hooks. Keep them defined even when the fast path is unused.
 let fastBatchAbort=null, fastWorkers=[];
 function stopFastWorkers(){for(const w of fastWorkers){try{w.terminate()}catch(e){}}fastWorkers=[];}
