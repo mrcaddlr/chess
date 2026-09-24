@@ -11,7 +11,7 @@ Chess Lab is now a local PC-compute application.
 - No browser-side Stockfish is used for training or matches.
 - Training state, checkpoints, history, and versioned models are stored locally outside Git.
 
-The local server uses Python's built-in `http.server`; keep it on a trusted LAN. Python documents this server as a basic server rather than a production internet-facing server. citeturn4search0
+The local server uses Python's built-in `http.server`; keep it on a trusted LAN. Python documents this server as a basic server rather than a production internet-facing server.
 
 ## Run
 
@@ -33,7 +33,7 @@ The backend prints the pairing token used by the controller.
 
 Chess Lab requires **Stockfish 19** for Stockfish training/evaluation and engine matches. The default training engine setting is **Full Single**, meaning one Stockfish thread.
 
-Stockfish 19 is the current official stable release, and the official Linux downloads provide a universal x86-64 binary. citeturn0search0turn0search1
+Stockfish 19 is the current official stable release, and the official Linux downloads provide a universal x86-64 binary.
 
 On Linux, run:
 
@@ -49,7 +49,7 @@ You can override the executable with:
 
     CHESS_LAB_STOCKFISH=/full/path/to/stockfish-19 python3 backend/server.py
 
-Stockfish communicates with Chess Lab through the UCI protocol. citeturn0search2
+Stockfish communicates with Chess Lab through the UCI protocol.
 
 ## Training pipeline
 
@@ -121,4 +121,4 @@ The local backend should not be exposed directly to the public internet.
 
 Node.js is only used for the native compute worker. Browser-side engine execution remains disabled.
 
-Stockfish 19 itself is GPL-licensed, so preserve the upstream license/source notices when redistributing the engine. citeturn0search11
+Stockfish 19 itself is GPL-licensed, so preserve the upstream license/source notices when redistributing the engine.
