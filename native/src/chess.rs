@@ -1,7 +1,7 @@
 use serde::{Deserialize,Serialize};
 
 mod board_squares{
- use serde::{Deserializer,Serializer};
+ use serde::{Deserialize,Deserializer,Serializer};
  pub fn serialize<S>(value:&[char;64],serializer:S)->Result<S::Ok,S::Error> where S:Serializer{
   let s:String=value.iter().collect(); serializer.serialize_str(&s)
  }
