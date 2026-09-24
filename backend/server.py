@@ -57,6 +57,8 @@ UPDATE_LAST=""
 
 NATIVE_SCRIPT=ROOT/"backend"/"node-compute-worker.js"
 NATIVE_STATE=ROOT/".chess-lab-native-model.json"
+CHECKPOINT_STATE=ROOT/".chess-lab-checkpoint.json"
+HISTORY_STATE=ROOT/".chess-lab-training-history.json"
 native_proc=None
 native_lock=threading.Lock()
 native_ready=False
@@ -87,6 +89,23 @@ def load_native_model():
         except Exception:return None
     return None
 
+def load_training_history():
+    if HISTORY_STATE.exists():
+        try:
+            data=json.loads(HISTORY_STATE.read_text())
+            return data if isinstance(data,list) else []
+        except Exception:
+            return []
+    return []
+
+def save_training_history(history):
+    tmp=HISTORY_STATE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(history[-100:],separators=(",",":")))
+    tmp.replace(HISTORY_STATE)
+
+state["history"]=load_training_history()
+if state["history"]: state["generation"]=int(state["history"][-1].get("generation") or 0)
+
 def save_native_model(model):
     tmp=NATIVE_STATE.with_suffix(".tmp")
     tmp.write_text(json.dumps(model,separators=(",",":")))
@@ -100,7 +119,12 @@ def start_native():
         import subprocess
         native_proc=subprocess.Popen([find_node(),str(NATIVE_SCRIPT)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,bufsize=1)
         model=load_native_model()
-        native_proc.stdin.write(json.dumps({"type":"init","brain":model,"generation":native_generation})+"\n")
+        checkpoint=None
+        if CHECKPOINT_STATE.exists():
+            try: checkpoint=json.loads(CHECKPOINT_STATE.read_text())
+            except Exception: checkpoint=None
+        native_generation=int((checkpoint or {}).get("generation") or native_generation or 0)
+        native_proc.stdin.write(json.dumps({"type":"init","brain":model,"generation":native_generation,"gamesCompleted":int((checkpoint or {}).get("gamesCompleted") or 0),"resumeCheckpoint":True})+"\n")
         native_proc.stdin.flush()
         line=native_proc.stdout.readline()
         if not line:return False
@@ -108,6 +132,8 @@ def start_native():
         native_ready=msg.get("type")=="ready"
         native_generation=int(msg.get("generation") or 0)
         state["stockfish"]=bool(msg.get("stockfish"))
+        state["stockfishInfo"]=msg.get("stockfishInfo")
+        state["generation"]=native_generation
         return native_ready
 
 def native_stop():
@@ -146,15 +172,28 @@ def native_train(data):
                 state["paused"]=False;state["phase"]="resuming";state["updated"]=time.time();broadcast({"type":"status","data":state})
             elif typ=="complete":
                 save_native_model(msg["brain"]);native_generation=int(msg.get("generation") or (native_generation+1))
-                state["generation"]=native_generation;state["training"]=False;state["paused"]=False;state["phase"]="generation-complete";state["error"]="";state["history"]=list(state.get("history") or [])[-49:]+[{"generation":native_generation,"games":msg.get("games",0),"positions":msg.get("positions",0),"loss":msg.get("loss"),"evaluation":msg.get("evaluation")}];state["evaluation"]=msg.get("evaluation");state["stockfish"]=bool(msg.get("evaluation",{}).get("available")) if isinstance(msg.get("evaluation"),dict) else state.get("stockfish")
+                state["generation"]=native_generation;state["training"]=False;state["paused"]=False;state["phase"]="generation-complete";state["error"]="";entry={"generation":native_generation,"games":msg.get("games",0),"positions":msg.get("positions",0),"loss":msg.get("loss"),"evaluation":msg.get("evaluation"),"savedAt":time.time()};state["history"]=list(state.get("history") or [])[-99:]+[entry];save_training_history(state["history"]);state["evaluation"]=msg.get("evaluation");state["stockfish"]=bool(msg.get("evaluation",{}).get("available")) if isinstance(msg.get("evaluation"),dict) else state.get("stockfish")
                 state["game"]=msg.get("games",0);state["totalGames"]=msg.get("games",0);state["completedGames"]=msg.get("games",0);state["completedPositions"]=msg.get("positions",0);state["completedLoss"]=msg.get("loss");state["loss"]=msg.get("loss");state["positions"]=msg.get("positions",0);state["ply"]=0;state["fen"]="start";state["turn"]="w";state["updates"]=0;state["totalUpdates"]=0
                 state["updated"]=time.time();broadcast({"type":"status","data":state});return msg
             elif typ=="error":raise RuntimeError(msg.get("message","native trainer error"))
 
 def run_native_training(data):
-    try:native_train(data)
+    try:
+        mode=str(data.get("mode") or "generation")
+        while state.get("training"):
+            result=native_train(data)
+            ev=result.get("evaluation") if isinstance(result,dict) else None
+            estimated=float(ev.get("estimatedElo")) if isinstance(ev,dict) and ev.get("estimatedElo") is not None else None
+            target=float(data.get("targetElo") or 1800)
+            if mode=="generation": break
+            if mode=="target" and estimated is not None and estimated>=target:
+                state["phase"]="target-reached";state["training"]=False;break
+            if state.get("training"):
+                state["phase"]="next-generation";state["updated"]=time.time();broadcast({"type":"status","data":state})
+        if state.get("phase") not in ("target-reached","error"): state["training"]=False
     except Exception as e:
-        state["training"]=False;state["phase"]="error";state["error"]=str(e);state["updated"]=time.time();broadcast({"type":"status","data":state})
+        state["training"]=False;state["phase"]="error";state["error"]=str(e)
+    state["updated"]=time.time();broadcast({"type":"status","data":state})
 
 def check_for_updates():
     global UPDATE_LAST
@@ -313,7 +352,7 @@ class Handler(BaseHTTPRequestHandler):
         if p.path=="/api/health": return self._json({"ok":True,"service":"chess-lab-pc-bridge","version":"0.1.0"})
         if p.path=="/api/status":
             with clients_lock: connected=len(clients)
-            return self._json({**state,"connectedClients":connected,"pairingRequired":True,"nativeCompute":native_available(),"trainingAvailable":native_available(),"nativeRunning":bool(native_proc and native_proc.poll() is None),"generation":native_generation})
+            return self._json({**state,"connectedClients":connected,"pairingRequired":True,"nativeCompute":native_available(),"trainingAvailable":native_available(),"nativeRunning":bool(native_proc and native_proc.poll() is None),"generation":native_generation,"stockfishInfo":state.get("stockfishInfo")})
         if p.path=="/api/pairing": return self._json({"token":TOKEN})
         if p.path=="/api/engine-move":
             if self.headers.get("X-Chess-Lab-Token","")!=TOKEN:return self._json({"error":"invalid pairing token"},401)
@@ -377,7 +416,10 @@ class Handler(BaseHTTPRequestHandler):
                                     native_proc.stdin.write(json.dumps({"type":"resume"})+"\\n");native_proc.stdin.flush()
                             state["paused"]=False;state["phase"]="resuming"
                         elif command=="checkpoint-training":
-                            state["phase"]="checkpoint-saved";state["updated"]=time.time()
+                            with native_lock:
+                                if native_proc and native_proc.poll() is None:
+                                    native_proc.stdin.write(json.dumps({"type":"checkpoint"})+"\n");native_proc.stdin.flush()
+                            state["phase"]="checkpoint-saving";state["updated"]=time.time()
                         elif command=="stop-training":
                             native_stop();state["training"]=False;state["paused"]=False;state["phase"]="stopping"
                         broadcast({"type":"command","command":command,"data":data},exclude=client)
@@ -420,7 +462,7 @@ if __name__=="__main__":
         if not Path(tls_cert).is_file() or not Path(tls_key).is_file():
             raise SystemExit("CHESS_LAB_TLS_CERT and CHESS_LAB_TLS_KEY must point to existing certificate/key files.")
     print("Chess Lab PC bridge")
-    public_tunnel=start_public_https()
+    public_tunnel=None
     print("%s://127.0.0.1:%d/"%("https" if https_enabled else "http",PORT))
     print("Pairing token: %s"%TOKEN)
     print("LAN clients can use this PC's local IP on port %d."%PORT)
