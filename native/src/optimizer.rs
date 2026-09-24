@@ -1,5 +1,6 @@
 use crate::neural::{Gradients,Network};
 
+#[derive(Clone)]
 pub struct Optimizer { pub learning_rate:f32,pub step:u64, pub weight_decay:f32 }
 
 impl Optimizer {
