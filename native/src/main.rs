@@ -9,14 +9,14 @@ mod training;
 mod update;
 
 use axum::Router;
-use std::{path::PathBuf,time::Duration};
+use std::{path::PathBuf,sync::{Arc,Mutex},time::Duration};
 use tower_http::services::ServeDir;
 
 #[tokio::main]
 async fn main(){
     let after_update=std::env::args().any(|a|a=="--after-update");
     let root=std::env::current_dir().unwrap_or_else(|_|PathBuf::from("."));
-    let state=api::AppState{root:root.clone()};
+    let state=api::AppState{root:root.clone(),training:Arc::new(Mutex::new(training::TrainingStatus::default()))};
     let app:Router=api::router(state).fallback_service(ServeDir::new(root));
     let listener=tokio::net::TcpListener::bind(api::bind_addr()).await.expect("bind Chess Lab");
     tokio::spawn(async move{loop{
