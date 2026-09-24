@@ -69,10 +69,10 @@ $('startTraining')?.addEventListener('click',async()=>{
     setTrainingButtonState(false);
   }
 });
-$('pauseTraining')?.addEventListener('click',async()=>{if(await window.chessLabBackend?.command('pause-training')){trainingLogLine('pause requested');toast('pause requested')}});
-$('resumeTraining')?.addEventListener('click',async()=>{if(await window.chessLabBackend?.command('resume-training')){trainingLogLine('resume requested');toast('resume requested')}});
-$('stopTraining')?.addEventListener('click',async()=>{if(await window.chessLabBackend?.command('stop-training')){trainingLogLine('stop requested');toast('stop requested')}});
-$('checkpointTraining')?.addEventListener('click',async()=>{if(await window.chessLabBackend?.command('checkpoint-training')){trainingLogLine('checkpoint requested');toast('checkpoint requested')}});
+$('pauseTraining')?.addEventListener('click',async()=>{const ok=await window.chessLabBackend?.command('pause-training');if(ok){trainingLogLine('pause requested');toast('pause requested')}else if(typeof pauseBrowserTraining==='function'){pauseBrowserTraining();trainingLogLine('browser pause requested');toast('pause requested')}});
+$('resumeTraining')?.addEventListener('click',async()=>{const ok=await window.chessLabBackend?.command('resume-training');if(ok){trainingLogLine('resume requested');toast('resume requested')}else if(typeof resumeBrowserTraining==='function'){resumeBrowserTraining();trainingLogLine('browser resume requested');toast('resume requested')}});
+$('stopTraining')?.addEventListener('click',async()=>{const ok=await window.chessLabBackend?.command('stop-training');if(ok){trainingLogLine('stop requested');toast('stop requested')}else{cancelRequested=true;training=false;busy=false;renderTrainingLive();setTrainingButtonState(false);trainingLogLine('browser training stopped');toast('training stopped')}});
+$('checkpointTraining')?.addEventListener('click',async()=>{const ok=await window.chessLabBackend?.command('checkpoint-training');if(ok){trainingLogLine('checkpoint requested');toast('checkpoint requested')}else if(typeof saveBrain==='function'){await saveBrain(false);trainingLogLine('browser checkpoint saved');toast('checkpoint saved')}});
 $('clearTrainingLog')?.addEventListener('click',()=>{if($('trainingLog'))$('trainingLog').textContent=''});
 $('trainingMode')?.addEventListener('change',setTrainingConfigVisibility);$('trainOpponent')?.addEventListener('change',setTrainingConfigVisibility);setTrainingConfigVisibility();
   $('playMatch')?.addEventListener('click',async()=>{try{const root=document.querySelector('.match-layout');root?.classList.add('is-playing');const b=$('matchStateBadge');if(b)b.textContent='PLAYING';await playMatch()}catch(e){busy=false;log('Play error: '+e.message);setStatus('error',e.message,0)}finally{if(!busy){document.querySelector('.match-layout')?.classList.remove('is-playing');const b=$('matchStateBadge');if(b)b.textContent='READY'}}});
