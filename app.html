@@ -50,19 +50,62 @@
         </div>
       </div>
     </section>
-    <section class="workspace training-workspace"><div class="terminal-titlebar"><span>~/chess/training</span><span>● ● ●</span></div>
-      <div class="workspace-head"><div><span class="eyebrow">LEARN</span><h2>training</h2><p>turn played positions into better weights.</p></div><span class="badge" id="generationBadge">gen 0</span></div>
-      <div class="training-layout">
-        <div class="training-controls">      <section class="panel training-controls-panel">
-        <div class="panel-head training-controls-head"><h2>training</h2><span class="badge" id="trainingLiveBadge">idle</span></div>
-        <div class="training-live training-live-inline" aria-live="polite"><div class="live-top"><div><b id="livePhase">waiting</b><span id="liveDetail">start training to watch the learner learn</span></div><div class="live-rate"><b id="liveGamesRate">0</b><span>games/min</span></div></div><div class="training-game-counter"><b id="liveGames">0</b><span>games played</span></div></div><div class="stats"><div class="stat"><b id="trainingElo">—</b><span>estimated Elo</span></div><div class="stat"><b id="trainingTarget">—</b><span>target Elo</span></div><div class="stat"><b id="trainingSpeed">—</b><span>games/min</span></div><div class="stat"><b id="gamesStat">0</b><span>self-play games</span></div><div class="stat"><b id="stepsStat">0</b><span>training steps</span></div></div><div class="row" style="margin-bottom:8px"><button class="btn green" id="startTraining" style="flex:2;font-weight:900">Start training</button><button class="btn danger" id="stopTraining" style="flex:1;font-weight:900">Stop training</button></div>
-        <div class="training-settings-title">training settings</div><div class="field"><label>training mode</label><select id="trainingMode"><option value="games" selected>Train for a set number of games</option><option value="target">Train until target Elo estimate</option></select></div><div class="field" id="targetEloField" style="display:none"><label>target Elo</label><input id="targetElo" type="number" min="400" max="2400" step="50" value="1784"></div><div class="field"><label>training source</label><select id="trainOpponent"><option value="self" selected>parallel self-play only</option><option value="stockfish">train against Stockfish</option><option value="mix">mixed: self-play + Stockfish</option></select></div>
-        <div class="field" id="mixRatioField" style="display:none"><label>Stockfish share in mixed training</label><input id="mixRatio" type="number" min="10" max="90" step="5" value="50"></div><div class="field"><label>self-play games</label><input id="batchGames" type="number" min="1" max="1000" value="8"></div>
-        <div class="field"><label>games per training batch</label><input id="parallelGames" type="number" min="1" max="256" value="8"></div><div class="field"><label>learning rate</label><input id="mutationRate" type="number" min="0.0001" max="0.01" step="0.0001" value="0.0015"></div><div class="field"><label>gradient updates per game</label><input id="trainUpdates" type="number" min="1" max="512" value="64"></div><div class="field"><label>Stockfish evaluation games</label><input id="evalGames" type="number" min="4" max="50" value="10"></div><div class="field"><label>training plies per game</label><input id="trainSims" type="number" min="40" max="1000" value="1000"></div><div class="tiny" style="margin-top:5px">training system: prioritized replay, adaptive workers, cached MCTS search trees, fixed-strength Stockfish evaluation, and separate training/evaluation controls are enabled. <span id="trainingArchitectureNote"></span><br>compute: the PC backend owns self-play, gradient updates, model storage, and Stockfish evaluation. this page is the live control surface only. machine learning: a policy-and-value neural network plays self-play games, stores positions in replay memory, then uses gradient descent with reinforcement learning rewards to update its weights. No opening book, piece values, or hand-written chess strategy is used.</div>
-      </section></div>
-
+    <section class="workspace training-workspace">
+  <div class="terminal-titlebar"><span>~/chess/training</span><span>● ● ●</span></div>
+  <div class="workspace-head"><div><span class="eyebrow">LEARN</span><h2>training lab</h2><p>configure a run, watch every game, train the learner, then test the new generation.</p></div><span class="badge" id="generationBadge">gen 0</span></div>
+  <div class="training-shell">
+    <section class="panel training-setup-panel">
+      <div class="panel-head"><h2>training setup</h2><span class="badge" id="trainingLiveBadge">idle</span></div>
+      <div class="training-section"><div class="training-section-title"><b>run</b><span>what should the learner do?</span></div>
+        <div class="field"><label>training mode</label><select id="trainingMode"><option value="generation" selected>Train one generation</option><option value="continuous">Continuous generations</option><option value="target">Train until target Elo estimate</option></select></div>
+        <div class="field"><label>opponent mix</label><select id="trainOpponent"><option value="self" selected>Learner vs Learner</option><option value="stockfish">Learner vs Stockfish 19</option><option value="mix">Mixed self-play + Stockfish 19</option></select></div>
+        <div class="field" id="mixRatioField" style="display:none"><label>Stockfish share</label><input id="mixRatio" type="number" min="5" max="95" step="5" value="25"></div>
+        <div class="field" id="targetEloField" style="display:none"><label>target Elo estimate</label><input id="targetElo" type="number" min="400" max="3000" step="25" value="1800"></div>
+      </div>
+      <div class="training-section"><div class="training-section-title"><b>games</b><span>experience per generation</span></div>
+        <div class="training-grid-2">
+          <div class="field"><label>games per generation</label><input id="batchGames" type="number" min="1" max="10000" value="100"></div>
+          <div class="field"><label>maximum plies per game</label><input id="trainSims" type="number" min="40" max="2000" value="300"></div>
+          <div class="field"><label>parallel games</label><input id="parallelGames" type="number" min="1" max="256" value="4"></div>
+          <div class="field"><label>learner search simulations</label><input id="learnerSims" type="number" min="1" max="128" value="8"></div>
+        </div>
+      </div>
+      <div class="training-section"><div class="training-section-title"><b>learning</b><span>update the model from collected positions</span></div>
+        <div class="training-grid-2">
+          <div class="field"><label>gradient updates</label><input id="trainUpdates" type="number" min="1" max="100000" value="400"></div>
+          <div class="field"><label>learning rate</label><input id="mutationRate" type="number" min="0.00001" max="0.01" step="0.00001" value="0.001"></div>
+          <div class="field"><label>replay buffer size</label><input id="replaySize" type="number" min="1000" max="500000" step="1000" value="50000"></div>
+          <div class="field"><label>batch size</label><input id="trainBatchSize" type="number" min="1" max="1024" value="64"></div>
+        </div>
+      </div>
+      <div class="training-section"><div class="training-section-title"><b>Stockfish 19</b><span>generation evaluation</span></div>
+        <div class="training-grid-2">
+          <div class="field"><label>evaluation games</label><input id="evalGames" type="number" min="2" max="100" step="2" value="10"></div>
+          <div class="field"><label>evaluation plies</label><input id="evalPlies" type="number" min="40" max="2000" value="300"></div>
+          <div class="field"><label>Stockfish depth</label><input id="stockfishDepth" type="number" min="1" max="30" value="12"></div>
+          <div class="field"><label>Stockfish threads</label><select id="stockfishThreads"><option value="auto" selected>Auto</option><option value="1">1</option><option value="2">2</option><option value="4">4</option><option value="8">8</option></select></div>
+        </div><div class="tiny training-note">Stockfish runs on the PC backend. The browser never runs the engine.</div>
+      </div>
+      <div class="training-section training-actions-section">
+        <div class="training-actions"><button class="btn primary" id="startTraining">Start training</button><button class="btn secondary" id="pauseTraining">Pause</button><button class="btn danger" id="stopTraining">Stop</button></div>
+        <div class="training-actions secondary-actions"><button class="btn" id="checkpointTraining">Save checkpoint</button><button class="btn" id="resumeTraining">Resume checkpoint</button></div>
+        <div class="training-status-line" id="trainingConfigStatus">PC compute ready state will appear here.</div>
       </div>
     </section>
+    <section class="panel training-live-panel">
+      <div class="panel-head"><h2>live training</h2><span class="tiny" id="liveTurn">white to move</span></div>
+      <div class="live-training-layout"><div class="training-board-wrap"><div class="training-live-board" id="trainingLiveBoard" aria-label="Live training board"></div><div class="training-board-caption"><b id="livePhase">waiting</b><span id="liveDetail">start training to watch the learner learn</span></div></div>
+        <div class="live-metrics"><div class="live-metric"><b id="liveGames">0 / 0</b><span>games</span></div><div class="live-metric"><b id="livePly">0</b><span>current ply</span></div><div class="live-metric"><b id="livePositions">0</b><span>positions</span></div><div class="live-metric"><b id="liveUpdates">0 / 0</b><span>gradient updates</span></div><div class="live-metric"><b id="liveLoss">—</b><span>loss</span></div><div class="live-metric"><b id="liveGamesRate">0</b><span>games/min</span></div></div></div>
+      <div class="training-progress-track"><i id="trainingProgressBar"></i></div><div class="training-progress-label"><span id="trainingProgressText">0%</span><span id="trainingGenerationText">generation 0</span></div>
+    </section>
+    <section class="panel generation-panel"><div class="panel-head"><h2>generation result</h2><span class="tiny" id="evaluationBadge">not evaluated</span></div>
+      <div class="generation-result-grid"><div class="result-card"><b id="generationGames">0</b><span>games</span></div><div class="result-card"><b id="generationPositions">0</b><span>positions</span></div><div class="result-card"><b id="generationLoss">—</b><span>final loss</span></div><div class="result-card"><b id="generationScore">—</b><span>Stockfish score</span></div></div>
+      <div class="evaluation-line" id="evaluationLine">No generation has been evaluated yet.</div>
+    </section>
+    <section class="panel training-history-panel"><div class="panel-head"><h2>training history</h2><span class="tiny">saved generations</span></div><div class="history-list" id="trainingHistory"><div class="history-empty">No completed generations yet.</div></div></section>
+    <section class="panel training-log-panel"><div class="panel-head"><h2>training log</h2><button class="btn" id="clearTrainingLog" type="button">Clear</button></div><pre class="training-log" id="trainingLog" aria-live="polite"></pre></section>
+  </div>
+</section>
     <section class="lower-grid">
       <div class="workspace compact-workspace">      <section class="panel">
         <div class="panel-head"><h2>brain</h2><span class="tiny" id="brainState">unsaved</span></div>
@@ -82,20 +125,20 @@
 
 <script>
 if('serviceWorker' in navigator && location.protocol==='https:'){
-  navigator.serviceWorker.register('./coi-service-worker.js?v=0.33.0').catch(()=>{});
+  navigator.serviceWorker.register('./coi-service-worker.js?v=0.40.0').catch(()=>{});
 }
 </script>
 <script src="js/chess.js?v=0.31.20"></script>
 <script src="js/repetition.js?v=0.31.20"></script>
 <script src="js/core.js?v=0.31.20"></script>
 <script src="js/learner.js?v=0.31.20"></script>
-<script src="js/training.js?v=0.31.20"></script>
+<script src="js/training.js?v=0.40.0"></script>
 <script src="js/engine.js?v=0.33.0"></script>
-<script src="js/pc-backend.js?v=0.32.0"></script>
+<script src="js/pc-backend.js?v=0.40.0"></script>
 <script src="js/review.js?v=0.31.20"></script>
 <script src="js/board.js?v=0.31.20"></script>
 <script src="js/match.js?v=0.31.20"></script>
-<script src="js/ui.js?v=0.31.20"></script>
+<script src="js/ui.js?v=0.40.0"></script>
 <script src="js/storage.js?v=0.31.20"></script>
 <script src="js/app.js?v=0.33.0"></script>
 </body>
