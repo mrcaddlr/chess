@@ -76,7 +76,17 @@ $('trainingMode')?.addEventListener('change',setTrainingConfigVisibility);$('tra
 })();
 (function(){
   const b=window.chessLabBackend;if(!b)return;
-  b.on('connection',m=>{if(m?.connected)log((m.role||'PC')+' backend connected');else log((m.role||'PC')+' backend disconnected')});
+  b.on('connection',m=>{if(m?.connected){log((m.role||'PC')+' backend connected');const a=document.getElementById('overviewBackend');if(a)a.textContent='ONLINE'}else{log((m.role||'PC')+' backend disconnected');const a=document.getElementById('overviewBackend');if(a)a.textContent='OFFLINE'}});
+  b.on('backend-info',s=>{
+    const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=String(v)};
+    set('overviewBackend',s?.apiOnline?'ONLINE':'OFFLINE');
+    set('computeStatus',s?.nativeCompute?'READY':'UNAVAILABLE');
+    set('backendUrl',b.getUrl?.()||location.origin);
+    const sf=s?.stockfishInfo;
+    set('overviewStockfish',sf?.available?'STOCKFISH 19':'UNAVAILABLE');
+    set('footerBackend',s?.apiOnline?'ONLINE':'OFFLINE');
+    set('footerStockfish',sf?.available?'19':'MISSING');
+  });
   b.on('status',s=>{
   if(!s)return;
   const pct=s.totalGames?Math.round(Number(s.game||0)/Number(s.totalGames)*100):0;
