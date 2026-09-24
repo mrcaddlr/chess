@@ -51,11 +51,11 @@
 function trainingLogLine(message){const root=$('trainingLog');if(!root)return;root.textContent+='['+new Date().toLocaleTimeString()+'] '+String(message)+'\n';root.scrollTop=root.scrollHeight}
 function setTrainingConfigVisibility(){const mode=$('trainingMode')?.value||'generation',opp=$('trainOpponent')?.value||'self';if($('targetEloField'))$('targetEloField').style.display=mode==='target'?'grid':'none';if($('mixRatioField'))$('mixRatioField').style.display=opp==='mix'?'grid':'none'}
 function setTrainingButtonState(running){if($('startTraining'))$('startTraining').disabled=running;if($('pauseTraining'))$('pauseTraining').disabled=!running;if($('stopTraining'))$('stopTraining').disabled=!running}
-$('startTraining')?.addEventListener('click',()=>{if(!window.chessLabBackend?.command){toast('PC backend is unavailable');return}const config=remoteTrainingConfig();if(!window.chessLabBackend.command('start-training',config)){toast('PC backend is offline');return}trainingLogLine('training run requested');setTrainingButtonState(true);toast('training started')});
-$('pauseTraining')?.addEventListener('click',()=>{if(window.chessLabBackend?.command('pause-training')){trainingLogLine('pause requested');toast('pause requested')}});
-$('resumeTraining')?.addEventListener('click',()=>{if(window.chessLabBackend?.command('resume-training')){trainingLogLine('resume requested');toast('resume requested')}});
-$('stopTraining')?.addEventListener('click',()=>{if(window.chessLabBackend?.command('stop-training')){trainingLogLine('stop requested');toast('stop requested')}});
-$('checkpointTraining')?.addEventListener('click',()=>{if(window.chessLabBackend?.command('checkpoint-training')){trainingLogLine('checkpoint requested');toast('checkpoint requested')}});
+$('startTraining')?.addEventListener('click',async()=>{if(!window.chessLabBackend?.command){toast('Local backend client unavailable');return}const config=remoteTrainingConfig();const ok=await window.chessLabBackend.command('start-training',config);if(!ok){trainingLogLine('ERROR: local training command failed');toast('Local backend did not accept the training command');setTrainingButtonState(false);return}trainingLogLine('training run requested');setTrainingButtonState(true);toast('training started')});
+$('pauseTraining')?.addEventListener('click',async()=>{if(await window.chessLabBackend?.command('pause-training')){trainingLogLine('pause requested');toast('pause requested')}});
+$('resumeTraining')?.addEventListener('click',async()=>{if(await window.chessLabBackend?.command('resume-training')){trainingLogLine('resume requested');toast('resume requested')}});
+$('stopTraining')?.addEventListener('click',async()=>{if(await window.chessLabBackend?.command('stop-training')){trainingLogLine('stop requested');toast('stop requested')}});
+$('checkpointTraining')?.addEventListener('click',async()=>{if(await window.chessLabBackend?.command('checkpoint-training')){trainingLogLine('checkpoint requested');toast('checkpoint requested')}});
 $('clearTrainingLog')?.addEventListener('click',()=>{if($('trainingLog'))$('trainingLog').textContent=''});
 $('trainingMode')?.addEventListener('change',setTrainingConfigVisibility);$('trainOpponent')?.addEventListener('change',setTrainingConfigVisibility);setTrainingConfigVisibility();
   $('playMatch')?.addEventListener('click',()=>playMatch().catch(e=>{busy=false;log('Play error: '+e.message);setStatus('error',e.message,0);renderAll()}));
@@ -76,7 +76,9 @@ $('trainingMode')?.addEventListener('change',setTrainingConfigVisibility);$('tra
 })();
 (function(){
   const b=window.chessLabBackend;if(!b)return;
-  b.on('connection',m=>{if(m?.connected){log((m.role||'PC')+' backend connected');const a=document.getElementById('overviewBackend');if(a)a.textContent='ONLINE'}else{log((m.role||'PC')+' backend disconnected');const a=document.getElementById('overviewBackend');if(a)a.textContent='OFFLINE'}});
+  b.on('connection',m=>{if(m?.connected){log((m.role||'PC')+' backend connected');const a=document.getElementById('overviewBackend');if(a)a.textContent='ONLINE';const d=document.getElementById('onlineDot');if(d)d.style.background='var(--green)'}else{log((m.role||'PC')+' backend disconnected');const a=document.getElementById('overviewBackend');if(a)a.textContent='RECONNECTING';const d=document.getElementById('onlineDot');if(d)d.style.background='var(--yellow)'}});
+  document.getElementById('connectionChip')?.addEventListener('click',()=>{const p=document.getElementById('connectionPopover');if(p)p.hidden=!p.hidden});
+  b.on('connection',m=>{const p=document.getElementById('connectionPopover');if(p&&!m?.connected)p.hidden=false});
   b.on('backend-info',s=>{
     const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=String(v)};
     set('overviewBackend',s?.apiOnline?'ONLINE':'OFFLINE');
@@ -85,7 +87,7 @@ $('trainingMode')?.addEventListener('change',setTrainingConfigVisibility);$('tra
     const sf=s?.stockfishInfo;
     set('overviewStockfish',sf?.available?'STOCKFISH 19':'UNAVAILABLE');
     set('footerBackend',s?.apiOnline?'ONLINE':'OFFLINE');
-    set('footerStockfish',sf?.available?'19':'MISSING');
+    set('footerStockfish',sf?.available?'19':'MISSING');set('connectionBackend',s?.apiOnline?'Online':'Offline');set('connectionSocket',b.isConnected?.()?'Connected':'Reconnecting');set('connectionCompute',s?.nativeCompute?'Ready':'Unavailable');set('connectionStockfish',sf?.available?'Ready':'Unavailable');
   });
   b.on('status',s=>{
   if(!s)return;
