@@ -128,8 +128,10 @@ def check_for_updates():
             print("Auto-update check failed: "+str(e))
 
 def update_loop():
+    # GitHub push-triggered updates are preferred. Keep a lightweight fallback
+    # only while the local server is running.
     while True:
-        time.sleep(5)
+        time.sleep(60)
         check_for_updates()
 
 def ws_send(sock,obj):
