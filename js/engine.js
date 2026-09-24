@@ -6,6 +6,42 @@ function engineDisplayLabel(){
 function setEngineUi(label,ok){const pill=document.getElementById('enginePill'),dot=document.getElementById('onlineDot');if(pill)pill.textContent=label;if(dot)dot.style.background=ok?'var(--mint)':'var(--red)';}
 let stockfishBlobUrls=[];
 let nativeEngine=null;
+
+const ENGINE_CACHE_VERSION='stockfish-cache-v1';
+const engineWasmCache={
+  db:null,
+  async open(){
+    if(this.db)return this.db;
+    this.db=await new Promise((resolve,reject)=>{
+      const req=indexedDB.open('chess-lab-engine-cache',1);
+      req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('wasm'))req.result.createObjectStore('wasm')};
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error||new Error('IndexedDB unavailable'));
+    });
+    return this.db;
+  },
+  async get(key){
+    try{
+      const db=await this.open();
+      return await new Promise((resolve,reject)=>{
+        const req=db.transaction('wasm','readonly').objectStore('wasm').get(key);
+        req.onsuccess=()=>resolve(req.result||null);
+        req.onerror=()=>reject(req.error);
+      });
+    }catch(e){log('engine cache read failed: '+e.message);return null}
+  },
+  async put(key,bytes){
+    try{
+      const db=await this.open();
+      await new Promise((resolve,reject)=>{
+        const req=db.transaction('wasm','readwrite').objectStore('wasm').put(bytes,key);
+        req.onsuccess=()=>resolve();
+        req.onerror=()=>reject(req.error);
+      });
+      return true;
+    }catch(e){log('engine cache write failed: '+e.message);return false}
+  }
+};
 function waitForStockfish(timeout=125000){return new Promise(resolve=>{if(stockfishReady){resolve(true);return}const started=Date.now();const timer=setInterval(()=>{if(stockfishReady||Date.now()-started>=timeout){clearInterval(timer);resolve(stockfishReady)}},100)})}
 async function buildBundledEngineWorker(engineUrl){
   const manifestUrl=new URL('stockfish/engine-manifest.json',document.baseURI).href;
@@ -51,29 +87,56 @@ async function buildBundledEngineWorker(engineUrl){
   let wasmUrl='';
 
   if(Array.isArray(parts)&&parts.length){
-    log('assembling '+wasmName+' from '+parts.length+' chunks');
-    const blobs=[];
-    let total=0;
-    for(let i=0;i<parts.length;i++){
-      const part=String(parts[i]||'').replace(/^\\/+/, '');
-      const url=new URL('stockfish/'+part,document.baseURI);
-      url.searchParams.set('v','0.31.17');
-      const r=await fetch(url.href,{cache:'no-store'});
-      if(!r.ok)throw new Error('Stockfish chunk '+part+' returned HTTP '+r.status);
-      const data=new Uint8Array(await r.arrayBuffer());
-      if(!data.byteLength)throw new Error('Stockfish chunk '+part+' is empty');
-      if(i===0&&data.length>=4&&!(data[0]===0x00&&data[1]===0x61&&data[2]===0x73&&data[3]===0x6d)){
-        throw new Error('Stockfish chunk '+part+' is not the start of a WASM binary');
+    const cacheKey=ENGINE_CACHE_VERSION+':'+wasmName+':'+parts.join('|');
+    const cached=await engineWasmCache.get(cacheKey);
+    if(cached){
+      wasmUrl=URL.createObjectURL(new Blob([cached],{type:'application/wasm'}));
+      stockfishBlobUrls.push(wasmUrl);
+      log(wasmName+' loaded from local cache · no download needed');
+    }else{
+      log('downloading '+wasmName+' for first use · '+parts.length+' chunks');
+      const blobs=[];
+      let total=0;
+      for(let i=0;i<parts.length;i++){
+        const part=String(parts[i]||'').replace(/^\/+/, '');
+        const url=new URL('stockfish/'+part,document.baseURI);
+        const r=await fetch(url.href,{cache:'force-cache'});
+        if(!r.ok)throw new Error('Stockfish chunk '+part+' returned HTTP '+r.status);
+        const data=new Uint8Array(await r.arrayBuffer());
+        if(!data.byteLength)throw new Error('Stockfish chunk '+part+' is empty');
+        if(i===0&&data.length>=4&&!(data[0]===0x00&&data[1]===0x61&&data[2]===0x73&&data[3]===0x6d)){
+          throw new Error('Stockfish chunk '+part+' is not the start of a WASM binary');
+        }
+        blobs.push(data);
+        total+=data.byteLength;
+        log('chunk '+(i+1)+'/'+parts.length+' loaded · '+Math.round(data.byteLength/1048576)+' MiB');
       }
-      blobs.push(data);
-      total+=data.byteLength;
-      log('chunk '+(i+1)+'/'+parts.length+' loaded · '+Math.round(data.byteLength/1048576)+' MiB');
+      if(total<1024*1024)throw new Error('assembled '+wasmName+' is only '+total+' bytes; incomplete WASM bundle');
+      const combined=new Uint8Array(total);
+      let offset=0;
+      for(const data of blobs){combined.set(data,offset);offset+=data.byteLength}
+      await engineWasmCache.put(cacheKey,combined.buffer);
+      wasmUrl=URL.createObjectURL(new Blob([combined],{type:'application/wasm'}));
+      stockfishBlobUrls.push(wasmUrl);
+      log(wasmName+' cached locally for future visits');
     }
-    if(total<1024*1024)throw new Error('assembled '+wasmName+' is only '+total+' bytes; incomplete WASM bundle');
-    wasmUrl=URL.createObjectURL(new Blob(blobs,{type:'application/wasm'}));
   }else{
-    wasmUrl=new URL('stockfish/'+wasmName,document.baseURI).href;
-    log('using direct WASM '+wasmName);
+    const directUrl=new URL('stockfish/'+wasmName,document.baseURI).href;
+    const cacheKey=ENGINE_CACHE_VERSION+':direct:'+wasmName;
+    const cached=await engineWasmCache.get(cacheKey);
+    if(cached){
+      wasmUrl=URL.createObjectURL(new Blob([cached],{type:'application/wasm'}));
+      stockfishBlobUrls.push(wasmUrl);
+      log(wasmName+' loaded from local cache · no download needed');
+    }else{
+      const r=await fetch(directUrl,{cache:'force-cache'});
+      if(!r.ok)throw new Error(wasmName+' returned HTTP '+r.status);
+      const data=await r.arrayBuffer();
+      await engineWasmCache.put(cacheKey,data);
+      wasmUrl=URL.createObjectURL(new Blob([data],{type:'application/wasm'}));
+      stockfishBlobUrls.push(wasmUrl);
+      log(wasmName+' downloaded once and cached locally');
+    }
   }
 
   // Stockfish.js 19 already contains its browser UCI-worker bootstrap.
