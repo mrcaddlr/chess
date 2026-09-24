@@ -236,7 +236,7 @@ class Handler(BaseHTTPRequestHandler):
         if p.path=="/ws" and self.headers.get("Upgrade","").lower()=="websocket": return self.websocket()
         return self.static()
     def static(self):
-        rel=urlparse(self.path).path.lstrip("/") or "index.html"; target=(ROOT/rel).resolve()
+        rel=urlparse(self.path).path.lstrip("/") or "app.html"; target=(ROOT/rel).resolve()
         try: target.relative_to(ROOT.resolve())
         except ValueError:return self.send_error(403)
         if not target.is_file():return self.send_error(404)
