@@ -14,7 +14,7 @@ pub fn ensure_stockfish(root:&Path)->Result<PathBuf,String>{
     let assets=release.get("assets").and_then(Value::as_array).ok_or("Stockfish release has no assets")?;
     let asset=assets.iter().find(|a|{
         let n=a.get("name").and_then(Value::as_str).unwrap_or("").to_ascii_lowercase();
-        n.contains("linux")&&n.contains("x64")&&(n.ends_with(".tar")||n.ends_with(".tar.gz"))
+        n.contains("linux")&&(n.contains("x86-64")||n.contains("x64")||n.contains("amd64"))&&(n.ends_with(".tar")||n.ends_with(".tar.gz")||n.ends_with(".zip"))
     }).or_else(||assets.iter().find(|a|{
         let n=a.get("name").and_then(Value::as_str).unwrap_or("").to_ascii_lowercase();
         n.contains("ubuntu")&&n.contains("x64")&&n.ends_with(".tar")
@@ -23,7 +23,7 @@ pub fn ensure_stockfish(root:&Path)->Result<PathBuf,String>{
     let url=asset.get("browser_download_url").and_then(Value::as_str).ok_or("Stockfish asset URL missing")?;
     let archive=work.join(name);
     run_curl_to(url,&archive)?;
-    let status=Command::new("tar").arg("-xf").arg(&archive).arg("-C").arg(&work).status().map_err(|e|format!("extract Stockfish: {e}"))?;
+    let status=if name.ends_with(".zip"){Command::new("unzip").arg("-q").arg(&archive).arg("-d").arg(&work).status().map_err(|e|format!("extract Stockfish: {e}"))?}else{Command::new("tar").arg("-xf").arg(&archive).arg("-C").arg(&work).status().map_err(|e|format!("extract Stockfish: {e}"))?};
     if !status.success(){return Err("Stockfish archive extraction failed".into());}
     let binary=find_binary(&work).ok_or("Stockfish archive did not contain a usable Linux executable")?;
     let tmp=target.with_extension("new");
