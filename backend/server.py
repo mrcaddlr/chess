@@ -5,6 +5,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
+from engine_manager import ensure_all
+
 ROOT=Path(__file__).resolve().parent.parent
 HOST=os.environ.get("CHESS_LAB_HOST","0.0.0.0")
 PORT=int(os.environ.get("CHESS_LAB_PORT","8787"))
@@ -273,6 +275,8 @@ def broadcast(message,exclude=None):
                 try: clients.remove(c)
                 except ValueError: pass
 
+ENGINE_BOOTSTRAP=ensure_all()
+
 STOCKFISH_INFO={"available":False,"path":None,"name":None,"version":None,"error":"Stockfish 19 not detected"}
 
 def probe_stockfish19():
@@ -314,13 +318,17 @@ def native_engine_move(fen, depth=12, allowed_moves=None, engine_id="sf19-full-s
         "sf18-full-single":{"path":str(ROOT/".chess-lab/stockfish-18"),"threads":1},
         "sf18-full-multi":{"path":str(ROOT/".chess-lab/stockfish-18"),"threads":max(2,int(threads or 2))},
         "sf18-lite-single":{"path":str(ROOT/".chess-lab/stockfish-18"),"threads":1},
-        "sf18-lite-multi":{"path":str(ROOT/".chess-lab/stockfish-18"),"threads":max(2,int(threads or 2))}
+        "sf18-lite-multi":{"path":str(ROOT/".chess-lab/stockfish-18"),"threads":max(2,int(threads or 2))},
+        "fairy-stockfish":{"path":str(ROOT/".chess-lab/fairy-stockfish"),"threads":max(1,int(threads or 1))},
+        "lozza":{"path":str(ROOT/".chess-lab/lozza.js"),"threads":1,"node":find_node()}
     }
     profile=profiles.get(str(engine_id),profiles["sf19-full-single"])
     engine=profile["path"]
     if not engine or not Path(engine).is_file(): raise RuntimeError("Selected engine is not installed: "+str(engine_id))
     allowed_moves=[str(x) for x in (allowed_moves or []) if x]
-    p=subprocess.Popen([engine],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,bufsize=1)
+    command=[profile["node"],engine] if profile.get("node") else [engine]
+    if not command[0]: raise RuntimeError("Node.js is required for Lozza")
+    p=subprocess.Popen(command,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,bufsize=1)
     try:
         def send(s): p.stdin.write(s+"\n");p.stdin.flush()
         send("uci");send("setoption name Threads value "+str(profile["threads"]));send("isready");send("ucinewgame");send("position fen "+fen)
@@ -340,8 +348,8 @@ def native_engine_move(fen, depth=12, allowed_moves=None, engine_id="sf19-full-s
 def engine_availability():
     sf19=bool(STOCKFISH_INFO.get('available'))
     sf18=Path(ROOT/'.chess-lab/stockfish-18').is_file()
-    sf19lite=Path(ROOT/'.chess-lab/stockfish-19-lite').is_file()
-    sf18lite=Path(ROOT/'.chess-lab/stockfish-18-lite').is_file()
+    sf19lite=sf19
+    sf18lite=sf18
     lozza=Path(ROOT/'.chess-lab/lozza.js').is_file()
     fairy=Path(ROOT/'.chess-lab/fairy-stockfish').is_file()
     return {
@@ -353,7 +361,7 @@ def engine_availability():
         'sf18-full-multi':{'available':sf18,'source':'native'},
         'sf18-lite-single':{'available':sf18lite,'source':'native'},
         'sf18-lite-multi':{'available':sf18lite,'source':'native'},
-        'lozza':{'available':lozza,'source':'native'},
+        'lozza':{'available':lozza and bool(find_node()),'source':'native'},
         'fairy-stockfish':{'available':fairy,'source':'native'},
         'custom-wasm':{'available':False,'source':'browser','note':'loaded by the browser engine layer'}
     }
