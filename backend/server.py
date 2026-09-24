@@ -334,6 +334,10 @@ def native_engine_move(fen, depth=12, allowed_moves=None, engine_id="sf19-full-s
         try:p.kill()
         except Exception:pass
 
+def engine_availability():
+    sf19=bool(STOCKFISH_INFO.get('available')); sf18=Path(ROOT/'.chess-lab/stockfish-18').is_file(); lozza=Path(ROOT/'.chess-lab/lozza.js').is_file(); fairy=Path(ROOT/'.chess-lab/fairy-stockfish').is_file()
+    return {'sf19-full-single':{'available':sf19},'sf19-full-multi':{'available':sf19},'sf19-lite-single':{'available':sf19},'sf19-lite-multi':{'available':sf19},'sf18-full-single':{'available':sf18},'sf18-full-multi':{'available':sf18},'sf18-lite-single':{'available':sf18},'sf18-lite-multi':{'available':sf18},'lozza':{'available':lozza},'fairy-stockfish':{'available':fairy},'custom-wasm':{'available':True}}
+
 class Handler(BaseHTTPRequestHandler):
     server_version="ChessLabBridge/0.1"
     def log_message(self,fmt,*args): pass
@@ -429,7 +433,7 @@ class Handler(BaseHTTPRequestHandler):
         if p.path=="/api/health": return self._json({"ok":True,"service":"chess-lab-pc-bridge","version":"0.62.0","origin":"local","host":"127.0.0.1:8787"})
         if p.path=="/api/status":
             with clients_lock: connected=len(clients)
-            return self._json({**state,"connectedClients":connected,"pairingRequired":True,"nativeCompute":native_available(),"trainingAvailable":native_available(),"nativeRunning":bool(native_proc and native_proc.poll() is None),"generation":native_generation,"stockfishInfo":state.get("stockfishInfo") or STOCKFISH_INFO,"localOrigin":True,"websocketPath":"/ws"})
+            return self._json({**state,"connectedClients":connected,"pairingRequired":True,"nativeCompute":native_available(),"trainingAvailable":native_available(),"nativeRunning":bool(native_proc and native_proc.poll() is None),"generation":native_generation,"stockfishInfo":state.get("stockfishInfo") or STOCKFISH_INFO,"engines":engine_availability(),"localOrigin":True,"websocketPath":"/ws"})
         if p.path=="/api/pairing": return self._json({"token":TOKEN})
         if p.path=="/api/engine-move":
             if self.headers.get("X-Chess-Lab-Token","")!=TOKEN:return self._json({"error":"invalid pairing token"},401)
