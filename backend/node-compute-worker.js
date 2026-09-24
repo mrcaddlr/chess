@@ -66,6 +66,7 @@ async function playTrainingGame(g,maxPlies,sims,opponent,mixRatio,stockfishDepth
   const gameStarted=Date.now();
   const useStockfish=opponent==="stockfish"||(opponent==="mix"&&((g*100/Math.max(1,currentConfig.games))<mixRatio));
   const c=new Chess(),hist=newRepetitionHistory(c),state={detections:0,forcedDraw:false},local=[];const searchState={root:null,rootKey:null,pendingKey:null,transpositions:new Map()};let p=0;
+  out({type:"live",phase:"self-play",game:g+1,totalGames:currentConfig.games,positions:positionsForProgress,plies:0,fen:c.fen(),turn:c.turn()});
   while(!terminalPosition(c)&&!state.forcedDraw&&p<maxPlies&&!cancelRequested){
     await yieldNow();if(cancelRequested)break;
     const legal=safeRepetitionMoves(c,hist);if(!legal.length)break;
@@ -84,7 +85,7 @@ async function playTrainingGame(g,maxPlies,sims,opponent,mixRatio,stockfishDepth
     positionsForProgress++;
     // Stream the actual board position while the game is being played so the
     // browser live view updates move-by-move instead of once per completed game.
-    if((p&1)===0){
+    if(true){
       out({type:"live",phase:"self-play",game:g+1,totalGames:currentConfig.games,positions:positionsForProgress,plies:p,fen:c.fen(),turn:c.turn()});
     }
     if((p&3)===0)await yieldNow();
