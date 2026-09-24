@@ -116,14 +116,18 @@ def native_train(data):
             typ=msg.get("type")
             if typ=="evaluation-progress":
                 state["phase"]="stockfish-eval";state["evaluation"]={k:msg.get(k,0) for k in ("game","totalGames","wins","draws","losses")};state["updated"]=time.time();broadcast({"type":"status","data":state})
+            elif typ=="live":
+                for k in ("game","totalGames","positions","phase","ply","fen","turn"):
+                    if k in msg:state[k]=msg[k]
+                state["updated"]=time.time();broadcast({"type":"status","data":state})
             elif typ=="progress":
-                for k in ("game","totalGames","positions","phase"):
+                for k in ("game","totalGames","positions","phase","updates","totalUpdates","loss"):
                     if k in msg:state[k]=msg[k]
                 state["updated"]=time.time();broadcast({"type":"status","data":state})
             elif typ=="complete":
-                save_native_model(msg["brain"]);native_generation+=1
+                save_native_model(msg["brain"]);native_generation=int(msg.get("generation") or (native_generation+1))
                 state["generation"]=native_generation;state["training"]=False;state["phase"]="generation-complete";state["evaluation"]=msg.get("evaluation");state["stockfish"]=bool(msg.get("evaluation",{}).get("available")) if isinstance(msg.get("evaluation"),dict) else state.get("stockfish")
-                state["game"]=msg.get("games",0);state["totalGames"]=msg.get("games",0);state["positions"]=msg.get("positions",0)
+                state["game"]=msg.get("games",0);state["totalGames"]=msg.get("games",0);state["positions"]=msg.get("positions",0);state["ply"]=0;state["fen"]="start";state["turn"]="w";state["updates"]=0;state["totalUpdates"]=0
                 state["updated"]=time.time();broadcast({"type":"status","data":state});return msg
             elif typ=="error":raise RuntimeError(msg.get("message","native trainer error"))
 
@@ -336,9 +340,12 @@ class Handler(BaseHTTPRequestHandler):
                 elif typ=="command" and client["role"]=="controller":
                     if msg.get("command") in ("start-training","stop-training","pause-training","resume-training","request-status"):
                         command=msg.get("command");data=msg.get("data") or {}
-                        if command=="start-training" and native_available() and not state.get("training"):
-                            state["training"]=True;state["phase"]="starting";state["error"]="";state["updated"]=time.time()
-                            threading.Thread(target=run_native_training,args=(data,),daemon=True).start()
+                        if command=="start-training" and not state.get("training"):
+                            if not native_available():
+                                state["training"]=False;state["phase"]="error";state["error"]="PC training requires Node.js; install Node.js to enable the local trainer.";state["updated"]=time.time();broadcast({"type":"status","data":state})
+                            else:
+                                state["training"]=True;state["phase"]="starting";state["error"]="";state["updated"]=time.time();broadcast({"type":"status","data":state})
+                                threading.Thread(target=run_native_training,args=(data,),daemon=True).start()
                         elif command=="stop-training":
                             native_stop();state["training"]=False;state["phase"]="stopping"
                         broadcast({"type":"command","command":command,"data":data},exclude=client)
