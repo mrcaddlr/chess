@@ -1,0 +1,37 @@
+name: Chess Lab native release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  linux-x86_64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build
+        working-directory: native
+        run: cargo build --release --locked
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp native/target/release/chess-lab dist/chess-lab
+          tar -C dist -czf "chess-lab-linux-x86_64.tar.gz" chess-lab
+          sha256sum "chess-lab-linux-x86_64.tar.gz" > "chess-lab-linux-x86_64.tar.gz.sha256"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            chess-lab-linux-x86_64.tar.gz
+            chess-lab-linux-x86_64.tar.gz.sha256
+          generate_release_notes: true
