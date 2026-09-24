@@ -32,19 +32,28 @@ function retainMctsChild(c,move){
   mctsRoot=null;mctsRootKey=null;mctsPendingKey=null;
 }
 function resetMctsTree(){mctsRoot=null;mctsRootKey=null;mctsPendingKey=null;mctsTranspositions.clear()}
-function cachedRootFor(c){
+function cachedRootFor(c,ctx=null){
+  if(ctx){
+    const key=searchKey(c);
+    if(ctx.root&&(ctx.rootKey===key||ctx.pendingKey===key)){ctx.rootKey=key;ctx.pendingKey=null;ctx.transpositions.set(key,ctx.root);return ctx.root;}
+    const cached=ctx.transpositions.get(key);
+    if(cached){ctx.root=cached;ctx.rootKey=key;return cached}
+    const root=new Node(1);ctx.root=root;ctx.rootKey=key;ctx.transpositions.set(key,root);
+    while(ctx.transpositions.size>MCTS_CACHE_MAX){ctx.transpositions.delete(ctx.transpositions.keys().next().value)}
+    return root;
+  }
   const key=searchKey(c);
   if(mctsRoot&&(mctsRootKey===key||mctsPendingKey===key)){mctsRootKey=key;mctsPendingKey=null;mctsTranspositions.set(key,mctsRoot);return mctsRoot;}
   const cached=mctsTranspositions.get(key);
   if(cached){mctsRoot=cached;mctsRootKey=key;return cached}
   const root=new Node(1);mctsRoot=root;mctsRootKey=key;mctsTranspositions.set(key,root);pruneMctsCache();return root;
 }
-async function mcts(c,sims,learnerBrain=brain,detailed=false){
+async function mcts(c,sims,learnerBrain=brain,detailed=false,searchState=null){
   if(!learnerBrain){
     const ms=c.moves({verbose:true}),move=ms.length?ms[Math.floor(Math.random()*ms.length)]:null;
     return detailed?{move,policy:move?[{a:actionIndex(move),p:1}]:[],legal:ms.map(actionIndex)}:move;
   }
-  const root=cachedRootFor(c);
+  const root=cachedRootFor(c,searchState);
   const count=Math.max(1,Math.min(64,Number(sims)||1));
   // Reuse the caller's chess position and undo simulation moves instead of
   // rebuilding a full Chess instance from FEN for every MCTS simulation.
