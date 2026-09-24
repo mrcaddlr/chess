@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Chess Lab local PC bridge."""
-import base64, hashlib, json, os, secrets, socket, struct, threading, time
+import base64, hashlib, json, os, secrets, socket, struct, subprocess, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -19,6 +19,8 @@ def pairing_token():
     except OSError: pass
     return token
 TOKEN=pairing_token()
+UPDATE_LOCK=threading.Lock()
+UPDATE_LAST=""
 
 NATIVE_SCRIPT=ROOT/"backend"/"node-compute-worker.js"
 NATIVE_STATE=ROOT/".chess-lab-native-model.json"
@@ -96,6 +98,36 @@ def run_native_training(data):
     try:native_train(data)
     except Exception as e:
         state["training"]=False;state["phase"]="error";state["error"]=str(e);state["updated"]=time.time();broadcast({"type":"status","data":state})
+
+def check_for_updates():
+    global UPDATE_LAST
+    with UPDATE_LOCK:
+        try:
+            remote=subprocess.run(["git","ls-remote","origin","refs/heads/main"],cwd=ROOT,capture_output=True,text=True,timeout=15)
+            if remote.returncode!=0:return
+            remote_sha=remote.stdout.split()[0] if remote.stdout.split() else ""
+            local=subprocess.run(["git","rev-parse","HEAD"],cwd=ROOT,capture_output=True,text=True,timeout=5)
+            local_sha=local.stdout.strip()
+            if not remote_sha or remote_sha==local_sha:return
+            dirty=subprocess.run(["git","status","--porcelain"],cwd=ROOT,capture_output=True,text=True,timeout=5)
+            if dirty.stdout.strip():
+                print("Update detected, but auto-update is paused because local changes exist.")
+                return
+            print("Update detected on GitHub. Pulling...")
+            pulled=subprocess.run(["git","pull","--ff-only"],cwd=ROOT,capture_output=True,text=True,timeout=30)
+            if pulled.returncode==0:
+                UPDATE_LAST=remote_sha
+                print("Update pulled. Refreshing connected pages...")
+                broadcast({"type":"reload","reason":"github-update","commit":remote_sha})
+            else:
+                print("Auto-update failed: "+(pulled.stdout+pulled.stderr).strip())
+        except Exception as e:
+            print("Auto-update check failed: "+str(e))
+
+def update_loop():
+    while True:
+        time.sleep(5)
+        check_for_updates()
 
 def ws_send(sock,obj):
     payload=json.dumps(obj,separators=(",",":")).encode()
@@ -230,6 +262,7 @@ def auto_pull():
 
 if __name__=="__main__":
     auto_pull()
+    threading.Thread(target=update_loop,daemon=True).start()
     print("Chess Lab PC bridge")
     print("Open: http://127.0.0.1:%d/"%PORT)
     print("Pairing token: %s"%TOKEN)
