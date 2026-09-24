@@ -34,8 +34,8 @@
     setToken:t=>{localStorage.setItem(TOKEN_KEY,String(t||''));connect()},
     setUrl:u=>{localStorage.setItem('chess-lab-backend-url',String(u||location.origin));location.reload()},
     getUrl:()=>apiBase,
-    async getEngineMove(fen,depth=12,allowedMoves=[]){
-      const r=await fetch(apiBase+'/api/engine-move',{method:'POST',headers:{'Content-Type':'application/json','X-Chess-Lab-Token':token()},body:JSON.stringify({fen,depth,allowedMoves:allowedMoves.map(m=>m.from+m.to+(m.promotion||''))})});
+    async getEngineMove(fen,depth=12,allowedMoves=[],engine='sf19-full-single',threads=1){
+      const r=await fetch(apiBase+'/api/engine-move',{method:'POST',headers:{'Content-Type':'application/json','X-Chess-Lab-Token':token()},body:JSON.stringify({fen,depth,allowedMoves:allowedMoves.map(m=>m.from+m.to+(m.promotion||'')),engine,threads})});
       if(!r.ok)throw new Error('PC engine request failed: '+r.status);
       const data=await r.json();if(!data.move)throw new Error(data.error||'PC engine returned no move');return data.move;
     },
