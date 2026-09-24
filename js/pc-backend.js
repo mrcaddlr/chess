@@ -4,7 +4,7 @@
   const params=new URLSearchParams(location.search);
   const role='controller';
   const apiBase=localStorage.getItem('chess-lab-backend-url')||location.origin;
-  let ws=null,reconnectTimer=null,connected=false,nativeCompute=false,apiOnline=false;
+  let ws=null,reconnectTimer=null,heartbeatTimer=null,connected=false,nativeCompute=false,apiOnline=false;
   const listeners={command:[],status:[],connection:[]};
   function emit(type,data){for(const fn of listeners[type]||[])try{fn(data)}catch(e){console.error(e)}}
   function token(){return localStorage.getItem(TOKEN_KEY)||''}
@@ -21,11 +21,11 @@
   function connect(){
     if(ws&&[0,1].includes(ws.readyState))return;
     try{const u=new URL(apiBase);u.protocol=u.protocol==='https:'?'wss:':'ws:';u.pathname='/ws';u.search='';u.hash='';ws=new WebSocket(u.href)}catch(e){schedule();return}
-    ws.onopen=()=>{connected=true;if(role==='controller'){stockfishReady=true;setEngineUi('PC Stockfish backend ready',true)}ws.send(JSON.stringify({type:'register',role,token:token()}));emit('connection',{connected:true,role})};
+    ws.onopen=()=>{connected=true;if(role==='controller'){stockfishReady=true;setEngineUi('PC Stockfish backend ready',true)}ws.send(JSON.stringify({type:'register',role,token:token()}));clearInterval(heartbeatTimer);heartbeatTimer=setInterval(()=>{try{if(ws?.readyState===1)ws.send(JSON.stringify({type:'ping',token:token()}))}catch(e){}},10000);emit('connection',{connected:true,role})};
     ws.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.type==='hello'||m.type==='registered')emit('status',m.state);else if(m.type==='status')emit('status',m.data);else if(m.type==='command')emit('command',m);else if(m.type==='connection')emit('connection',m);else if(m.type==='reload'){location.reload()} }catch(_){}};
-    ws.onclose=()=>{connected=false;if(role==='controller'){stockfishReady=false;setEngineUi('PC backend offline',false)}emit('connection',{connected:false,role});schedule()}; ws.onerror=()=>{};
+    ws.onclose=()=>{connected=false;clearInterval(heartbeatTimer);heartbeatTimer=null;if(role==='controller'&&!apiOnline){stockfishReady=false;setEngineUi('PC backend offline',false);emit('connection',{connected:false,role})}schedule()}; ws.onerror=()=>{};
   }
-  function schedule(){clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connect,2000)}
+  function schedule(){clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connect,500)}
   function send(type,payload){if(!ws||ws.readyState!==1)return false;ws.send(JSON.stringify({type,token:token(),...payload}));return true}
   refreshBackendStatus();
   setInterval(refreshBackendStatus,3000);
