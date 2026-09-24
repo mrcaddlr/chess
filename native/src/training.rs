@@ -114,8 +114,8 @@ impl Trainer{
    let mv=if temperature<=0.15{policy.first().map(|x|x.0)}else{let weights:Vec<(Move,f32)>=policy.iter().map(|(m,p)|(*m,p.max(1e-6).powf(1.0/temperature))).collect();let sum:f32=weights.iter().map(|x|x.1).sum();let mut r=self.mcts.random_unit()*sum;let mut chosen=None;for(m,w)in weights{r-=w;if r<=0.0{chosen=Some(m);break}}chosen.or_else(||policy.first().map(|x|x.0))};
    let mv=mv.filter(|m|legal.contains(m)).unwrap_or(legal[0]);positions.push((board,policy));if board.make(mv).is_err(){break}*history.entry(board.position_key()).or_insert(0)+=1;
   }
-  let result=result.unwrap_or(GameResult::Draw);for(board,policy)in positions{let entropy=policy.iter().map(|(_,p)|{let q=p.max(1e-9);-q*q.ln()}).sum::<f32>();self.replay.push(PositionSample{board,policy,value:result.value_for(board.white_to_move),priority:0.25+entropy});}
-  positions.len()
+  let position_count=positions.len();let result=result.unwrap_or(GameResult::Draw);for(board,policy)in positions{let entropy=policy.iter().map(|(_,p)|{let q=p.max(1e-9);-q*q.ln()}).sum::<f32>();self.replay.push(PositionSample{board,policy,value:result.value_for(board.white_to_move),priority:0.25+entropy});}
+  position_count
  }
  pub fn train_steps(&mut self,steps:usize,batch:usize)->LossStats{
   let mut last=LossStats::default();if self.replay.len()==0{return last}
