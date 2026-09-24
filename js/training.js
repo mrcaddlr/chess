@@ -181,5 +181,77 @@ async function evaluateGenerationAgainstStockfish(games=10,depth=5){
   return evalRecord;
 }
 async function calibrateTrainingElo(){if(!stockfishReady||cancelRequested)return null;const anchors=[1320,1500,1800],scores=[];for(const anchor of anchors){if(cancelRequested)break;try{stockfishWorker.postMessage('setoption name UCI_LimitStrength value true');stockfishWorker.postMessage('setoption name UCI_Elo value '+anchor);stockfishWorker.postMessage('isready')}catch(e){}const r=await trainAgainstEngineGame(70,4);scores.push(r.result>0?1:r.result<0?0:.5)}try{stockfishWorker.postMessage('setoption name UCI_LimitStrength value false');stockfishWorker.postMessage('isready')}catch(e){}if(!scores.length)return null;return Math.round(1320+(scores.reduce((a,b)=>a+b,0)/scores.length)*480)}
-async function trainBatch(){if(training)return;cancelRequested=false;browserTrainingPaused=false;training=true;busy=false;const mobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'');const requested=Math.max(1,Math.min(1000,Number(document.getElementById('batchGames').value)||8)),batch=Math.max(1,Math.min(mobile?4:256,Number(document.getElementById('parallelGames').value)||(mobile?4:64))),lr=Math.max(.0001,Math.min(.01,Number(document.getElementById('mutationRate').value)||CONFIG.lr)),updatesPerGame=Math.max(1,Math.min(mobile?16:512,Number(document.getElementById('trainUpdates')?.value)||(mobile?8:CONFIG.rlBatch))),maxPlies=Math.max(40,Math.min(1000,Number(document.getElementById('trainSims').value)||CONFIG.trainPlies)),mode=document.getElementById('trainingMode')?.value||'games',source=document.getElementById('trainOpponent')?.value||'self';trainingTargetElo=Math.max(400,Math.min(2400,Number(document.getElementById('targetElo')?.value)||1000));if(mode==='target'&&source==='self'){training=false;toast('target Elo mode needs an engine benchmark');setStatus('ready','choose Stockfish or mixed training for target Elo',0);return}if(mode==='target'&&estimatedElo>=trainingTargetElo){training=false;toast('target Elo already reached');return}if((source==='stockfish'||source==='mix')&&!stockfishReady){training=false;toast('load Stockfish first');setStatus('error','Stockfish is required for this training mode',0);return}trainingStartedAt=performance.now();const runStartedAt=trainingStartedAt;let completed=0,trained=0;try{setStatus('training','starting browser training…',0);renderTrainingLive();log('training started · '+source+' · '+(mobile?'Android browser mode':'parallel browser workers'));while((mode==='target'?estimatedElo<trainingTargetElo:completed<requested)&&!cancelRequested){const gamesThisBatch=mode==='target'?batch:Math.min(batch,Math.max(1,requested-completed));if(source==='self'){const r=await runParallelSelfPlay(gamesThisBatch,maxPlies);if(!r)throw new Error('parallel self-play workers unavailable');appendSamples(r.samples);trained+=r.samples.length;completed+=r.games}else{const ratio=Math.max(10,Math.min(90,Number(document.getElementById('mixRatio')?.value)||50));const engineCount=source==='mix'?Math.max(1,Math.round(gamesThisBatch*ratio/100)):gamesThisBatch;const selfCount=source==='mix'?Math.max(0,gamesThisBatch-engineCount):0;if(selfCount){const r=await runParallelSelfPlay(selfCount,maxPlies);if(r){appendSamples(r.samples);trained+=r.samples.length;completed+=r.games}}for(let g=0;g<engineCount&&!cancelRequested;g++){const r=await trainAgainstEngineGame(maxPlies,5);appendSamples(r.samples);trained+=r.samples.length;completed++;setStatus('training',source==='mix'?'mixed self-play + Stockfish · batch '+gamesThisBatch+' · total '+completed+' games':'Stockfish curriculum · batch '+gamesThisBatch+' · total '+completed+' games',20)}}renderTrainingLive();setStatus('training',mode==='target'?'target mode · generation '+(generation+1)+' · '+completed+' games collected':'generation '+(generation+1)+' collecting games · '+completed+' / '+requested,mode==='target'?40:Math.round(completed/requested*80));await new Promise(r=>setTimeout(r,0))}if(!cancelRequested&&completed){const generationGames=completed;const updateCount=Math.max(1,Math.min(updatesPerGame*generationGames,replay.length));trainingLiveState.phase='training';trainingLiveState.updates=0;trainingLiveState.detail='updating neural network · '+updateCount+' gradient updates';renderTrainingLive();setStatus('training','generation '+(generation+1)+' · training '+updateCount+' replay updates',82);let loss=0,remaining=updateCount,doneUpdates=0;while(remaining>0&&!cancelRequested){const chunk=Math.min(16,remaining);loss=trainReplay(chunk,lr);doneUpdates+=chunk;remaining-=chunk;trainingLiveState.updates=doneUpdates;setStatus('training','generation '+(generation+1)+' · training '+doneUpdates+' / '+updateCount+' replay updates',82+Math.round(doneUpdates/updateCount*8));renderTrainingLive();await trainingUiYield();}
-    invalidateTrainingSearch();markBrainDirty();renderStats();renderTrainingLive();await saveBrain(false);/* trainReplay owns the step counter; do not double-count updates. */trainingSpeed=completed/Math.max(.001,(performance.now()-trainingStartedAt)/60000);renderStats();renderTrainingLive();log('generation '+(generation+1)+' trained · '+generationGames+' games · '+trained+' learner positions · loss '+(Number.isFinite(loss)?loss.toFixed(4):'—'));generation++;games+=generationGames;markBrainDirty();renderStats();renderTrainingLive();if(stockfishReady){await evaluateGenerationAgainstStockfish(Math.max(4,Math.min(50,Number(document.getElementById('evalGames')?.value)||10)),5)}else{log('generation '+generation+' trained · Stockfish benchmark skipped because the local engine is not ready');setStatus('ready','generation '+generation+' trained · load Stockfish to benchmark',100)}await saveBrain(false);toast('generation '+generation+' complete');log('generation '+generation+' complete · '+source+' · '+generationGames+' games · '+trained+' learner positions')}else if(cancelRequested){log('training cancelled after '+completed+' games')} }catch(e){log('training error: '+e.message);setStatus('error','training failed · '+e.message,0);toast('training failed')}finally{window.chessLabPerformance={durationMs:performance.now()-runStartedAt,games:completed,positions:trained};const setPerf=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};setPerf('performanceBadge','LAST RUN');setPerf('perfDuration',(window.chessLabPerformance.durationMs/1000).toFixed(1)+'s');setPerf('perfPositions',trained);setPerf('perfTraining','browser');setPerf('perfStockfish',stockfishReady?'used':'skipped');trainingLiveState.phase='idle';trainingLiveState.detail='generation complete';renderTrainingLive();fastBatchAbort=null;if(typeof stopFastWorkers==='function')stopFastWorkers();training=false;busy=false;renderStats();if(!isGameOver(game))setStatus(cancelRequested?'paused':'ready',cancelRequested?'training stopped':'generation '+generation+' · '+games+' training games',100)}}
+async function nativeTrainBatch(){
+  if(!window.chessLabBackend?.nativeCompute?.()) return false;
+  const api=window.chessLabBackend.getUrl();
+  const num=id=>Number(document.getElementById(id)?.value)||0;
+  const payload={
+    games:Math.max(1,Math.min(64,num('batchGames')||4)),
+    generations:(document.getElementById('trainingMode')?.value==='continuous')?1000000:1,
+    maxPlies:Math.max(20,Math.min(2000,num('trainSims')||200)),
+    simulations:Math.max(1,Math.min(512,num('learnerSims')||32)),
+    updates:Math.max(1,Math.min(100000,num('trainUpdates')||32)),
+    batch:Math.max(1,Math.min(1024,num('trainBatchSize')||32)),
+    replay:Math.max(1000,Math.min(500000,num('replaySize')||100000)),
+    evalGames:Math.max(2,Math.min(100,num('evalGames')||4)),
+    evalPlies:Math.max(20,Math.min(2000,num('evalPlies')||200)),
+    stockfishDepth:Math.max(1,Math.min(30,num('stockfishDepth')||10)),
+    stockfishThreads:Math.max(1,Math.min(64,num('stockfishThreads')||1))
+  };
+  if(document.getElementById('trainingMode')?.value==='target'){
+    payload.generations=Math.max(1,Math.min(1000000,1000));
+  }
+  training=true;cancelRequested=false;trainingStartedAt=performance.now();
+  setStatus('training','starting Rust training backend…',0);
+  const ok=await window.chessLabBackend.command('start-training',payload);
+  if(!ok){training=false;setStatus('error','Rust training backend could not start',0);return true;}
+  log('Rust training started · Stockfish 19 generation evaluation enabled');
+  let lastGeneration=Number(generation)||0;
+  try{
+    while(!cancelRequested){
+      const r=await fetch(api+'/api/training/status',{cache:'no-store'});
+      if(!r.ok)throw new Error('training status HTTP '+r.status);
+      const s=await r.json();
+      generation=Number(s.generation)||0;games=Number(s.games)||0;steps=Number(s.optimizer_step)||0;
+      if(typeof replay!=='undefined'&&Array.isArray(replay)){}
+      const liveGames=document.getElementById('liveGames');if(liveGames)liveGames.textContent=String(s.games||0);
+      const livePositions=document.getElementById('livePositions');if(livePositions)livePositions.textContent=String(s.positions||0);
+      const liveLoss=document.getElementById('liveLoss');if(liveLoss)liveLoss.textContent=Number.isFinite(s.loss)?Number(s.loss).toFixed(4):'—';
+      const liveUpdates=document.getElementById('liveUpdates');if(liveUpdates)liveUpdates.textContent=String(s.optimizer_step||0);
+      const livePhase=document.getElementById('livePhase');if(livePhase)livePhase.textContent=String(s.phase||'training').toUpperCase();
+      const liveDetail=document.getElementById('liveDetail');if(liveDetail)liveDetail.textContent=(s.last_error||('Rust backend · '+String(s.phase||'training')));
+      const genText=document.getElementById('trainingGenerationText');if(genText)genText.textContent='GEN '+generation;
+      const badge=document.getElementById('generationBadge');if(badge)badge.textContent='GEN '+generation;
+      const evalBadge=document.getElementById('evaluationBadge');if(evalBadge)evalBadge.textContent=s.evaluation_games?('SF '+Math.round(Number(s.evaluation_score||0)*100)+'%'):'NOT EVALUATED';
+      const genScore=document.getElementById('generationScore');if(genScore)genScore.textContent=s.evaluation_games?Math.round(Number(s.evaluation_score||0)*100)+'%':'—';
+      const genGames=document.getElementById('generationGames');if(genGames)genGames.textContent=String(s.games||0);
+      const genPos=document.getElementById('generationPositions');if(genPos)genPos.textContent=String(s.positions||0);
+      const genLoss=document.getElementById('generationLoss');if(genLoss)genLoss.textContent=Number.isFinite(s.loss)?Number(s.loss).toFixed(4):'—';
+      const line=document.getElementById('evaluationLine');if(line)line.textContent=s.evaluation_games?('Stockfish 19: '+s.evaluation_wins+'W '+s.evaluation_draws+'D '+s.evaluation_losses+'L · score '+Math.round(s.evaluation_score*100)+'%'+(s.champion_generation===generation?' · CHAMPION PROMOTED':'')):(s.last_error||'Generation is running.');
+      const perf=document.getElementById('performanceBadge');if(perf)perf.textContent=s.running?'RUNNING':'LAST RUN';
+      setStatus(s.running?(s.phase==='evaluating'?'evaluating':'training'):'ready',s.last_error||('Rust · '+String(s.phase||'idle')),s.running?50:100);
+      if(generation!==lastGeneration){
+        lastGeneration=generation;
+        log('generation '+generation+' · '+s.games+' games · '+s.positions+' positions · loss '+Number(s.loss||0).toFixed(4));
+        if(s.evaluation_games)log('Stockfish 19 · '+s.evaluation_wins+'W '+s.evaluation_draws+'D '+s.evaluation_losses+'L · '+Math.round(s.evaluation_score*100)+'% · champion gen '+s.champion_generation);
+      }
+      if(!s.running)break;
+      await new Promise(r=>setTimeout(r,750));
+    }
+  }catch(e){log('Rust training status error: '+e.message);setStatus('error',e.message,0)}
+  finally{
+    training=false;busy=false;
+    window.chessLabPerformance={durationMs:performance.now()-trainingStartedAt,games:Number(games)||0,positions:Number(document.getElementById('livePositions')?.textContent)||0};
+    const d=document.getElementById('perfDuration');if(d)d.textContent=(window.chessLabPerformance.durationMs/1000).toFixed(1)+'s';
+    const p=document.getElementById('perfPositions');if(p)p.textContent=String(window.chessLabPerformance.positions);
+    const t=document.getElementById('perfTraining');if(t)t.textContent='Rust native';
+    const sf=document.getElementById('perfStockfish');if(sf)sf.textContent='Stockfish 19';
+    renderStats?.();renderTrainingLive?.();
+  }
+  return true;
+}
+async function trainBatch(){
+  if(window.chessLabBackend?.nativeCompute?.()){await nativeTrainBatch();return;}
+  toast('Rust backend is required for native training');
+  setStatus('error','open Chess Lab from the local Rust backend',0);
+}
