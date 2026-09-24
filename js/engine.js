@@ -8,7 +8,7 @@ let stockfishBlobUrls=[];
 let nativeEngine=null;
 let engineLoadedFromCache=false;
 
-const ENGINE_CACHE_VERSION='stockfish-cache-v1';
+const ENGINE_CACHE_VERSION='stockfish-cache-v2';
 const engineWasmCache={
   db:null,
   async open(){
@@ -186,7 +186,7 @@ async function buildBundledEngineWorker(engineUrl){
   let wasmPatched=false;
   for(const needle of wasmResolverPatterns){
     if(source.includes(needle)){
-      source=source.replace(needle,JSON.stringify(wasmUrl)+':self.location.origin+self.location.pathname+"#"+u+",worker"');
+      source=source.replace(needle,JSON.stringify(wasmUrl));
       wasmPatched=true;break;
     }
   }
@@ -194,7 +194,7 @@ async function buildBundledEngineWorker(engineUrl){
     // Keep compatibility with other Stockfish.js browser builds by replacing
     // the generic WASM fallback expression if present.
     const generic=/([nt])\|\|u:self\.location\.origin\+self\.location\.pathname\+"#"+u+",worker"/;
-    if(generic.test(source)){source=source.replace(generic,JSON.stringify(wasmUrl)+':self.location.origin+self.location.pathname+"#"+u+",worker"');wasmPatched=true}
+    if(generic.test(source)){source=source.replace(generic,JSON.stringify(wasmUrl));wasmPatched=true}
   }
   if(!wasmPatched)throw new Error(jsName+' does not contain a patchable Stockfish WASM resolver');
   const patchedUrl=URL.createObjectURL(new Blob([source],{type:'text/javascript'}));
