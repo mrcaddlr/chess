@@ -71,12 +71,12 @@
       </section>
 
       <section class="screen" id="screen-match">
-        <div class="screen-head"><div><span class="eyebrow">PLAY</span><h2>Play chess</h2></div><span class="badge" id="modeBadge">LEARNER VS LEARNER</span></div>
+        <div class="screen-head"><div><span class="eyebrow">PLAY</span><h2>Play chess</h2></div><span class="badge" id="modeBadge">LEARNER VS LEARNER</span><span class="badge" id="matchStateBadge">READY</span></div>
         <div class="match-layout">
           <section class="panel board-panel">
             <div class="player-strip"><div id="whitePlayerCard"><span>WHITE</span><b id="whitePlayerName">Learner</b></div><div id="blackPlayerCard"><span>BLACK</span><b id="blackPlayerName">Learner</b></div></div>
             <div class="board-wrap"><div class="board" id="board" aria-label="Chess board"></div></div>
-            <div class="button-row"><button class="btn primary" id="playMatch">PLAY</button><button class="btn" id="simulateMove">ONE MOVE</button><button class="btn" id="newGame">NEW GAME</button><button class="btn" id="flip">FLIP</button></div>
+            <div class="button-row"><button class="btn primary" id="playMatch">PLAY</button><button class="btn danger" id="stopMatch">STOP</button><button class="btn" id="simulateMove">ONE MOVE</button><button class="btn" id="newGame">NEW GAME</button><button class="btn" id="flip">FLIP</button></div>
           </section>
           <aside class="match-side">
             <section class="panel"><div class="panel-title">STATUS</div><div id="statusMain" class="status-main">READY</div><div id="statusSub" class="status-sub">Choose a matchup and start.</div><div class="progress"><i id="progressBar"></i></div></section>
