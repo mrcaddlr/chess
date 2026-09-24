@@ -70,18 +70,19 @@ class TinyNet{
     this.bp=zeros(CONFIG.policy);
     this.wv=randArr(CONFIG.hidden2,this.rng,Math.sqrt(2/CONFIG.hidden2));
     this.bv=0;
-    this._infer={h0:zeros(CONFIG.hidden1),blocks:Array.from({length:CONFIG.residualBlocks},()=>({zA:zeros(CONFIG.hidden2),a:zeros(CONFIG.hidden2),zB:zeros(CONFIG.hidden2),out:zeros(CONFIG.hidden2)}))};
+    this._infer={z0:zeros(CONFIG.hidden1),h0:zeros(CONFIG.hidden1),blocks:Array.from({length:CONFIG.residualBlocks},()=>({zA:zeros(CONFIG.hidden2),a:zeros(CONFIG.hidden2),zB:zeros(CONFIG.hidden2),out:zeros(CONFIG.hidden2)}))};
+    this._trainForward={z0:zeros(CONFIG.hidden1),h0:zeros(CONFIG.hidden1),blocks:Array.from({length:CONFIG.residualBlocks},()=>({zA:zeros(CONFIG.hidden2),a:zeros(CONFIG.hidden2),zB:zeros(CONFIG.hidden2),out:zeros(CONFIG.hidden2)}))};
+    this._trainWork={dh:zeros(CONFIG.hidden2),dIn:zeros(CONFIG.hidden1),dA:zeros(CONFIG.hidden2),dZ:zeros(CONFIG.hidden2)};
   }
   trunk(x,training=false){
-    const z0=zeros(CONFIG.hidden1),h0=training?zeros(CONFIG.hidden1):this._infer.h0;
+    const ws=training?this._trainForward:this._infer, z0=ws.z0, h0=ws.h0;
+    z0.fill(0);h0.fill(0);
     for(let j=0;j<CONFIG.hidden1;j++){let s=this.b1[j],off=j*CONFIG.input;for(let i=0;i<CONFIG.input;i++)s+=this.w1[off+i]*x[i];z0[j]=s;h0[j]=Math.max(0,s)}
     let h=h0,blocks=training?[]:null;
     for(let k=0;k<CONFIG.residualBlocks;k++){
-      const ib=training?null:this._infer.blocks[k];
-      const zA=training?zeros(CONFIG.hidden2):ib.zA;
-      const a=training?zeros(CONFIG.hidden2):ib.a;
-      const zB=training?zeros(CONFIG.hidden2):ib.zB;
-      const out=training?zeros(CONFIG.hidden2):ib.out;
+      const ib=ws.blocks[k];
+      const zA=ib.zA, a=ib.a, zB=ib.zB, out=ib.out;
+      zA.fill(0);a.fill(0);zB.fill(0);out.fill(0);
       for(let j=0;j<CONFIG.hidden2;j++){let s=this.rb1[k][j],off=j*CONFIG.hidden1;for(let i=0;i<CONFIG.hidden1;i++)s+=this.rw1[k][off+i]*h[i];zA[j]=s;a[j]=s>0?s:0}
       for(let j=0;j<CONFIG.hidden2;j++){let s=this.rb2[k][j],off=j*CONFIG.hidden2;for(let i=0;i<CONFIG.hidden2;i++)s+=this.rw2[k][off+i]*a[i];zB[j]=s;out[j]=Math.max(0,h[j]+s)}
       if(training)blocks.push({input:h,zA,a,zB,out});
@@ -113,7 +114,8 @@ class TinyNet{
     for(const z of logits)if(z>max)max=z;let sum=0;
     for(let i=0;i<logits.length;i++){p[i]=Math.exp(Math.max(-30,logits[i]-max));sum+=p[i]}
     for(let i=0;i<p.length;i++)p[i]/=sum||1;
-    const dh=zeros(CONFIG.hidden2),reward=rlAction===null?value:Math.max(-1,Math.min(1,Number(rlReward)||0)),lossTarget=reward;
+    const work=this._trainWork,dh=work.dh,dIn=work.dIn,dA=work.dA,dZ=work.dZ;dh.fill(0);dIn.fill(0);dA.fill(0);dZ.fill(0);
+    const reward=rlAction===null?value:Math.max(-1,Math.min(1,Number(rlReward)||0)),lossTarget=reward;
     const dv=clipGradient(2*(o.v-lossTarget)*CONFIG.valueWeight*(1-o.v*o.v));
     this.bv-=lr*dv;for(let i=0;i<CONFIG.hidden2;i++){dh[i]+=dv*this.wv[i];this.wv[i]-=lr*dv*o.h2[i]}
     let loss=Math.abs(o.v-lossTarget);
@@ -124,7 +126,7 @@ class TinyNet{
       for(let i=0;i<CONFIG.hidden2;i++){dh[i]+=grad*this.wp[off+i];this.wp[off+i]-=lr*grad*o.h2[i]}
     }
     for(let k=CONFIG.residualBlocks-1;k>=0;k--){
-      const bl=o.blocks[k],dIn=zeros(CONFIG.hidden1),dA=zeros(CONFIG.hidden2),dZ=zeros(CONFIG.hidden2);
+      const bl=o.blocks[k];dIn.fill(0);dA.fill(0);dZ.fill(0);
       for(let j=0;j<CONFIG.hidden2;j++){const d=bl.out[j]>0?dh[j]:0;dZ[j]=d;dIn[j]+=d}
       for(let j=0;j<CONFIG.hidden2;j++){const off=j*CONFIG.hidden2;for(let i=0;i<CONFIG.hidden2;i++){dA[i]+=dZ[j]*this.rw2[k][off+i];this.rw2[k][off+i]-=lr*dZ[j]*bl.a[i]}this.rb2[k][j]-=lr*dZ[j]}
       for(let i=0;i<CONFIG.hidden2;i++)if(bl.zA[i]<=0)dA[i]=0;
