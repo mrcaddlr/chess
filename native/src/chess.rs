@@ -1,10 +1,27 @@
 use serde::{Deserialize,Serialize};
 
+mod board_squares{
+ use serde::{Deserializer,Serializer};
+ pub fn serialize<S>(value:&[char;64],serializer:S)->Result<S::Ok,S::Error> where S:Serializer{
+  let s:String=value.iter().collect(); serializer.serialize_str(&s)
+ }
+ pub fn deserialize<'de,D>(deserializer:D)->Result<[char;64],D::Error> where D:Deserializer<'de>{
+  let s=String::deserialize(deserializer)?;
+  let mut out=['.';64];
+  let mut it=s.chars();
+  for i in 0..64{out[i]=it.next().ok_or_else(||serde::de::Error::custom("board squares must contain 64 characters"))?;}
+  if it.next().is_some(){return Err(serde::de::Error::custom("board squares must contain exactly 64 characters"));}
+  Ok(out)
+ }
+}
+
+
 #[derive(Clone,Copy,Debug,PartialEq,Eq,Hash,Serialize,Deserialize)]
 pub struct Move{pub from:u8,pub to:u8,pub promotion:Option<char>}
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq,Serialize,Deserialize)]
 pub struct Board{
+ #[serde(with="board_squares")]
  pub squares:[char;64],
  pub white_to_move:bool,
  pub castling:u8,
