@@ -1036,3 +1036,33 @@ body::before,body::after{content:none!important;display:none!important;animation
   html.desktop-mode .training-layout{grid-template-columns:minmax(680px,1.4fr) minmax(420px,.8fr)!important}
   html.desktop-mode .match-layout{grid-template-columns:minmax(700px,1.4fr) minmax(380px,.6fr)!important}
 }
+
+
+/* 0.31.22 — final layout/board stability fix */
+html,body{width:100%;max-width:100%;overflow-x:hidden!important}
+.app{width:100%;max-width:1480px;margin-inline:auto;box-sizing:border-box}
+.dashboard{width:100%;min-width:0;box-sizing:border-box}
+.workspace,.match-layout,.training-layout,.match-board,.match-tools,.training-controls,.training-view{min-width:0;box-sizing:border-box}
+.match-layout{grid-template-columns:minmax(0,1fr) 250px!important}
+.match-board .board-wrap{width:min(620px,100%)!important;max-width:100%;margin-inline:auto}
+.board{width:100%!important;height:auto!important;aspect-ratio:1 / 1!important;display:grid!important;grid-template-columns:repeat(8,minmax(0,1fr))!important;grid-template-rows:repeat(8,minmax(0,1fr))!important;box-sizing:border-box!important}
+.square{width:auto!important;height:auto!important;aspect-ratio:1 / 1!important;min-width:0!important;min-height:0!important;overflow:visible!important;display:grid!important;place-items:center!important;box-sizing:border-box!important}
+.piece{position:relative!important;width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;display:grid!important;place-items:center!important;box-sizing:border-box!important;line-height:1!important;transform:none!important;overflow:visible!important;font-size:clamp(24px,6.2vw,64px)!important}
+.piece.white-piece{color:#f1f5f2!important}.piece.black-piece{color:#111711!important}
+@media(min-width:1100px){
+  html.desktop-mode body{min-width:0!important}
+  html.desktop-mode .app{max-width:1480px;width:100%;padding-inline:18px}
+  html.desktop-mode .match-layout{grid-template-columns:minmax(0,1fr) minmax(250px,320px)!important}
+  html.desktop-mode .match-board .board-wrap{width:min(720px,100%)!important}
+  html.desktop-mode .training-layout{grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr)!important}
+}
+@media(max-width:800px){
+  .match-layout{grid-template-columns:1fr!important}
+  .match-board .board-wrap{width:min(600px,100%)!important}
+  .piece{font-size:clamp(22px,8vw,52px)!important}
+}
+@media(max-width:560px){
+  .app{padding-inline:6px!important}
+  .match-layout,.training-layout{padding:7px!important}
+  .piece{font-size:clamp(21px,9vw,42px)!important}
+}
