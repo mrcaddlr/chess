@@ -96,7 +96,7 @@ async function handle(d){
   const samples=await selfPlay(games,maxPlies,sims);const loss=await train(updates,lr);
   let evaluation=null;
   if(!cancelRequested&&d.stockfishEval!==false) evaluation=await evaluateAgainstStockfish(Math.max(1,Math.min(20,Number(d.evalGames)||4)),Math.max(40,Number(d.evalPlies)||120),Math.max(1,Math.min(16,Number(d.evalSims)||sims)),Math.max(4,Math.min(16,Number(d.stockfishDepth)||8)));
-  if(!cancelRequested){generation=(Number(generation)||0)+1;globalThis.games=(Number(globalThis.games)||0)+games;}out({type:'complete',brain:brain.toJSON(),games:cancelRequested?0:games,positions:samples.length,replaySize:replay.length,loss,evaluation,cancelled:cancelRequested,generation:Number(generation)||0});
+  if(!cancelRequested){generation=(Number(generation)||0)+1;games=(Number(games)||0)+games;}out({type:'complete',brain:brain.toJSON(),games:cancelRequested?0:games,positions:samples.length,replaySize:replay.length,loss,evaluation,cancelled:cancelRequested,generation:Number(generation)||0});
 }
 const rl=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
 rl.on('line',async line=>{try{await handle(JSON.parse(line))}catch(e){out({type:'error',message:e?.stack||String(e)})}});
