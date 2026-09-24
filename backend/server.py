@@ -59,6 +59,15 @@ def start_native():
         native_generation=int(msg.get("generation") or 0)
         return native_ready
 
+def native_stop():
+    with native_lock:
+        if native_proc and native_proc.poll() is None:
+            try:
+                native_proc.stdin.write(json.dumps({"type":"stop"})+"\\n");native_proc.stdin.flush()
+                return True
+            except Exception:return False
+    return False
+
 def native_train(data):
     global native_generation
     if not start_native():raise RuntimeError("Node.js is required for native PC training")
@@ -174,7 +183,7 @@ class Handler(BaseHTTPRequestHandler):
                             state["training"]=True;state["phase"]="starting";state["error"]="";state["updated"]=time.time()
                             threading.Thread(target=run_native_training,args=(data,),daemon=True).start()
                         elif command=="stop-training":
-                            state["error"]="native stop is queued for the current worker boundary"
+                            native_stop();state["training"]=False;state["phase"]="stopping"
                         broadcast({"type":"command","command":command,"data":data},exclude=client)
                 elif typ=="status" and client["role"]=="compute":
                     data=msg.get("data") or {}
