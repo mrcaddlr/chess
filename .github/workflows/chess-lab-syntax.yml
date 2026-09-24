@@ -1,0 +1,23 @@
+name: Chess Lab syntax checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Python
+        run: python -m py_compile backend/server.py
+      - name: Check native worker
+        run: node --check backend/node-compute-worker.js
+      - name: Check browser JavaScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+          done < <(find js -type f -name '*.js' -print0)
