@@ -82,7 +82,11 @@
 
 <script>
 if('serviceWorker' in navigator && location.protocol==='https:'){
-  navigator.serviceWorker.register('./coi-service-worker.js?v=0.33.0"js/repetition.js?v=0.31.20"></script>
+  navigator.serviceWorker.register('./coi-service-worker.js?v=0.33.0').catch(()=>{});
+}
+</script>
+<script src="js/chess.js?v=0.31.20"></script>
+<script src="js/repetition.js?v=0.31.20"></script>
 <script src="js/core.js?v=0.31.20"></script>
 <script src="js/learner.js?v=0.31.20"></script>
 <script src="js/training.js?v=0.31.20"></script>
