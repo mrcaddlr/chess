@@ -84,7 +84,7 @@
             <section class="panel"><div class="panel-title">MATCH CONFIG</div>
               <label>MATCHUP<select id="matchType"><option value="learner-learner">Learner vs Learner</option><option value="learner-engine">Learner vs Stockfish 19</option><option value="learner-human">Learner vs Human</option></select></label>
               <label>LEARNER SIDE<select id="learnerSide"><option value="random">Random</option><option value="white">White</option><option value="black">Black</option></select></label>
-              <label id="engineField">ENGINE<select id="engineSelect"><option value="sf19-full-single" selected>Stockfish 19 Full Single</option></select></label>
+              <label id="engineField">ENGINE<select id="engineSelect"><option value="sf19-full-single" selected>Stockfish 19 Full Single</option></select></label><label id="customEngineField" hidden>CUSTOM ENGINE<input id="customEngineUrl" type="url" autocomplete="off"></label>
               <label>SEARCH SIMULATIONS<input id="sims" type="number" min="1" max="250" value="4"></label>
             </section>
             <section class="panel moves-panel"><div class="panel-title">MOVES <span id="moveCount">0 PLIES</span></div><div id="moveList" class="move-list"></div></section>
