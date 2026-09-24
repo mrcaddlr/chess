@@ -159,12 +159,33 @@ async function buildBundledEngineWorker(engineUrl){
     }
   }
 
-  // Stockfish.js 19 already contains its browser UCI-worker bootstrap.
-  // Launch it directly with the WASM URL in the worker fragment. This avoids
-  // blob-relative paths, which previously prevented uciok from being emitted.
-  const launchUrl=engineUrl+'#'+encodeURIComponent(wasmUrl)+',worker';
-  log('starting '+jsName+' with explicit WASM worker URL');
-  return new Worker(launchUrl);
+  // Stockfish.js contains its own browser-worker bootstrap, but its worker
+  // bootstrap resolves the WASM path from self.location.hash. That breaks when
+  // the worker is created from a normal GitHub Pages URL or when the WASM itself
+  // comes from IndexedDB. Build a tiny patched copy of the engine script instead:
+  // force worker mode and inject the exact WASM URL we already downloaded/cached.
+  const jsResponse=await fetch(engineUrl,{cache:'force-cache'});
+  if(!jsResponse.ok)throw new Error(jsName+' returned HTTP '+jsResponse.status);
+  let source=await jsResponse.text();
+  const workerModeNeedle='"worker"===self.location.hash.split(",")[1]';
+  const workerModeNeedleAlt='"worker"===self.location.hash.split(",")[1]';
+  if(source.includes(workerModeNeedle)){
+    source=source.replace(workerModeNeedle,'true');
+  }else if(source.includes(workerModeNeedleAlt)){
+    source=source.replace(workerModeNeedleAlt,'true');
+  }else{
+    throw new Error(jsName+' does not contain the expected Stockfish worker bootstrap');
+  }
+  const hashNeedle='e=self.location.hash.substr(1).split(",")';
+  if(source.includes(hashNeedle)){
+    source=source.replace(hashNeedle,'e=['+JSON.stringify(wasmUrl)+',"worker"]');
+  }else{
+    throw new Error(jsName+' does not contain the expected Stockfish WASM bootstrap');
+  }
+  const patchedUrl=URL.createObjectURL(new Blob([source],{type:'text/javascript'}));
+  stockfishBlobUrls.push(patchedUrl);
+  log('starting '+jsName+' in a patched browser worker with explicit WASM URL');
+  return new Worker(patchedUrl);
 }function cfgIsMultiEngine(engineUrl){
   return Object.values(ENGINE_CONFIGS||{}).some(cfg=>cfg?.multi&&new URL(cfg.url,document.baseURI).href===engineUrl);
 }
