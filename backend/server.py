@@ -62,9 +62,24 @@ native_lock=threading.Lock()
 native_ready=False
 native_generation=0
 
-def native_available():
+def find_node():
     import shutil
-    return bool(shutil.which("node")) and NATIVE_SCRIPT.exists()
+    found=shutil.which("node")
+    if found:return found
+    home=Path.home()
+    candidates=[
+        home/".nvm/current/bin/node",
+        home/".local/bin/node",
+        home/".volta/bin/node",
+        Path("/usr/local/bin/node"),
+        Path("/usr/bin/node"),
+    ]
+    for candidate in candidates:
+        if candidate.is_file() and os.access(candidate,os.X_OK):return str(candidate)
+    return None
+
+def native_available():
+    return bool(find_node()) and NATIVE_SCRIPT.exists()
 
 def load_native_model():
     if NATIVE_STATE.exists():
@@ -83,7 +98,7 @@ def start_native():
         if native_proc and native_proc.poll() is None:return True
         if not native_available():return False
         import subprocess
-        native_proc=subprocess.Popen(["node",str(NATIVE_SCRIPT)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,bufsize=1)
+        native_proc=subprocess.Popen([find_node(),str(NATIVE_SCRIPT)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,bufsize=1)
         model=load_native_model()
         native_proc.stdin.write(json.dumps({"type":"init","brain":model})+"\n")
         native_proc.stdin.flush()
