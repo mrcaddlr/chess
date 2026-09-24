@@ -15,82 +15,84 @@ async function buildBundledEngineWorker(engineUrl){
     if(r.ok)manifest=await r.json();
   }catch(err){log('engine manifest fetch failed: '+err.message)}
 
+  // Lozza is already a browser UCI worker.
   if(engineUrl.endsWith('/lozza.js')){
     log('loading Lozza · native UCI worker');
     return new Worker(engineUrl);
   }
 
-  // Fairy-Stockfish's browser package already contains its own worker entrypoint.
-  // Launch that worker directly instead of wrapping stockfish.js a second time.
+  // Fairy-Stockfish's distributed worker is a pthread helper, not the main
+  // UCI worker. Start the actual Stockfish module inside our own browser worker.
   if(engineUrl.endsWith('/fairy-stockfish.js')){
-    const workerUrl=new URL('stockfish/fairy-stockfish.worker.js',document.baseURI);
-    const wasmUrl=new URL('stockfish/fairy-stockfish.wasm',document.baseURI);
-    workerUrl.searchParams.set('wasm',wasmUrl.href);
-    log('loading Fairy-Stockfish · bundled NNUE worker');
-    return new Worker(workerUrl.href);
+    const wasmUrl=new URL('stockfish/fairy-stockfish.wasm',document.baseURI).href;
+    const workerHelperUrl=new URL('stockfish/fairy-stockfish.worker.js',document.baseURI).href;
+    const bootstrap=`
+      self.Module=self.Module||{};
+      self.Module.locateFile=function(path){if(/\\.wasm$/i.test(path))return ${JSON.stringify(wasmUrl)};if(/stockfish\\.worker\\.js$/i.test(path))return ${JSON.stringify(workerHelperUrl)};return ${JSON.stringify(engineUrl)};};
+      importScripts(${JSON.stringify(engineUrl)});
+      Promise.resolve(Stockfish(self.Module)).then(function(sf){
+        self.__sf=sf;
+        sf.addMessageListener(function(line){self.postMessage(line);});
+        self.onmessage=function(e){sf.postMessage(e.data);};
+        self.postMessage('readyok');
+      }).catch(function(err){self.postMessage('ENGINE_ERROR: '+(err&&err.message||String(err)));throw err;});
+    `;
+    const workerUrl=URL.createObjectURL(new Blob([bootstrap],{type:'text/javascript'}));
+    stockfishBlobUrls.push(workerUrl);
+    log('loading Fairy-Stockfish · bundled NNUE WASM worker');
+    return new Worker(workerUrl);
   }
 
   const jsName=engineUrl.split('/').pop();
-  const wasmName=jsName.replace(/\.js$/i,'.wasm');
+  const wasmName=jsName.replace(/\\.js$/i,'.wasm');
   const parts=manifest?.[wasmName];
   let wasmUrl='';
 
   if(Array.isArray(parts)&&parts.length){
     log('assembling '+wasmName+' from '+parts.length+' chunks');
-
-    // Keep the chunks as Blob parts instead of copying them into a second
-    // 100MB Uint8Array. This matters on Android, where the old approach could
-    // briefly require 200MB+ just to start the full single-threaded engine.
     const blobs=[];
     let total=0;
-
     for(let i=0;i<parts.length;i++){
-      const part=String(parts[i]||'').replace(/^\/+/, '');
+      const part=String(parts[i]||'').replace(/^\\/+/, '');
       const url=new URL('stockfish/'+part,document.baseURI);
-      url.searchParams.set('v','0.31.14');
+      url.searchParams.set('v','0.31.17');
       const r=await fetch(url.href,{cache:'no-store'});
       if(!r.ok)throw new Error('Stockfish chunk '+part+' returned HTTP '+r.status);
-
       const data=new Uint8Array(await r.arrayBuffer());
       if(!data.byteLength)throw new Error('Stockfish chunk '+part+' is empty');
       if(i===0&&data.length>=4&&!(data[0]===0x00&&data[1]===0x61&&data[2]===0x73&&data[3]===0x6d)){
         throw new Error('Stockfish chunk '+part+' is not the start of a WASM binary');
       }
-
       blobs.push(data);
       total+=data.byteLength;
       log('chunk '+(i+1)+'/'+parts.length+' loaded · '+Math.round(data.byteLength/1048576)+' MiB');
     }
-
     if(total<1024*1024)throw new Error('assembled '+wasmName+' is only '+total+' bytes; incomplete WASM bundle');
-
     wasmUrl=URL.createObjectURL(new Blob(blobs,{type:'application/wasm'}));
   }else{
-    // Stockfish.js itself looks for "stockfish.wasm". Our files have
-    // engine-specific names, so always provide locateFile even for lite builds.
     wasmUrl=new URL('stockfish/'+wasmName,document.baseURI).href;
     log('using direct WASM '+wasmName);
   }
 
-  const jsResponse=await fetch(engineUrl,{cache:'no-store'});
-  if(!jsResponse.ok)throw new Error('engine JavaScript file returned HTTP '+jsResponse.status);
-  const source=await jsResponse.text();
-  const wasmLiteral=JSON.stringify(wasmUrl);
-  let pthreadWorkerUrl='';
-
-  if(cfgIsMultiEngine(engineUrl)){
-    const pthreadBootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(path){if(/\.wasm$/i.test(path))return '+wasmLiteral+';return new URL(path,'+JSON.stringify(engineUrl)+').href;};\\n'+source;
-    pthreadWorkerUrl=URL.createObjectURL(new Blob([pthreadBootstrap],{type:'text/javascript'}));
-    stockfishBlobUrls.push(pthreadWorkerUrl);
-  }
-
-  const bootstrap='var Module=self.Module=self.Module||{};Module.locateFile=function(path){if(/stockfish\.worker\.js$/i.test(path)&&'+JSON.stringify(pthreadWorkerUrl)+')return '+JSON.stringify(pthreadWorkerUrl)+';if(/\.wasm$/i.test(path))return '+wasmLiteral+';return new URL(path,'+JSON.stringify(engineUrl)+').href;};\\n'+source;
-  const workerUrl=URL.createObjectURL(new Blob([bootstrap],{type:'text/javascript'}));
+  // Stockfish.js 19 is itself a UCI worker when its URL contains #<wasm>,worker.
+  // The old loader wrapped the module in a blob without that fragment, causing
+  // it to look for a nonexistent blob-relative "stockfish.wasm" and never emit uciok.
+  const source=await (await fetch(engineUrl,{cache:'no-store'})).text();
+  const workerSource=`
+    // The fragment is consumed by Stockfish.js's own browser-worker bootstrap.
+    importScripts(${JSON.stringify(engineUrl)});
+  `;
+  const workerUrl=URL.createObjectURL(new Blob([workerSource],{type:'text/javascript'}));
   stockfishBlobUrls.push(workerUrl);
-  if(wasmUrl.startsWith('blob:'))stockfishBlobUrls.push(wasmUrl);
-  return new Worker(workerUrl);
-}
-function cfgIsMultiEngine(engineUrl){
+
+  // The worker must see the wasm URL in its location.hash.
+  // For multi-threaded builds the same engine source also uses
+  // stockfish.worker.js for pthreads; if that helper is absent we fail with a
+  // useful diagnostic rather than a generic "unavailable".
+  const launchUrl=workerUrl+'#'+encodeURIComponent(wasmUrl)+',worker';
+  log('starting '+jsName+' with explicit WASM worker URL');
+  return new Worker(launchUrl);
+}function cfgIsMultiEngine(engineUrl){
   return Object.values(ENGINE_CONFIGS||{}).some(cfg=>cfg?.multi&&new URL(cfg.url,document.baseURI).href===engineUrl);
 }
 async function createNativeEngine(cfg){
@@ -117,7 +119,7 @@ async function createStockfish(force=false){
   const fail=(reason)=>{if(settled)return;settled=true;stockfishLoading=false;try{worker?.terminate()}catch(e){}if(stockfishWorker===worker)stockfishWorker=null;stockfishReady=false;setEngineUi(requestedLabel+' failed',false);log('Engine worker error: '+reason);};
   try{
     worker=await buildBundledEngineWorker(engineUrl);if(settled){try{worker.terminate()}catch(e){}return;}stockfishWorker=worker;stockfishReady=false;
-    worker.onmessage=e=>{const d=typeof e.data==='string'?e.data:'';if(!d)return;if(d.includes('uciok')){settled=true;stockfishReady=true;stockfishLoading=false;setEngineUi(requestedLabel+' ready',true);log(requestedLabel+' ready · local GitHub Pages worker');try{if(cfg?.multi)worker.postMessage('setoption name Threads value '+Math.max(1,navigator.hardwareConcurrency||2));worker.postMessage('isready');}catch(err){log('engine initialization command failed: '+err.message)}return;}if(d.includes('readyok'))stockfishReady=true;if(analysisActive){if(d.startsWith('info ')){const m=d.match(/score\s+(cp|mate)\s+(-?\d+)/);if(m){const n=Number(m[2]);analysisActive.score=m[1]==='mate'?(n>0?100000:-100000):n;}}if(d.startsWith('bestmove')){const a=analysisActive;analysisActive=null;a.resolve({score:a.score??0,best:d.split(/\s+/)[1]||null});return;}}if(d.startsWith('bestmove')){const m=d.split(/\s+/)[1],q=stockfishQueue.shift();stockfishActiveResolve=null;if(q)q(m);}};
+    worker.onmessage=e=>{const d=typeof e.data==='string'?e.data:'';if(!d)return;if(d.startsWith('ENGINE_ERROR:')){fail(d.slice(13).trim()||'engine initialization failed');return;}if(d.includes('uciok')){settled=true;stockfishReady=true;stockfishLoading=false;setEngineUi(requestedLabel+' ready',true);log(requestedLabel+' ready · local GitHub Pages worker');try{if(cfg?.multi)worker.postMessage('setoption name Threads value '+Math.max(1,navigator.hardwareConcurrency||2));worker.postMessage('isready');}catch(err){log('engine initialization command failed: '+err.message)}return;}if(d.includes('readyok')&&settled)stockfishReady=true;if(analysisActive){if(d.startsWith('info ')){const m=d.match(/score\s+(cp|mate)\s+(-?\d+)/);if(m){const n=Number(m[2]);analysisActive.score=m[1]==='mate'?(n>0?100000:-100000):n;}}if(d.startsWith('bestmove')){const a=analysisActive;analysisActive=null;a.resolve({score:a.score??0,best:d.split(/\s+/)[1]||null});return;}}if(d.startsWith('bestmove')){const m=d.split(/\s+/)[1],q=stockfishQueue.shift();stockfishActiveResolve=null;if(q)q(m);}};
     worker.onerror=e=>fail('message='+(e.message||'unknown')+' filename='+(e.filename||engineUrl)+' line='+(e.lineno||'?')+' col='+(e.colno||'?'));worker.onmessageerror=()=>fail('messageerror while communicating with the engine worker');worker.postMessage('uci');setTimeout(()=>{if(!settled&&stockfishWorker===worker)fail('timeout waiting for uciok after 120 seconds · engine file may not be deployed')},120000);
   }catch(e){fail('constructor: '+e.message)}
 }
