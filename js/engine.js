@@ -36,6 +36,19 @@ async function createNativeEngine(cfg){
   if(!nativeEngine?.Engine)throw new Error('native engine module did not expose an engine');
   stockfishReady=true;stockfishLoading=false;setEngineUi(cfg.label+' ready',true);log(cfg.label+' ready · browser-native engine');return true;
 }
+async function waitForStockfish(timeout=125000){
+  const deadline=Date.now()+Math.max(1000,Number(timeout)||125000);
+  while(Date.now()<deadline){
+    if(window.chessLabBackend?.role==='controller'){
+      const connected=!!window.chessLabBackend.isConnected?.();
+      stockfishReady=connected;
+      setEngineUi(connected?'PC Stockfish backend ready':'PC backend offline',connected);
+      if(connected)return true;
+    }else if(stockfishReady)return true;
+    await new Promise(r=>setTimeout(r,250));
+  }
+  return !!stockfishReady;
+}
 async function createStockfish(force=false){
   if(window.chessLabBackend?.role==='controller'){
     stockfishLoading=false;stockfishReady=!!window.chessLabBackend.isConnected?.();
