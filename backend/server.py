@@ -10,7 +10,7 @@ HOST=os.environ.get("CHESS_LAB_HOST","0.0.0.0")
 PORT=int(os.environ.get("CHESS_LAB_PORT","8787"))
 TOKEN_FILE=ROOT/".chess-lab-pairing"
 clients=[]; clients_lock=threading.Lock()
-state={"compute":False,"training":False,"paused":False,"history":[],"generation":0,"game":0,"totalGames":0,"positions":0,"updates":0,"totalUpdates":0,"ply":0,"fen":"start","turn":"w","loss":None,"gamesPerMinute":0,"phase":"idle","updated":time.time(),"stockfish":None,"evaluation":None,"completedGames":0,"completedPositions":0,"completedLoss":None,"error":""}
+state={"compute":False,"training":False,"performance":{},"paused":False,"history":[],"generation":0,"game":0,"totalGames":0,"positions":0,"updates":0,"totalUpdates":0,"ply":0,"fen":"start","turn":"w","loss":None,"gamesPerMinute":0,"phase":"idle","updated":time.time(),"stockfish":None,"evaluation":None,"completedGames":0,"completedPositions":0,"completedLoss":None,"error":""}
 
 def start_public_https():
     """
@@ -131,6 +131,8 @@ def start_native():
         state["stockfish"]=bool(msg.get("stockfish"));state["stockfishInfo"]=msg.get("stockfishInfo") or STOCKFISH_INFO
         state["stockfishInfo"]=msg.get("stockfishInfo")
         state["generation"]=native_generation
+        state["phase"]="ready" if native_ready else "error"
+        state["error"]="" if native_ready else "native worker did not become ready"
         return native_ready
 
 def native_stop():
@@ -174,10 +176,11 @@ def native_train(data):
                 state["paused"]=False;state["phase"]="resuming";state["updated"]=time.time();broadcast({"type":"status","data":state})
             elif typ=="complete":
                 save_native_model(msg["brain"]);native_generation=int(msg.get("generation") or (native_generation+1))
-                state["generation"]=native_generation;state["training"]=False;state["paused"]=False;state["phase"]="generation-complete";state["error"]="";entry={"generation":native_generation,"games":msg.get("games",0),"positions":msg.get("positions",0),"loss":msg.get("loss"),"evaluation":msg.get("evaluation"),"savedAt":time.time()};state["history"]=list(state.get("history") or [])[-99:]+[entry];save_training_history(state["history"]);save_versioned_model(msg.get("brain") or {},native_generation);state["evaluation"]=msg.get("evaluation");state["stockfish"]=bool(msg.get("evaluation",{}).get("available")) if isinstance(msg.get("evaluation"),dict) else state.get("stockfish")
+                state["generation"]=native_generation;state["training"]=False;state["performance"]=msg.get("performance") or {};state["paused"]=False;state["phase"]="generation-complete";state["error"]="";entry={"generation":native_generation,"games":msg.get("games",0),"positions":msg.get("positions",0),"loss":msg.get("loss"),"evaluation":msg.get("evaluation"),"savedAt":time.time()};state["history"]=list(state.get("history") or [])[-99:]+[entry];save_training_history(state["history"]);save_versioned_model(msg.get("brain") or {},native_generation);state["evaluation"]=msg.get("evaluation");state["stockfish"]=bool(msg.get("evaluation",{}).get("available")) if isinstance(msg.get("evaluation"),dict) else state.get("stockfish")
                 state["game"]=msg.get("games",0);state["totalGames"]=msg.get("games",0);state["completedGames"]=msg.get("games",0);state["completedPositions"]=msg.get("positions",0);state["completedLoss"]=msg.get("loss");state["loss"]=msg.get("loss");state["positions"]=msg.get("positions",0);state["ply"]=0;state["fen"]="start";state["turn"]="w";state["updates"]=0;state["totalUpdates"]=0
                 state["updated"]=time.time();broadcast({"type":"status","data":state});return msg
-            elif typ=="error":raise RuntimeError(msg.get("message","native trainer error"))
+            elif typ=="error":
+                state["phase"]="error";state["error"]=msg.get("message","native trainer error");state["updated"]=time.time();broadcast({"type":"status","data":state});raise RuntimeError(state["error"])
 
 def run_native_training(data):
     try:
@@ -194,7 +197,7 @@ def run_native_training(data):
                 state["phase"]="next-generation";state["updated"]=time.time();broadcast({"type":"status","data":state})
         if state.get("phase") not in ("target-reached","error"): state["training"]=False
     except Exception as e:
-        state["training"]=False;state["phase"]="error";state["error"]=str(e)
+        state["training"]=False;state["phase"]="error";state["error"]=str(e);state["performance"]=state.get("performance") or {}
     state["updated"]=time.time();broadcast({"type":"status","data":state})
 
 def check_for_updates():
