@@ -302,16 +302,25 @@ def probe_stockfish19():
 
 STOCKFISH_INFO=probe_stockfish19()
 
-def native_engine_move(fen, depth=12, allowed_moves=None):
-    import shutil
-    engine=STOCKFISH_INFO.get("path")
-    if not STOCKFISH_INFO.get("available") or not engine:
-        raise RuntimeError(STOCKFISH_INFO.get("error","Stockfish 19 is not available"))
+def native_engine_move(fen, depth=12, allowed_moves=None, engine_id="sf19-full-single", threads=1):
+    profiles={
+        "sf19-full-single":{"path":STOCKFISH_INFO.get("path"),"threads":1},
+        "sf19-full-multi":{"path":STOCKFISH_INFO.get("path"),"threads":max(2,int(threads or 2))},
+        "sf19-lite-single":{"path":STOCKFISH_INFO.get("path"),"threads":1},
+        "sf19-lite-multi":{"path":STOCKFISH_INFO.get("path"),"threads":max(2,int(threads or 2))},
+        "sf18-full-single":{"path":str(ROOT/".chess-lab/stockfish-18"),"threads":1},
+        "sf18-full-multi":{"path":str(ROOT/".chess-lab/stockfish-18"),"threads":max(2,int(threads or 2))},
+        "sf18-lite-single":{"path":str(ROOT/".chess-lab/stockfish-18"),"threads":1},
+        "sf18-lite-multi":{"path":str(ROOT/".chess-lab/stockfish-18"),"threads":max(2,int(threads or 2))}
+    }
+    profile=profiles.get(str(engine_id),profiles["sf19-full-single"])
+    engine=profile["path"]
+    if not engine or not Path(engine).is_file(): raise RuntimeError("Selected engine is not installed: "+str(engine_id))
     allowed_moves=[str(x) for x in (allowed_moves or []) if x]
     p=subprocess.Popen([engine],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,bufsize=1)
     try:
         def send(s): p.stdin.write(s+"\n");p.stdin.flush()
-        send("uci");send("isready");send("ucinewgame");send("position fen "+fen)
+        send("uci");send("setoption name Threads value "+str(profile["threads"]));send("isready");send("ucinewgame");send("position fen "+fen)
         cmd="go depth "+str(max(1,min(20,int(depth or 12))))
         if allowed_moves: cmd+=" searchmoves "+" ".join(allowed_moves)
         send(cmd)
@@ -320,7 +329,7 @@ def native_engine_move(fen, depth=12, allowed_moves=None):
             line=p.stdout.readline()
             if line.startswith("bestmove "): return line.split()[1]
             if not line and p.poll() is not None: break
-        raise RuntimeError("Stockfish timed out")
+        raise RuntimeError("Selected engine timed out")
     finally:
         try:p.kill()
         except Exception:pass
@@ -400,7 +409,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 n=int(self.headers.get("Content-Length","0"))
                 data=json.loads(self.rfile.read(n) or b"{}")
-                move=native_engine_move(data.get("fen",""),data.get("depth",12),data.get("allowedMoves",[]))
+                move=native_engine_move(data.get("fen",""),data.get("depth",12),data.get("allowedMoves",[]),data.get("engine","sf19-full-single"),data.get("threads",1))
                 return self._json({"move":move})
             except Exception as e:
                 return self._json({"error":str(e)},400)
@@ -415,16 +424,16 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:return self._json({"error":str(e)},400)
     def do_GET(self):
         p=urlparse(self.path)
-        if p.path=="/api/health": return self._json({"ok":True,"service":"chess-lab-pc-bridge","version":"0.1.0"})
+        if p.path=="/api/health": return self._json({"ok":True,"service":"chess-lab-pc-bridge","version":"0.60.0","origin":"local"})
         if p.path=="/api/status":
             with clients_lock: connected=len(clients)
-            return self._json({**state,"connectedClients":connected,"pairingRequired":True,"nativeCompute":native_available(),"trainingAvailable":native_available(),"nativeRunning":bool(native_proc and native_proc.poll() is None),"generation":native_generation,"stockfishInfo":state.get("stockfishInfo") or STOCKFISH_INFO})
+            return self._json({**state,"connectedClients":connected,"pairingRequired":True,"nativeCompute":native_available(),"trainingAvailable":native_available(),"nativeRunning":bool(native_proc and native_proc.poll() is None),"generation":native_generation,"stockfishInfo":state.get("stockfishInfo") or STOCKFISH_INFO,"localOrigin":True,"websocketPath":"/ws"})
         if p.path=="/api/pairing": return self._json({"token":TOKEN})
         if p.path=="/api/engine-move":
             if self.headers.get("X-Chess-Lab-Token","")!=TOKEN:return self._json({"error":"invalid pairing token"},401)
             try:
                 n=int(self.headers.get("Content-Length","0")); data=json.loads(self.rfile.read(n) or b"{}")
-                move=native_engine_move(str(data.get("fen","")),int(data.get("depth") or 12),data.get("allowedMoves") or [])
+                move=native_engine_move(str(data.get("fen","")),int(data.get("depth") or 12),data.get("allowedMoves") or [],data.get("engine","sf19-full-single"),data.get("threads",1))
                 return self._json({"move":move})
             except Exception as e:return self._json({"error":str(e)},400)
         if p.path=="/api/model":
