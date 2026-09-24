@@ -82,6 +82,11 @@ async function playTrainingGame(g,maxPlies,sims,opponent,mixRatio,stockfishDepth
     if(!c.move({from:safe.move.from,to:safe.move.to,promotion:safe.move.promotion}))break;
     p++;recordPosition(c,hist);
     positionsForProgress++;
+    // Stream the actual board position while the game is being played so the
+    // browser live view updates move-by-move instead of once per completed game.
+    if((p&1)===0){
+      out({type:"live",phase:"self-play",game:g+1,totalGames:currentConfig.games,positions:positionsForProgress,plies:p,fen:c.fen(),turn:c.turn()});
+    }
     if((p&3)===0)await yieldNow();
   }
   let result=terminal(c);if(result===null)result=0;
