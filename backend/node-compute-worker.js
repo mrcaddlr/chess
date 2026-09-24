@@ -125,15 +125,25 @@ async function evaluateAgainstStockfish(games,plies,sims,depth,threads){
   return {available:true,version:stockfishIdentity.version,name:stockfishIdentity.name,games:played,wins,draws,losses,score,estimatedElo:Math.round(500+score*1900)};
 }
 function checkpointPayload(){
-  return {version:CHECKPOINT_VERSION,generation,gamesCompleted,brain:brain?.toJSON?.()||null,replaySize:replay.length,updatedAt:new Date().toISOString()};
+  return {version:CHECKPOINT_VERSION,generation,gamesCompleted,brain:brain?.toJSON?.()||null,replay:replay.slice(-Math.min(replay.length,5000)),replaySize:replay.length,updatedAt:new Date().toISOString()};
+}
+function checkpointFile(){
+  const file=path.join(ROOT,".chess-lab-checkpoint.json"),tmp=file+".tmp";
+  fs.writeFileSync(tmp,JSON.stringify(checkpointPayload()));
+  fs.renameSync(tmp,file);
+  return file;
 }
 async function handle(d){
   if(d.type==="stop"){cancelRequested=true;pauseRequested=false;return}
   if(d.type==="pause"){pauseRequested=true;out({type:"paused",phase:"paused",generation});return}
   if(d.type==="resume"){pauseRequested=false;out({type:"resumed",phase:"resuming",generation});return}
-  if(d.type==="checkpoint"){out({type:"checkpoint",checkpoint:checkpointPayload()});return}
+  if(d.type==="checkpoint"){const file=checkpointFile();out({type:"checkpoint",checkpoint:{...checkpointPayload(),file}});return}
   if(d.type==="init"){
-    brain=d.brain?TinyNet.fromJSON(d.brain):new TinyNet(Date.now());replay=Array.isArray(d.replay)?d.replay:[];generation=Number(d.generation)||0;gamesCompleted=Number(d.gamesCompleted)||0;initialized=true;
+    let checkpoint=null;
+    if(d.resumeCheckpoint){try{checkpoint=JSON.parse(fs.readFileSync(path.join(ROOT,".chess-lab-checkpoint.json"),"utf8"))}catch(e){}}
+    brain=checkpoint?.brain?TinyNet.fromJSON(checkpoint.brain):(d.brain?TinyNet.fromJSON(d.brain):new TinyNet(Date.now()));
+    replay=Array.isArray(checkpoint?.replay)?checkpoint.replay:(Array.isArray(d.replay)?d.replay:[]);
+    generation=Number(checkpoint?.generation ?? d.generation)||0;gamesCompleted=Number(checkpoint?.gamesCompleted ?? d.gamesCompleted)||0;initialized=true;
     stockfishIdentity=await stockfishProbe();out({type:"ready",generation,gamesCompleted,stockfish:stockfishIdentity.available,stockfishInfo:stockfishIdentity});return;
   }
   if(d.type==="stockfish-info"){stockfishIdentity=await stockfishProbe();out({type:"stockfish-info",...stockfishIdentity});return}
@@ -146,7 +156,8 @@ async function handle(d){
   let evaluation=null;
   if(!cancelRequested&&d.stockfishEval!==false)evaluation=await evaluateAgainstStockfish(Math.max(1,Math.min(100,Number(d.evalGames)||10)),Math.max(20,Number(d.evalPlies)||300),sims,Math.max(1,Math.min(30,Number(d.stockfishDepth)||12)),stockfishThreads);
   if(!cancelRequested){generation++;gamesCompleted+=requestedGames;lastEvaluation=evaluation}
-  out({type:"complete",brain:brain.toJSON(),games:cancelRequested?0:requestedGames,positions:samples.samples,replaySize:replay.length,loss,evaluation,cancelled:cancelRequested,generation,gamesCompleted,checkpoint:checkpointPayload()});
+  const checkpoint=checkpointPayload();if(!cancelRequested){try{checkpointFile()}catch(e){out({type:"warning",message:"checkpoint save failed: "+e.message})}}
+  out({type:"complete",brain:brain.toJSON(),games:cancelRequested?0:requestedGames,positions:samples.samples,replaySize:replay.length,loss,evaluation,cancelled:cancelRequested,generation,gamesCompleted,checkpoint});
 }
 const rl=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
 rl.on("line",async line=>{try{await handle(JSON.parse(line))}catch(e){out({type:"error",message:e?.stack||String(e)})}});
