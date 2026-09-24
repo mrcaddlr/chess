@@ -11,10 +11,7 @@ TMP="$DIR/stockfish-19-extract"
 rm -rf "$TMP"
 mkdir -p "$TMP"
 tar -xzf "$ARCHIVE" -C "$TMP"
-ENGINE="$(find "$TMP" -type f -name 'stockfish-ubuntu-x64*' -o -name 'stockfish' | head -n 1)"
-if [[ -z "$ENGINE" ]]; then
-  ENGINE="$(find "$TMP" -type f -perm -u+x | head -n 1)"
-fi
+ENGINE="$(find "$TMP" -type f -perm -u+x | head -n 1)"
 if [[ -z "$ENGINE" ]]; then
   echo "Could not find the Stockfish executable in the downloaded archive." >&2
   exit 1
