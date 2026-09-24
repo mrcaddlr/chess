@@ -105,3 +105,6 @@ async fn checkpoint_training(State(s):State<Arc<AppState>>)->Json<Value>{
  let result=if let Ok(slot)=s.trainer.lock(){if let Some(t)=slot.as_ref(){checkpoint::save(&path,&t.network,t.optimizer.step,&t.optimizer).map_err(|e|e.to_string())}else{Err("training has not produced a trainer state yet".into())}}else{Err("training state unavailable".into())};
  match result{Ok(())=>Json(serde_json::json!({"ok":true,"path":".chess-lab/manual.ckpt"})),Err(e)=>Json(serde_json::json!({"ok":false,"error":e}))}
 }
+
+
+pub fn bind_addr() -> &'static str { "127.0.0.1:8787" }
