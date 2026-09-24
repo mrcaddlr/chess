@@ -170,6 +170,34 @@ def broadcast(message,exclude=None):
                 try: clients.remove(c)
                 except ValueError: pass
 
+def native_engine_move(fen, depth=12, allowed_moves=None):
+    import shutil
+    engine=None
+    configured=os.environ.get("CHESS_LAB_STOCKFISH","")
+    if configured and os.path.isfile(configured): engine=configured
+    if not engine:
+        for candidate in ("stockfish","stockfish-ubuntu","stockfish.exe"):
+            found=shutil.which(candidate)
+            if found: engine=found; break
+    if not engine: raise RuntimeError("Stockfish executable not found on the PC")
+    allowed_moves=[str(x) for x in (allowed_moves or []) if x]
+    p=subprocess.Popen([engine],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,bufsize=1)
+    try:
+        def send(s): p.stdin.write(s+"\n");p.stdin.flush()
+        send("uci");send("isready");send("ucinewgame");send("position fen "+fen)
+        cmd="go depth "+str(max(1,min(20,int(depth or 12))))
+        if allowed_moves: cmd+=" searchmoves "+" ".join(allowed_moves)
+        send(cmd)
+        deadline=time.time()+max(15,int(depth or 12)*3)
+        while time.time()<deadline:
+            line=p.stdout.readline()
+            if line.startswith("bestmove "): return line.split()[1]
+            if not line and p.poll() is not None: break
+        raise RuntimeError("Stockfish timed out")
+    finally:
+        try:p.kill()
+        except Exception:pass
+
 class Handler(BaseHTTPRequestHandler):
     server_version="ChessLabBridge/0.1"
     def log_message(self,fmt,*args): pass
@@ -194,6 +222,13 @@ class Handler(BaseHTTPRequestHandler):
             with clients_lock: connected=len(clients)
             return self._json({**state,"connectedClients":connected,"pairingRequired":True,"nativeCompute":native_available(),"nativeRunning":bool(native_proc and native_proc.poll() is None),"generation":native_generation})
         if p.path=="/api/pairing": return self._json({"token":TOKEN})
+        if p.path=="/api/engine-move":
+            if self.headers.get("X-Chess-Lab-Token","")!=TOKEN:return self._json({"error":"invalid pairing token"},401)
+            try:
+                n=int(self.headers.get("Content-Length","0")); data=json.loads(self.rfile.read(n) or b"{}")
+                move=native_engine_move(str(data.get("fen","")),int(data.get("depth") or 12),data.get("allowedMoves") or [])
+                return self._json({"move":move})
+            except Exception as e:return self._json({"error":str(e)},400)
         if p.path=="/api/model":
             if self.headers.get("X-Chess-Lab-Token","")!=TOKEN:return self._json({"error":"invalid pairing token"},401)
             model=load_native_model()
