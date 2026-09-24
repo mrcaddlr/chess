@@ -8,104 +8,145 @@ global.importScripts=(...paths)=>{for(const p of paths){const file=path.resolve(
 importScripts('js/chess.js','js/repetition.js','js/core.js','js/learner.js');
 
 let brain=null,replay=[],initialized=false,cancelRequested=false,pauseRequested=false,generation=0,gamesCompleted=0,currentConfig=null;
-function advanceTrainingCounters(count){generation=(Number(generation)||0)+1;gamesCompleted=(Number(gamesCompleted)||0)+Number(count||0);}
-function out(o){process.stdout.write(JSON.stringify(o)+'\n')}
-function terminal(c){if(isCheckmate(c))return c.turn()==='w'?-1:1;if(isStalemate(c)||isInsufficientMaterial(c))return 0;const f=c.fen().split(' ');return Number(f[4])>=100?0:null}
-async function yieldNow(){await new Promise(r=>setImmediate(r));while(pauseRequested&&!cancelRequested){out({type:'paused',phase:'paused',generation});await new Promise(r=>setTimeout(r,150));}}
-function findStockfish(){
-  const candidates=(process.env.CHESS_LAB_STOCKFISH||'').split(path.delimiter).filter(Boolean);
-  candidates.push('stockfish','stockfish-ubuntu','stockfish.exe');
-  for(const x of candidates){
-    try{const p=cp.spawnSync(x,['--version'],{stdio:'ignore'});if(p.status===0||p.error===undefined)return x}catch(e){}
+let lastEvaluation=null;
+const CHECKPOINT_VERSION=2;
+function out(o){process.stdout.write(JSON.stringify(o)+"\n")}
+function terminal(c){if(isCheckmate(c))return c.turn()==="w"?-1:1;if(isStalemate(c)||isInsufficientMaterial(c))return 0;const f=c.fen().split(" ");return Number(f[4])>=100?0:null}
+async function yieldNow(){await new Promise(r=>setImmediate(r));while(pauseRequested&&!cancelRequested){out({type:"paused",phase:"paused",generation,gamesCompleted});await new Promise(r=>setTimeout(r,150));}}
+function commandExists(cmd){try{const p=cp.spawnSync(cmd,["--version"],{stdio:"ignore"});return p.status===0||p.error===undefined}catch(e){return false}}
+function candidatePaths(){
+  const list=(process.env.CHESS_LAB_STOCKFISH||"").split(path.delimiter).filter(Boolean);
+  list.push(path.join(ROOT,".chess-lab","stockfish-19"));
+  list.push(path.join(ROOT,".chess-lab","stockfish"));
+  list.push("stockfish","stockfish-ubuntu","stockfish.exe");
+  return [...new Set(list)];
+}
+function detectStockfish(){
+  for(const candidate of candidatePaths()){
+    if((candidate.includes(path.sep)||candidate.startsWith(".")) && !fs.existsSync(candidate))continue;
+    if(commandExists(candidate))return candidate;
   }
   return null;
 }
-const stockfishPath=findStockfish();
-function uciRequest(fen,depth){
-  return new Promise((resolve,reject)=>{
-    if(!stockfishPath)return reject(new Error('Stockfish executable not found on the PC'));
-    const p=cp.spawn(stockfishPath,[],{stdio:['pipe','pipe','pipe']});
-    let buf='',done=false,best=null;
-    const finish=(err,val)=>{if(done)return;done=true;try{p.kill()}catch(e){};err?reject(err):resolve(val)};
-    const timer=setTimeout(()=>finish(new Error('Stockfish UCI timeout')),Math.max(15000,depth*2500));
-    p.stdout.on('data',b=>{
-      buf+=b.toString(); const lines=buf.split(/\r?\n/); buf=lines.pop();
+const stockfishPath=detectStockfish();
+let stockfishIdentity={available:false,version:null,name:null,path:stockfishPath,error:stockfishPath?null:"Stockfish 19 executable not found"};
+function stockfishProbe(){
+  return new Promise(resolve=>{
+    if(!stockfishPath)return resolve(stockfishIdentity);
+    const p=cp.spawn(stockfishPath,[],{stdio:["pipe","pipe","pipe"]});let buf="",name="",version="";
+    const timer=setTimeout(()=>{try{p.kill()}catch(e){};resolve({...stockfishIdentity,error:"Stockfish UCI probe timed out"})},6000);
+    p.stdout.on("data",b=>{
+      buf+=b.toString();const lines=buf.split(/\r?\n/);buf=lines.pop();
       for(const line of lines){
-        if(line.startsWith('bestmove ')){best=line.split(/\s+/)[1]||null;clearTimeout(timer);finish(null,best);return}
+        if(line.startsWith("id name "))name=line.slice(8).trim();
+        if(line.startsWith("id version "))version=line.slice(11).trim();
+        if(line==="uciok"){clearTimeout(timer);try{p.kill()}catch(e){};const ok=/Stockfish/i.test(name)&&/\\b19(?:\\.|$)/.test(version||name);resolve({available:ok,version:version||null,name:name||null,path:stockfishPath,error:ok?null:"Stockfish 19 is required; detected "+(name||"unknown engine")+" "+(version||"")});return}
       }
     });
-    p.on('error',e=>{clearTimeout(timer);finish(e)});
-    p.on('exit',()=>{if(!done){clearTimeout(timer);finish(null,best)}});
-    p.stdin.write('uci\n');p.stdin.write('isready\n');p.stdin.write('ucinewgame\n');p.stdin.write('position fen '+fen+'\n');p.stdin.write('go depth '+Math.max(1,Math.min(20,depth||8))+'\n');
+    p.on("error",e=>{clearTimeout(timer);resolve({...stockfishIdentity,error:e.message})});
   });
 }
-async function selfPlay(requestedGames,maxPlies,sims,opponent='self',mixRatio=25,stockfishDepth=8){
-  const all=[];let positions=0;
-  for(let g=0;g<requestedGames&&!cancelRequested;g++){
-    const c=new Chess(),hist=newRepetitionHistory(c),state={detections:0,forcedDraw:false},local=[];let p=0;
-    while(!terminalPosition(c)&&!state.forcedDraw&&p<maxPlies&&!cancelRequested){
-      const legal=safeRepetitionMoves(c,hist);if(!legal.length)break;
-      const useStockfish=opponent==='stockfish'||(opponent==='mix' && ((g*100/Math.max(1,requestedGames))<mixRatio));
-      const learnerTurn=useStockfish ? (c.turn()==='w' ? g%2===0 : g%2!==0) : true;
-      let moveResult=null;
-      if(useStockfish && !learnerTurn){
-        const uci=await uciRequest(c.fen(),stockfishDepth);const engineMove=legal.find(m=>m.from+m.to+(m.promotion||'')===uci)||legal[0];moveResult={move:engineMove,policy:[{a:actionIndex(engineMove),p:1}]};
-      }else{moveResult=await mcts(c,sims,brain,true);}
-      if(!moveResult?.move)break;
-      const safe=safeRepetitionMove(c,moveResult.move,brain,hist,state);if(safe.forcedDraw||!safe.move)break;
-      if(learnerTurn)local.push({x:Array.from(encode(c)),action:actionIndex(safe.move),legal:legal.map(actionIndex),policy:moveResult.policy||[{a:actionIndex(safe.move),p:1}],side:c.turn()});
-      if(!c.move({from:safe.move.from,to:safe.move.to,promotion:safe.move.promotion}))break;
-      p++;recordPosition(c,hist);out({type:'live',phase:'self-play',game:g+1,totalGames:requestedGames,positions:positions+p,plies:p,fen:c.fen(),turn:c.turn()});if((p&3)===0)await yieldNow();
-    }
-    let r=terminal(c);if(r===null)r=0;for(const s of local)all.push({...s,reward:s.side==='w'?r:-r});
-    positions+=local.length;out({type:'progress',phase:'self-play',game:g+1,totalGames:requestedGames,positions,plies:p});
-  }
-  replay.push(...all);const replayLimit=Math.max(1000,Number(currentConfig?.replaySize||50000));if(replay.length>replayLimit)replay=replay.slice(-replayLimit);return all;
+function uciRequest(fen,depth,threads=1){
+  return new Promise(async(resolve,reject)=>{
+    const info=await stockfishProbe();
+    if(!info.available)return reject(new Error(info.error||"Stockfish 19 is not available"));
+    const p=cp.spawn(info.path,[],{stdio:["pipe","pipe","pipe"]});let buf="",done=false,best=null;
+    const finish=(err,val)=>{if(done)return;done=true;try{p.kill()}catch(e){};err?reject(err):resolve(val)};
+    const timer=setTimeout(()=>finish(new Error("Stockfish UCI timeout")),Math.max(15000,Number(depth||8)*2500));
+    p.stdout.on("data",b=>{buf+=b.toString();const lines=buf.split(/\r?\n/);buf=lines.pop();for(const line of lines){if(line.startsWith("bestmove ")){best=line.split(/\\s+/)[1]||null;clearTimeout(timer);finish(null,best);return}}});
+    p.on("error",e=>{clearTimeout(timer);finish(e)});p.on("exit",()=>{if(!done){clearTimeout(timer);finish(null,best)}});
+    const t=Math.max(1,Math.min(64,Number(threads)||1));
+    p.stdin.write("uci\nsetoption name Threads value "+t+"\nisready\nucinewgame\nposition fen "+fen+"\ngo depth "+Math.max(1,Math.min(30,Number(depth)||8))+"\n");
+  });
 }
-async function train(updates,lr){
+async function playTrainingGame(g,maxPlies,sims,opponent,mixRatio,stockfishDepth,stockfishThreads){
+  const useStockfish=opponent==="stockfish"||(opponent==="mix"&&((g*100/Math.max(1,currentConfig.games))<mixRatio));
+  const c=new Chess(),hist=newRepetitionHistory(c),state={detections:0,forcedDraw:false},local=[];let p=0;
+  while(!terminalPosition(c)&&!state.forcedDraw&&p<maxPlies&&!cancelRequested){
+    await yieldNow();if(cancelRequested)break;
+    const legal=safeRepetitionMoves(c,hist);if(!legal.length)break;
+    const learnerTurn=useStockfish?(c.turn()==="w"?g%2===0:g%2!==0):true;
+    let moveResult;
+    if(useStockfish&&!learnerTurn){
+      const uci=await uciRequest(c.fen(),stockfishDepth,stockfishThreads);
+      const engineMove=legal.find(m=>m.from+m.to+(m.promotion||"")===uci)||legal[0];
+      moveResult={move:engineMove,policy:[{a:actionIndex(engineMove),p:1}]};
+    }else moveResult=await mcts(c,sims,brain,true);
+    if(!moveResult?.move)break;
+    const safe=safeRepetitionMove(c,moveResult.move,brain,hist,state);if(safe.forcedDraw||!safe.move)break;
+    if(learnerTurn)local.push({x:Array.from(encode(c)),action:actionIndex(safe.move),legal:legal.map(actionIndex),policy:moveResult.policy||[{a:actionIndex(safe.move),p:1}],side:c.turn()});
+    if(!c.move({from:safe.move.from,to:safe.move.to,promotion:safe.move.promotion}))break;
+    p++;recordPosition(c,hist);
+    positionsForProgress++;
+    if((p&3)===0)await yieldNow();
+  }
+  let result=terminal(c);if(result===null)result=0;
+  for(const s of local)replay.push({...s,reward:s.side==="w"?result:-result});
+  return {samples:local.length,plies:p,fen:c.fen(),result,useStockfish};
+}
+let positionsForProgress=0;
+async function selfPlay(requestedGames,maxPlies,sims,opponent="self",mixRatio=25,stockfishDepth=8,stockfishThreads=1,parallelGames=1){
+  let samples=0;positionsForProgress=0;
+  for(let base=0;base<requestedGames&&!cancelRequested;base+=Math.max(1,parallelGames)){
+    const batch=[];for(let g=base;g<Math.min(requestedGames,base+Math.max(1,parallelGames));g++)batch.push(playTrainingGame(g,maxPlies,sims,opponent,mixRatio,stockfishDepth,stockfishThreads));
+    const results=await Promise.all(batch);
+    results.forEach((r,i)=>{samples+=r.samples;out({type:"progress",phase:"self-play",game:base+i+1,totalGames:requestedGames,positions:positionsForProgress,plies:r.plies});out({type:"live",phase:"self-play",game:base+i+1,totalGames:requestedGames,positions:positionsForProgress,plies:r.plies,fen:r.fen,turn:(r.fen.split(" ")[1]||"w")})});
+  }
+  const replayLimit=Math.max(1000,Number(currentConfig?.replaySize||50000));if(replay.length>replayLimit)replay=replay.slice(-replayLimit);
+  return {samples,positions:positionsForProgress};
+}
+async function train(updates,lr,batchSize){
   let total=0,used=0;
   for(let i=0;i<updates&&!cancelRequested;i++){
-    if(!replay.length)break;const s=replay[(Math.random()*replay.length)|0];if(!s?.legal?.length)continue;
-    const loss=brain.trainPolicyValue(Float32Array.from(s.x),s.policy,s.reward,s.legal,lr);total+=loss;used++;
-    if((i&3)===3)out({type:'progress',phase:'training',update:i+1,totalUpdates:updates,loss:used?total/used:0,positions:replay.length});
-    if((i&31)===31)await yieldNow();
-  } return used?total/used:0;
+    await yieldNow();if(!replay.length)break;
+    const batch=Math.max(1,Math.min(batchSize,replay.length));let loss=0;
+    for(let j=0;j<batch;j++){const s=replay[(Math.random()*replay.length)|0];if(!s?.legal?.length)continue;loss+=brain.trainPolicyValue(Float32Array.from(s.x),s.policy,s.reward,s.legal,lr);used++;}
+    total+=loss/Math.max(1,batch);
+    if((i&3)===3)out({type:"progress",phase:"training",update:i+1,totalUpdates:updates,loss:used?total/Math.max(1,Math.ceil(used/batch)):0,positions:replay.length});
+  }
+  return used?total/Math.max(1,Math.ceil(used/Math.max(1,batchSize))):0;
 }
-async function learnerMove(c,sims){
-  const legal=safeRepetitionMoves(c,newRepetitionHistory(c));if(!legal.length)return null;
-  const result=await mcts(c,sims,brain,true);return result?.move||legal[0];
-}
-async function evaluateAgainstStockfish(games,plies,sims,depth){
-  if(!stockfishPath)return {available:false,games:0,wins:0,draws:0,losses:0,error:'Stockfish executable not found'};
+async function learnerMove(c,sims){const legal=safeRepetitionMoves(c,newRepetitionHistory(c));if(!legal.length)return null;const result=await mcts(c,sims,brain,true);return result?.move||legal[0]}
+async function evaluateAgainstStockfish(games,plies,sims,depth,threads){
+  const info=await stockfishProbe();stockfishIdentity=info;if(!info.available)return {available:false,games:0,wins:0,draws:0,losses:0,error:info.error||"Stockfish 19 unavailable"};
   let wins=0,draws=0,losses=0,played=0;
   for(let g=0;g<games&&!cancelRequested;g++){
     const learnerWhite=g%2===0,c=new Chess(),hist=newRepetitionHistory(c);let p=0;
     while(!terminalPosition(c)&&p<plies&&!cancelRequested){
-      let move;
-      if((c.turn()==='w')===learnerWhite) move=await learnerMove(c,sims);
-      else {const uci=await uciRequest(c.fen(),depth);const legal=c.moves({verbose:true});move=legal.find(m=>m.from+m.to+(m.promotion||'')===uci)||legal[0]}
-      if(!move||!c.move({from:move.from,to:move.to,promotion:move.promotion}))break;
-      p++;recordPosition(c,hist);
+      await yieldNow();let move;
+      if((c.turn()==="w")===learnerWhite)move=await learnerMove(c,currentConfig?.sims||sims);
+      else{const uci=await uciRequest(c.fen(),depth,threads);const legal=c.moves({verbose:true});move=legal.find(m=>m.from+m.to+(m.promotion||"")===uci)||legal[0]}
+      if(!move||!c.move({from:move.from,to:move.to,promotion:move.promotion}))break;p++;recordPosition(c,hist);
     }
-    let r=terminal(c);if(r===null)r=0;
-    const learnerResult=learnerWhite?r:-r;if(learnerResult>0)wins++;else if(learnerResult<0)losses++;else draws++;played++;
-    out({type:'evaluation-progress',phase:'stockfish-eval',game:played,totalGames:games,wins,draws,losses});
+    let r=terminal(c);if(r===null)r=0;const learnerResult=learnerWhite?r:-r;if(learnerResult>0)wins++;else if(learnerResult<0)losses++;else draws++;played++;
+    out({type:"evaluation-progress",phase:"stockfish-eval",game:played,totalGames:games,wins,draws,losses});
   }
-  return {available:true,games:played,wins,draws,losses};
+  const score=played?(wins+draws*.5)/played:0;
+  return {available:true,version:stockfishIdentity.version,name:stockfishIdentity.name,games:played,wins,draws,losses,score,estimatedElo:Math.round(500+score*1900)};
+}
+function checkpointPayload(){
+  return {version:CHECKPOINT_VERSION,generation,gamesCompleted,brain:brain?.toJSON?.()||null,replaySize:replay.length,updatedAt:new Date().toISOString()};
 }
 async function handle(d){
-  if(d.type==='stop'){cancelRequested=true;pauseRequested=false;return}
-  if(d.type==='pause'){pauseRequested=true;out({type:'paused',phase:'paused'});return}
-  if(d.type==='resume'){pauseRequested=false;out({type:'resumed',phase:'resuming'});return}
-  if(d.type==='init'){brain=d.brain?TinyNet.fromJSON(d.brain):new TinyNet(Date.now());replay=Array.isArray(d.replay)?d.replay:[];initialized=true;out({type:'ready',generation:Number(d.generation)||0,stockfish:!!stockfishPath,stockfishPath:stockfishPath||null});return}
-  if(d.type==='stockfish-info'){out({type:'stockfish-info',available:!!stockfishPath,path:stockfishPath});return}
-  if(d.type!=='train'||!initialized)throw new Error('native trainer is not initialized');
+  if(d.type==="stop"){cancelRequested=true;pauseRequested=false;return}
+  if(d.type==="pause"){pauseRequested=true;out({type:"paused",phase:"paused",generation});return}
+  if(d.type==="resume"){pauseRequested=false;out({type:"resumed",phase:"resuming",generation});return}
+  if(d.type==="checkpoint"){out({type:"checkpoint",checkpoint:checkpointPayload()});return}
+  if(d.type==="init"){
+    brain=d.brain?TinyNet.fromJSON(d.brain):new TinyNet(Date.now());replay=Array.isArray(d.replay)?d.replay:[];generation=Number(d.generation)||0;gamesCompleted=Number(d.gamesCompleted)||0;initialized=true;
+    stockfishIdentity=await stockfishProbe();out({type:"ready",generation,gamesCompleted,stockfish:stockfishIdentity.available,stockfishInfo:stockfishIdentity});return;
+  }
+  if(d.type==="stockfish-info"){stockfishIdentity=await stockfishProbe();out({type:"stockfish-info",...stockfishIdentity});return}
+  if(d.type!=="train"||!initialized)throw new Error("native trainer is not initialized");
   cancelRequested=false;
-  const requestedGames=Math.max(1,Number(d.games||d.gamesPerGeneration)||1),maxPlies=Math.max(40,Number(d.maxPlies)||160),sims=Math.max(1,Math.min(128,Number(d.sims)||8)),updates=Math.max(1,Number(d.updates)||Math.min(requestedGames*8,512)),lr=Math.max(.00001,Math.min(.01,Number(d.lr)||.001));currentConfig={games:requestedGames,replaySize:Number(d.replaySize)||50000,opponent:d.opponent||'self',mixRatio:Number(d.mixRatio)||25,stockfishDepth:Number(d.stockfishDepth)||8};
-  const samples=await selfPlay(requestedGames,maxPlies,sims,currentConfig.opponent,currentConfig.mixRatio,currentConfig.stockfishDepth);const loss=await train(updates,lr);
+  const requestedGames=Math.max(1,Number(d.games||d.gamesPerGeneration)||1),maxPlies=Math.max(20,Number(d.maxPlies)||160),sims=Math.max(1,Math.min(128,Number(d.sims)||8)),updates=Math.max(1,Number(d.updates)||Math.min(requestedGames*8,512)),lr=Math.max(.00001,Math.min(.01,Number(d.lr)||.001)),batchSize=Math.max(1,Math.min(512,Number(d.batchSize)||64)),parallelGames=Math.max(1,Math.min(32,Number(d.parallelGames)||1)),stockfishThreads=Math.max(1,Math.min(64,Number(d.stockfishThreads)||1));
+  currentConfig={...d,games:requestedGames,replaySize:Number(d.replaySize)||50000,opponent:d.opponent||"self",mixRatio:Number(d.mixRatio)||25,stockfishDepth:Number(d.stockfishDepth)||12,sims,batchSize,parallelGames,stockfishThreads};
+  const samples=await selfPlay(requestedGames,maxPlies,sims,currentConfig.opponent,currentConfig.mixRatio,currentConfig.stockfishDepth,stockfishThreads,parallelGames);
+  const loss=await train(updates,lr,batchSize);
   let evaluation=null;
-  if(!cancelRequested&&d.stockfishEval!==false) evaluation=await evaluateAgainstStockfish(Math.max(1,Math.min(20,Number(d.evalGames)||4)),Math.max(40,Number(d.evalPlies)||120),Math.max(1,Math.min(16,Number(d.evalSims)||sims)),Math.max(4,Math.min(16,Number(d.stockfishDepth)||8)));
-  if(!cancelRequested)advanceTrainingCounters(requestedGames);out({type:'complete',brain:brain.toJSON(),games:cancelRequested?0:requestedGames,positions:samples.length,replaySize:replay.length,loss,evaluation,cancelled:cancelRequested,generation:Number(generation)||0});
+  if(!cancelRequested&&d.stockfishEval!==false)evaluation=await evaluateAgainstStockfish(Math.max(1,Math.min(100,Number(d.evalGames)||10)),Math.max(20,Number(d.evalPlies)||300),sims,Math.max(1,Math.min(30,Number(d.stockfishDepth)||12)),stockfishThreads);
+  if(!cancelRequested){generation++;gamesCompleted+=requestedGames;lastEvaluation=evaluation}
+  out({type:"complete",brain:brain.toJSON(),games:cancelRequested?0:requestedGames,positions:samples.samples,replaySize:replay.length,loss,evaluation,cancelled:cancelRequested,generation,gamesCompleted,checkpoint:checkpointPayload()});
 }
 const rl=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
-rl.on('line',async line=>{try{await handle(JSON.parse(line))}catch(e){out({type:'error',message:e?.stack||String(e)})}});
+rl.on("line",async line=>{try{await handle(JSON.parse(line))}catch(e){out({type:"error",message:e?.stack||String(e)})}});
