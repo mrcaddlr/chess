@@ -3,16 +3,17 @@
   const TOKEN_KEY='chess-lab-pairing-token';
   const params=new URLSearchParams(location.search);
   const role='controller';
-  const apiBase=(location.protocol==='http:' && !['localhost','127.0.0.1'].includes(location.hostname))?'http://127.0.0.1:8787':location.origin;
+  const apiBase=(location.protocol==='file:' || !['http:','https:'].includes(location.protocol) || !['localhost','127.0.0.1'].includes(location.hostname))?'http://127.0.0.1:8787':location.origin;
   let ws=null,reconnectTimer=null,heartbeatTimer=null,connected=false,nativeCompute=false,apiOnline=false,engineAvailability={};
   const listeners={command:[],status:[],connection:[]};
   function emit(type,data){for(const fn of listeners[type]||[])try{fn(data)}catch(e){console.error(e)}}
   function token(){return localStorage.getItem(TOKEN_KEY)||''}
   async function refreshBackendStatus(){
     try{
-      const r=await fetch(apiBase+'/api/status',{cache:'no-store'});
+      const r=await fetch(apiBase+'/api/health',{cache:'no-store'});
       if(!r.ok)throw new Error('status '+r.status);
-      const s=await r.json();
+      const h=await r.json();
+      const sr=await fetch(apiBase+'/api/status',{cache:'no-store'}); if(!sr.ok)throw new Error('status '+sr.status); const s=await sr.json();
       apiOnline=true;nativeCompute=!!s?.nativeCompute;engineAvailability=s?.engines||{};emit('backend-info',s);
       if(role==='controller'){const ready=!!s?.stockfishInfo?.available;stockfishReady=ready;setEngineUi(ready?'Local Stockfish ready':'Local backend connected · Stockfish unavailable',ready);}
       return s;
