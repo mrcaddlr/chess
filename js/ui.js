@@ -92,10 +92,18 @@ $('startTraining')?.addEventListener('click',()=>{
     if(!s)return;
     if(b.role==='controller'){
       const pct=s.totalGames?Math.round((Number(s.game||0)/Number(s.totalGames))*100):0;
-      setStatus(s.training?'remote training':'remote ready',s.training?((s.phase||'training')+' · '+(s.game||0)+' / '+(s.totalGames||0)+' games'):'PC backend connected',pct);
+      if(s.error) setStatus('error',String(s.error),pct);
+      else setStatus(s.training?'remote training':'remote ready',s.training?((s.phase||'training')+' · '+(s.game||0)+' / '+(s.totalGames||0)+' games'):'PC backend connected',pct);
       const live=document.getElementById('liveGames');if(live)live.textContent=String(s.game||0);
       const rate=document.getElementById('liveGamesRate');if(rate)rate.textContent=String(s.gamesPerMinute||0);
+      const pos=document.getElementById('livePositions');if(pos)pos.textContent=String(s.positions||0);
+      const upd=document.getElementById('liveUpdates');if(upd)upd.textContent=String(s.updates||0);
+      const ply=document.getElementById('livePly');if(ply)ply.textContent='ply '+String(s.ply||0);
+      const turn=document.getElementById('liveTurn');if(turn)turn.textContent=(s.turn==='b'?'black':'white')+' to move';
+      const phase=document.getElementById('livePhase');if(phase)phase.textContent=String(s.phase||'waiting');
+      const detail=document.getElementById('liveDetail');if(detail)detail.textContent=s.training?(String(s.phase||'training')+' · game '+(s.game||0)+' / '+(s.totalGames||0)):(s.error||'PC backend connected');
       const gen=document.getElementById('generationBadge');if(gen)gen.textContent='gen '+(s.generation||0);
+      if(s.fen)renderTrainingLiveBoard(s.fen);
     }
   });
   b.on('command',m=>{
@@ -119,6 +127,23 @@ function recordMove(fenBefore,mv,actor){
 }
 
 function renderTrainingVisual(){const root=document.getElementById('networkVisual');if(!root)return;const layers=[{n:Math.min(16,Math.max(4,Math.round(CONFIG.input/64))),label:CONFIG.input+' input'},{n:Math.min(32,Math.max(8,Math.round(CONFIG.hidden1/16))),label:CONFIG.hidden1+' trunk'},{n:Math.min(32,Math.max(8,CONFIG.residualBlocks*3)),label:CONFIG.residualBlocks+' residual blocks'},{n:Math.min(40,Math.max(10,Math.round(CONFIG.policy/128))),label:CONFIG.policy+' policy + value'}];if(!root.dataset.ready){root.innerHTML='';layers.forEach((l,li)=>{const col=document.createElement('div');col.className='net-layer';for(let j=0;j<l.n;j++){const node=document.createElement('span');node.className='net-node';node.style.setProperty('--d',(j*35+li*70)+'ms');col.appendChild(node)}const lab=document.createElement('small');lab.textContent=l.label;col.appendChild(lab);root.appendChild(col)});root.dataset.ready='1'}const active=training;root.classList.toggle('active',active);const state=document.getElementById('brainState');if(state)state.textContent=active?'learning':'idle';root.style.setProperty('--pulse',Math.min(1,trainingSpeed/20).toFixed(2));}
+function renderTrainingLiveBoard(fen){
+  const root=document.getElementById('trainingLiveBoard');if(!root||!fen||fen==='start')return;
+  const board=String(fen).split(' ')[0];const rows=board.split('/');
+  if(rows.length!==8)return;
+  root.innerHTML='';
+  rows.forEach((row,r)=>{
+    let file=0;
+    for(const ch of row){
+      const count=/[1-8]/.test(ch)?Number(ch):1;
+      for(let i=0;i<count;i++){
+        const sq=document.createElement('div');sq.className='training-live-square '+(((r+file)&1)?'dark':'light');
+        if(!/[1-8]/.test(ch))sq.textContent=PIECES[ch]||ch;
+        root.appendChild(sq);file++;
+      }
+    }
+  });
+}
 function renderTrainingLive(){
   const panel=document.querySelector('.training-controls-panel');
   if(!panel)return;
