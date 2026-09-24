@@ -167,21 +167,36 @@ async function buildBundledEngineWorker(engineUrl){
   const jsResponse=await fetch(engineUrl,{cache:'force-cache'});
   if(!jsResponse.ok)throw new Error(jsName+' returned HTTP '+jsResponse.status);
   let source=await jsResponse.text();
-  const workerModeNeedle='"worker"===self.location.hash.split(",")[1]';
-  const workerModeNeedleAlt='"worker"===self.location.hash.split(",")[1]';
-  if(source.includes(workerModeNeedle)){
-    source=source.replace(workerModeNeedle,'true');
-  }else if(source.includes(workerModeNeedleAlt)){
-    source=source.replace(workerModeNeedleAlt,'true');
-  }else{
-    throw new Error(jsName+' does not contain the expected Stockfish worker bootstrap');
+  const workerModePatterns=[
+    '"worker"===self.location.hash.split(",")[1]',
+    '"worker"===self.location.hash.split(",")[1]||'
+  ];
+  let workerPatched=false;
+  for(const needle of workerModePatterns){
+    if(source.includes(needle)){source=source.replace(needle,'true');workerPatched=true;break}
   }
-  const hashNeedle='e=self.location.hash.substr(1).split(",")';
-  if(source.includes(hashNeedle)){
-    source=source.replace(hashNeedle,'e=['+JSON.stringify(wasmUrl)+',"worker"]');
-  }else{
-    throw new Error(jsName+' does not contain the expected Stockfish WASM bootstrap');
+  if(!workerPatched)throw new Error(jsName+' does not contain the expected Stockfish worker bootstrap');
+  // Stockfish.js 19 builds resolve their browser WASM through locateFile.
+  // Force that resolver to the exact cached/assembled WASM Blob URL instead
+  // of relying on the worker's URL/hash or GitHub Pages relative paths.
+  const wasmResolverPatterns=[
+    'n||u:self.location.origin+self.location.pathname+"#"+u+",worker"',
+    't||u:self.location.origin+self.location.pathname+"#"+u+",worker"'
+  ];
+  let wasmPatched=false;
+  for(const needle of wasmResolverPatterns){
+    if(source.includes(needle)){
+      source=source.replace(needle,JSON.stringify(wasmUrl)+':self.location.origin+self.location.pathname+"#"+u+",worker"');
+      wasmPatched=true;break;
+    }
   }
+  if(!wasmPatched){
+    // Keep compatibility with other Stockfish.js browser builds by replacing
+    // the generic WASM fallback expression if present.
+    const generic=/([nt])\|\|u:self\.location\.origin\+self\.location\.pathname\+"#"+u+",worker"/;
+    if(generic.test(source)){source=source.replace(generic,JSON.stringify(wasmUrl)+':self.location.origin+self.location.pathname+"#"+u+",worker"');wasmPatched=true}
+  }
+  if(!wasmPatched)throw new Error(jsName+' does not contain a patchable Stockfish WASM resolver');
   const patchedUrl=URL.createObjectURL(new Blob([source],{type:'text/javascript'}));
   stockfishBlobUrls.push(patchedUrl);
   log('starting '+jsName+' in a patched browser worker with explicit WASM URL');
