@@ -4,10 +4,20 @@
   const params=new URLSearchParams(location.search);
   const role='controller';
   const apiBase=localStorage.getItem('chess-lab-backend-url')||location.origin;
-  let ws=null,reconnectTimer=null,connected=false,nativeCompute=false;
+  let ws=null,reconnectTimer=null,connected=false,nativeCompute=false,apiOnline=false;
   const listeners={command:[],status:[],connection:[]};
   function emit(type,data){for(const fn of listeners[type]||[])try{fn(data)}catch(e){console.error(e)}}
   function token(){return localStorage.getItem(TOKEN_KEY)||''}
+  async function refreshBackendStatus(){
+    try{
+      const r=await fetch(apiBase+'/api/status',{cache:'no-store'});
+      if(!r.ok)throw new Error('status '+r.status);
+      const s=await r.json();
+      apiOnline=true;nativeCompute=!!s?.nativeCompute;emit('backend-info',s);
+      if(role==='controller'){stockfishReady=true;setEngineUi('PC Stockfish backend ready',true);}
+      return s;
+    }catch(e){apiOnline=false;if(role==='controller'){stockfishReady=false;setEngineUi('PC backend offline',false);}return null;}
+  }
   function connect(){
     if(ws&&[0,1].includes(ws.readyState))return;
     try{const u=new URL(apiBase);u.protocol=u.protocol==='https:'?'wss:':'ws:';u.pathname='/ws';u.search='';u.hash='';ws=new WebSocket(u.href)}catch(e){schedule();return}
@@ -17,7 +27,8 @@
   }
   function schedule(){clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connect,2000)}
   function send(type,payload){if(!ws||ws.readyState!==1)return false;ws.send(JSON.stringify({type,token:token(),...payload}));return true}
-  fetch(apiBase+'/api/status').then(r=>r.ok?r.json():null).then(s=>{nativeCompute=!!s?.nativeCompute;emit('backend-info',s)}).catch(()=>{});
+  refreshBackendStatus();
+  setInterval(refreshBackendStatus,3000);
   window.chessLabBackend={
     role,connect,isConnected:()=>connected,nativeCompute:()=>nativeCompute,
     setToken:t=>{localStorage.setItem(TOKEN_KEY,String(t||''));connect()},
