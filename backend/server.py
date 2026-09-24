@@ -20,6 +20,72 @@ def pairing_token():
     return token
 TOKEN=pairing_token()
 
+NATIVE_SCRIPT=ROOT/"backend"/"node-compute-worker.js"
+NATIVE_STATE=ROOT/".chess-lab-native-model.json"
+native_proc=None
+native_lock=threading.Lock()
+native_ready=False
+native_generation=0
+
+def native_available():
+    import shutil
+    return bool(shutil.which("node")) and NATIVE_SCRIPT.exists()
+
+def load_native_model():
+    if NATIVE_STATE.exists():
+        try:return json.loads(NATIVE_STATE.read_text())
+        except Exception:return None
+    return None
+
+def save_native_model(model):
+    tmp=NATIVE_STATE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(model,separators=(",",":")))
+    tmp.replace(NATIVE_STATE)
+
+def start_native():
+    global native_proc,native_ready,native_generation
+    with native_lock:
+        if native_proc and native_proc.poll() is None:return True
+        if not native_available():return False
+        import subprocess
+        native_proc=subprocess.Popen(["node",str(NATIVE_SCRIPT)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,bufsize=1)
+        model=load_native_model()
+        native_proc.stdin.write(json.dumps({"type":"init","brain":model})+"\n")
+        native_proc.stdin.flush()
+        line=native_proc.stdout.readline()
+        if not line:return False
+        msg=json.loads(line)
+        native_ready=msg.get("type")=="ready"
+        native_generation=int(msg.get("generation") or 0)
+        return native_ready
+
+def native_train(data):
+    global native_generation
+    if not start_native():raise RuntimeError("Node.js is required for native PC training")
+    with native_lock:
+        native_proc.stdin.write(json.dumps({"type":"train",**data})+"\n")
+        native_proc.stdin.flush()
+        while True:
+            line=native_proc.stdout.readline()
+            if not line:raise RuntimeError("native trainer exited")
+            msg=json.loads(line)
+            typ=msg.get("type")
+            if typ=="progress":
+                for k in ("game","totalGames","positions","phase"):
+                    if k in msg:state[k]=msg[k]
+                state["updated"]=time.time();broadcast({"type":"status","data":state})
+            elif typ=="complete":
+                save_native_model(msg["brain"]);native_generation+=1
+                state["generation"]=native_generation;state["training"]=False;state["phase"]="generation-complete"
+                state["game"]=msg.get("games",0);state["totalGames"]=msg.get("games",0);state["positions"]=msg.get("positions",0)
+                state["updated"]=time.time();broadcast({"type":"status","data":state});return msg
+            elif typ=="error":raise RuntimeError(msg.get("message","native trainer error"))
+
+def run_native_training(data):
+    try:native_train(data)
+    except Exception as e:
+        state["training"]=False;state["phase"]="error";state["error"]=str(e);state["updated"]=time.time();broadcast({"type":"status","data":state})
+
 def ws_send(sock,obj):
     payload=json.dumps(obj,separators=(",",":")).encode()
     n=len(payload); frame=bytearray([0x81])
@@ -68,7 +134,7 @@ class Handler(BaseHTTPRequestHandler):
         if p.path=="/api/health": return self._json({"ok":True,"service":"chess-lab-pc-bridge","version":"0.1.0"})
         if p.path=="/api/status":
             with clients_lock: connected=len(clients)
-            return self._json({**state,"connectedClients":connected,"pairingRequired":True})
+            return self._json({**state,"connectedClients":connected,"pairingRequired":True,"nativeCompute":native_available(),"nativeRunning":bool(native_proc and native_proc.poll() is None),"generation":native_generation})
         if p.path=="/api/pairing": return self._json({"token":TOKEN})
         if p.path=="/ws" and self.headers.get("Upgrade","").lower()=="websocket": return self.websocket()
         return self.static()
@@ -103,7 +169,13 @@ class Handler(BaseHTTPRequestHandler):
                     broadcast({"type":"connection","role":role,"connected":True},exclude=client)
                 elif typ=="command" and client["role"]=="controller":
                     if msg.get("command") in ("start-training","stop-training","pause-training","resume-training","request-status"):
-                        broadcast({"type":"command","command":msg.get("command"),"data":msg.get("data") or {}},exclude=client)
+                        command=msg.get("command");data=msg.get("data") or {}
+                        if command=="start-training" and native_available() and not state.get("training"):
+                            state["training"]=True;state["phase"]="starting";state["error"]="";state["updated"]=time.time()
+                            threading.Thread(target=run_native_training,args=(data,),daemon=True).start()
+                        elif command=="stop-training":
+                            state["error"]="native stop is queued for the current worker boundary"
+                        broadcast({"type":"command","command":command,"data":data},exclude=client)
                 elif typ=="status" and client["role"]=="compute":
                     data=msg.get("data") or {}
                     for k in ("training","generation","game","totalGames","positions","gamesPerMinute","phase"):
