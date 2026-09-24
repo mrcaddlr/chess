@@ -3,6 +3,8 @@ mod chess;
 mod engine;
 mod hardware;
 mod neural;
+mod optimizer;
+mod checkpoint;
 mod training;
 mod update;
 
