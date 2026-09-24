@@ -109,7 +109,7 @@ async function runParallelSelfPlay(gameCount,maxPlies){
           const gamesForWorker=Math.min(per,Math.max(0,requested-i*per));
           if(!gamesForWorker)continue;
           expected++;
-          const w=new Worker('js/training-worker.js?v=0.31.19');
+          const w=new Worker('js/training-worker.js?v=0.31.20');
           fastWorkers.push(w);
           let finished=false;
           const cleanup=()=>{try{w.terminate()}catch(e){}};
