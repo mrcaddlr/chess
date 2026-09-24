@@ -5,7 +5,25 @@ function newRepetitionHistory(c){return new Map([[positionKey(c),1]])}
 function resetRepetition(c=game){repetition=newRepetitionHistory(c);repetitionForcedDraw=false;repetitionDetections=0}
 function recordPosition(c,hist=repetition){const k=positionKey(c),n=(hist.get(k)||0)+1;hist.set(k,n);return n}
 function countPosition(c,hist=repetition){return hist.get(positionKey(c))||0}
-function moveCreatesRepetitionBreak(c,m,hist){if(!hist||!m)return false;const mv=c.move({from:m.from,to:m.to,promotion:m.promotion});if(!mv)return true;const would=(hist.get(positionKey(c))||0)+1;c.undo();return would>=4}
+function sameMove(a,b){return !!a&&!!b&&a.from===b.from&&a.to===b.to&&(a.promotion||'')===(b.promotion||'')} 
+function legalMoveFor(c,m){if(!m)return null;const legal=c.moves({verbose:true});return legal.find(x=>sameMove(x,m))||null}
+function moveCreatesRepetitionBreak(c,m,hist){
+  if(!hist||!m)return false;
+  const legal=legalMoveFor(c,m);
+  if(!legal)return true;
+  try{
+    const mv=c.move({from:legal.from,to:legal.to,promotion:legal.promotion});
+    if(!mv)return true;
+    const would=(hist.get(positionKey(c))||0)+1;
+    c.undo();
+    return would>=4;
+  }catch(e){return true}
+}
 function safeRepetitionMoves(c,hist=repetition){return c.moves({verbose:true}).filter(m=>!moveCreatesRepetitionBreak(c,m,hist))}
 function registerRepetitionViolation(){repetitionDetections++;points-=2;if(repetitionDetections>=3)repetitionForcedDraw=true;return repetitionForcedDraw}
-function safeRepetitionMove(c,proposed,learnerBrain,hist=repetition,state=null){const legal=c.moves({verbose:true});if(!legal.length)return {move:null,forcedDraw:false,detected:false};if(proposed&&!moveCreatesRepetitionBreak(c,proposed,hist))return {move:proposed,forcedDraw:false,detected:false};const safe=safeRepetitionMoves(c,hist);if(proposed){if(state){state.detections=(state.detections||0)+1;state.forcedDraw=state.detections>=3;if(state.forcedDraw)return {move:null,forcedDraw:true,detected:true}}else if(registerRepetitionViolation())return {move:null,forcedDraw:true,detected:true}}if(!safe.length)return {move:null,forcedDraw:true,detected:true};if(!learnerBrain)return {move:safe[Math.floor(Math.random()*safe.length)],forcedDraw:false,detected:true};const actions=safe.map(actionIndex),pred=learnerBrain.predictLegal(encode(c),actions);let best=safe[0],bs=-Infinity;for(let i=0;i<safe.length;i++){const sc=pred.policy[i];if(sc>bs){bs=sc;best=safe[i]}}return {move:best,forcedDraw:false,detected:true}}
+function safeRepetitionMove(c,proposed,learnerBrain,hist=repetition,state=null){
+  const legal=c.moves({verbose:true});
+  if(!legal.length)return {move:null,forcedDraw:false,detected:false};
+  const exact=legalMoveFor(c,proposed);
+  if(exact&&!moveCreatesRepetitionBreak(c,exact,hist))return {move:exact,forcedDraw:false,detected:false};
+const safe=safeRepetitionMoves(c,hist);if(proposed){if(state){state.detections=(state.detections||0)+1;state.forcedDraw=state.detections>=3;if(state.forcedDraw)return {move:null,forcedDraw:true,detected:true}}else if(registerRepetitionViolation())return {move:null,forcedDraw:true,detected:true}}if(!safe.length)return {move:null,forcedDraw:true,detected:true};if(!learnerBrain)return {move:safe[Math.floor(Math.random()*safe.length)],forcedDraw:false,detected:true};const actions=safe.map(actionIndex),pred=learnerBrain.predictLegal(encode(c),actions);let best=safe[0],bs=-Infinity;for(let i=0;i<safe.length;i++){const sc=pred.policy[i];if(sc>bs){bs=sc;best=safe[i]}}return {move:best,forcedDraw:false,detected:true}}
