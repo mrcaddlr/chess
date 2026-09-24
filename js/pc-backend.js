@@ -23,6 +23,8 @@
     setToken:t=>{localStorage.setItem(TOKEN_KEY,String(t||''));connect()},
     setUrl:u=>{localStorage.setItem('chess-lab-backend-url',String(u||location.origin));location.reload()},
     getUrl:()=>apiBase,
+    async getModel(){const r=await fetch(apiBase+'/api/model',{headers:{'X-Chess-Lab-Token':token()}});if(!r.ok)throw new Error('model download failed: '+r.status);return r.json()},
+    async setModel(model){const r=await fetch(apiBase+'/api/model',{method:'POST',headers:{'Content-Type':'application/json','X-Chess-Lab-Token':token()},body:JSON.stringify({model})});if(!r.ok)throw new Error('model upload failed: '+r.status);return r.json()},
     on:(type,fn)=>{(listeners[type]||(listeners[type]=[])).push(fn);return()=>{listeners[type]=listeners[type].filter(x=>x!==fn)}},
     command:(command,data={})=>send('command',{command,data}),
     publishStatus:data=>send('status',{data})
