@@ -103,7 +103,7 @@ Training history is persisted in:
 
 ## GitHub updates
 
-The backend keeps a lightweight Git polling fallback. The automatic Cloudflare Quick Tunnel has been removed because its random public URL was not a stable or appropriate long-term webhook endpoint.
+The backend keeps a lightweight Git polling fallback. Cloudflare HTTPS support is available through a **stable remotely-managed tunnel**. Set `CHESS_LAB_CLOUDFLARE_TOKEN` to the tunnel token and install `cloudflared`; the backend will start the tunnel automatically. This keeps HTTPS/webhook support without using a random Quick Tunnel. Cloudflare's current documentation recommends named/managed tunnels for published applications and notes that Quick Tunnel URLs change on restart. citeturn0search4turn0search0
 
 The normal workflow is:
 
