@@ -8,104 +8,48 @@ let stockfishBlobUrls=[];
 let nativeEngine=null;
 let engineLoadedFromCache=false;
 
-const ENGINE_CACHE_VERSION='stockfish-cache-v4';
-const engineWasmCache={
-  db:null,
-  async open(){
-    if(this.db)return this.db;
-    this.db=await new Promise((resolve,reject)=>{
-      const req=indexedDB.open('chess-lab-engine-cache',1);
-      req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('wasm'))req.result.createObjectStore('wasm')};
-      req.onsuccess=()=>resolve(req.result);
-      req.onerror=()=>reject(req.error||new Error('IndexedDB unavailable'));
-    });
-    return this.db;
-  },
-  async get(key){
-    try{
-      const db=await this.open();
-      return await new Promise((resolve,reject)=>{
-        const req=db.transaction('wasm','readonly').objectStore('wasm').get(key);
-        req.onsuccess=()=>resolve(req.result||null);
-        req.onerror=()=>reject(req.error);
-      });
-    }catch(e){log('engine cache read failed: '+e.message);return null}
-  },
-  async put(key,bytes){
-    try{
-      const db=await this.open();
-      await new Promise((resolve,reject)=>{
-        const req=db.transaction('wasm','readwrite').objectStore('wasm').put(bytes,key);
-        req.onsuccess=()=>resolve();
-        req.onerror=()=>reject(req.error);
-      });
-      return true;
-    }catch(e){log('engine cache write failed: '+e.message);return false}
-  }
-};
-function waitForStockfish(timeout=125000){return new Promise(resolve=>{if(stockfishReady){resolve(true);return}const started=Date.now();const timer=setInterval(()=>{if(stockfishReady||Date.now()-started>=timeout){clearInterval(timer);resolve(stockfishReady)}},100)})}
+const ENGINE_CACHE_VERSION='stockfish-device-v1';
+
+async function persistEngineStorage(){
+  try{
+    if(navigator.storage?.persist) await navigator.storage.persist();
+  }catch(e){}
+}
+
 async function buildBundledEngineWorker(engineUrl){
   if(engineUrl.endsWith('/lozza.js')){
     log('loading Lozza · browser worker');
     return new Worker(engineUrl);
   }
 
+  await persistEngineStorage();
+
   const jsName=engineUrl.split('/').pop();
   const wasmName=jsName.replace(/\\.js$/i,'.wasm');
-  const cacheName='chess-lab-engines-v2';
-  const cacheUrl=new URL('stockfish/'+wasmName,document.baseURI).href;
-  const cache=await caches.open(cacheName);
+  const wasmUrl=new URL('stockfish/'+wasmName,document.baseURI).href;
 
-  // The repo stores the large Stockfish WASM as chunks. Assemble it once,
-  // store the completed binary in the browser's persistent Cache storage,
-  // then run Stockfish from that same-origin cached URL forever after.
-  let cached=await cache.match(cacheUrl);
-  if(!cached){
-    const manifestUrl=new URL('stockfish/engine-manifest.json',document.baseURI).href;
-    const manifestResponse=await fetch(manifestUrl,{cache:'no-store'});
-    if(!manifestResponse.ok)throw new Error('engine manifest returned HTTP '+manifestResponse.status);
-    const manifest=await manifestResponse.json();
-    const parts=manifest[wasmName];
-
-    if(Array.isArray(parts)&&parts.length){
-      log('first run: downloading '+wasmName+' directly to browser storage · '+parts.length+' chunks');
-      const buffers=[];
-      let total=0;
-      for(let i=0;i<parts.length;i++){
-        const partUrl=new URL('stockfish/'+String(parts[i]).replace(/^\\/+/,''),document.baseURI).href;
-        const r=await fetch(partUrl,{cache:'force-cache'});
-        if(!r.ok)throw new Error('engine chunk '+parts[i]+' returned HTTP '+r.status);
-        const b=new Uint8Array(await r.arrayBuffer());
-        if(!b.byteLength)throw new Error('engine chunk '+parts[i]+' is empty');
-        buffers.push(b);total+=b.byteLength;
-        log('downloaded engine chunk '+(i+1)+'/'+parts.length);
-      }
-      const combined=new Uint8Array(total);
-      let offset=0;
-      for(const b of buffers){combined.set(b,offset);offset+=b.byteLength}
-      if(combined[0]!==0||combined[1]!==0x61||combined[2]!==0x73||combined[3]!==0x6d){
-        throw new Error(wasmName+' is not a valid WASM binary after assembly');
-      }
-      cached=new Response(combined,{status:200,headers:{'Content-Type':'application/wasm','Cache-Control':'public, max-age=31536000'}});
-      await cache.put(cacheUrl,cached.clone());
-      log(wasmName+' is now stored on this device · future loads use the local copy');
-    }else{
-      const r=await fetch(cacheUrl,{cache:'force-cache'});
-      if(!r.ok)throw new Error(wasmName+' returned HTTP '+r.status);
-      await cache.put(cacheUrl,r.clone());
-      cached=r;
-      log(wasmName+' downloaded once and stored on this device');
-    }
-  }else{
-    log(wasmName+' loaded from device storage · no engine download');
+  // The service worker intercepts this exact same-origin WASM request.
+  // On the first load it downloads the COMPLETE WASM binary from the
+  // upstream package and stores that response on this device. There is
+  // deliberately no chunking, IndexedDB assembly, Blob patching, or
+  // runtime reconstruction here.
+  const probe=await fetch(wasmUrl,{cache:'force-cache'});
+  if(!probe.ok)throw new Error(wasmName+' returned HTTP '+probe.status);
+  const header=new Uint8Array(await probe.clone().arrayBuffer()).slice(0,4);
+  if(header[0]!==0||header[1]!==0x61||header[2]!==0x73||header[3]!==0x6d){
+    throw new Error(wasmName+' is not a valid WASM binary');
   }
 
-  // Keep the official Stockfish JS worker bootstrap intact. Its locateFile()
-  // resolves stockfish.wasm relative to this script, and the service worker/cache
-  // supplies the cached binary for that exact URL.
-  const worker=new Worker(engineUrl+'#stockfish-worker');
-  return worker;
-}function cfgIsMultiEngine(engineUrl){
+  engineLoadedFromCache=probe.headers.get('x-chess-lab-engine-cache')==='HIT';
+  log(engineLoadedFromCache
+    ? wasmName+' loaded from device storage · no download'
+    : wasmName+' downloaded as one complete file and stored on this device');
+
+  // Use Stockfish's original browser worker unchanged.
+  return new Worker(engineUrl+'#stockfish-worker');
+}
+
+function cfgIsMultiEngine(engineUrl){
   return Object.values(ENGINE_CONFIGS||{}).some(cfg=>cfg?.multi&&new URL(cfg.url,document.baseURI).href===engineUrl);
 }
 async function createNativeEngine(cfg){
