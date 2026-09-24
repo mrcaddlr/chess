@@ -165,7 +165,12 @@ def native_train(data):
             elif typ=="progress":
                 for k in ("game","totalGames","positions","phase","updates","totalUpdates","loss"):
                     if k in msg:state[k]=msg[k]
+                started=float(state.get("trainingStartedAt") or time.time())
+                elapsed=max(.001,(time.time()-started)/60)
+                state["gamesPerMinute"]=float(msg.get("game") or state.get("game") or 0)/elapsed
                 state["updated"]=time.time();broadcast({"type":"status","data":state})
+            elif typ=="checkpoint":
+                state["phase"]="checkpoint-saved";state["updated"]=time.time();broadcast({"type":"status","data":state})
             elif typ=="paused":
                 state["paused"]=True;state["phase"]="paused";state["updated"]=time.time();broadcast({"type":"status","data":state})
             elif typ=="resumed":
@@ -430,7 +435,7 @@ class Handler(BaseHTTPRequestHandler):
                             if not native_available():
                                 state["training"]=False;state["paused"]=False;state["phase"]="error";state["error"]="PC training worker is unavailable. Check that Node.js can be launched by the backend.";state["updated"]=time.time();broadcast({"type":"status","data":state})
                             else:
-                                state["training"]=True;state["paused"]=False;state["phase"]="starting";state["error"]="";state["game"]=0;state["totalGames"]=int(data.get("games",data.get("gamesPerGeneration",100)) or 100);state["positions"]=0;state["updates"]=0;state["totalUpdates"]=int(data.get("updates",400) or 400);state["updated"]=time.time();broadcast({"type":"status","data":state})
+                                state["training"]=True;state["paused"]=False;state["phase"]="starting";state["error"]="";state["trainingStartedAt"]=time.time();state["game"]=0;state["totalGames"]=int(data.get("games",data.get("gamesPerGeneration",100)) or 100);state["positions"]=0;state["updates"]=0;state["totalUpdates"]=int(data.get("updates",400) or 400);state["updated"]=time.time();broadcast({"type":"status","data":state})
                                 threading.Thread(target=run_native_training,args=(data,),daemon=True).start()
                         elif command=="pause-training" and state.get("training"):
                             with native_lock:
