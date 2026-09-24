@@ -17,36 +17,7 @@ async function persistEngineStorage(){
 }
 
 async function buildBundledEngineWorker(engineUrl){
-  if(engineUrl.endsWith('/lozza.js')){
-    log('loading Lozza · browser worker');
-    return new Worker(engineUrl);
-  }
-
-  await persistEngineStorage();
-
-  const jsName=engineUrl.split('/').pop();
-  const wasmName=jsName.replace(/\\.js$/i,'.wasm');
-  const wasmUrl=new URL('stockfish/'+wasmName,document.baseURI).href;
-
-  // The service worker intercepts this exact same-origin WASM request.
-  // On the first load it downloads the COMPLETE WASM binary from the
-  // upstream package and stores that response on this device. There is
-  // deliberately no chunking, IndexedDB assembly, Blob patching, or
-  // runtime reconstruction here.
-  const probe=await fetch(wasmUrl,{cache:'force-cache'});
-  if(!probe.ok)throw new Error(wasmName+' returned HTTP '+probe.status);
-  const header=new Uint8Array(await probe.clone().arrayBuffer()).slice(0,4);
-  if(header[0]!==0||header[1]!==0x61||header[2]!==0x73||header[3]!==0x6d){
-    throw new Error(wasmName+' is not a valid WASM binary');
-  }
-
-  engineLoadedFromCache=probe.headers.get('x-chess-lab-engine-cache')==='HIT';
-  log(engineLoadedFromCache
-    ? wasmName+' loaded from device storage · no download'
-    : wasmName+' downloaded as one complete file and stored on this device');
-
-  // Use Stockfish's original browser worker unchanged.
-  return new Worker(engineUrl+'#stockfish-worker');
+  throw new Error('browser engine execution is disabled · Stockfish runs on the PC backend');
 }
 
 function cfgIsMultiEngine(engineUrl){
@@ -66,6 +37,17 @@ async function createNativeEngine(cfg){
   stockfishReady=true;stockfishLoading=false;setEngineUi(cfg.label+' ready',true);log(cfg.label+' ready · browser-native engine');return true;
 }
 async function createStockfish(force=false){
+  if(window.chessLabBackend?.role==='controller'){
+    stockfishLoading=false;stockfishReady=!!window.chessLabBackend.isConnected?.();
+    setEngineUi(stockfishReady?'PC Stockfish backend ready':'PC backend offline',stockfishReady);
+    return;
+  }
+  if(window.chessLabBackend?.nativeCompute?.()){
+    stockfishLoading=false;stockfishReady=true;
+    setEngineUi('PC backend compute',true);
+    return;
+  }
+
   if((stockfishWorker||stockfishLoading)&&!force)return;
   const cfg=ENGINE_CONFIGS[selectedEngine]||null,previousWorker=stockfishWorker,previousReady=stockfishReady;
   const engineUrl=selectedEngine==='custom-wasm'?document.getElementById('customEngineUrl')?.value.trim():cfg?.url?new URL(cfg.url,document.baseURI).href:'';
@@ -87,5 +69,21 @@ async function nativeBestMove(fen,depth=6){
   if(nativeEngine.kind==='tonnetto'){const eng=new nativeEngine.Engine({fen});const mv=eng.getBestMove(Math.max(1,Math.min(6,depth)));return typeof mv==='string'?mv:(mv?.uci||mv?.from+mv?.to||null)}
   const game=new nativeEngine.Engine(fen);const obj=game.aiMove(Math.max(0,Math.min(4,Math.floor(depth/2))));const entry=Object.entries(obj||{})[0];if(!entry)return null;let u=entry[0].toLowerCase()+entry[1].toLowerCase();if((u[1]==='7'&&u[3]==='8')||(u[1]==='2'&&u[3]==='1'))u+='q';return u;
 }
-function stockfishMove(c,depth=12,allowedMoves=null){return new Promise(async resolve=>{if(selectedEngine==='tonnetto'||selectedEngine==='js-chess-engine'){try{const legal=c.moves({verbose:true}),allowed=Array.isArray(allowedMoves)?allowedMoves:legal,uci=await nativeBestMove(c.fen(),depth),m=legal.find(x=>x.from+x.to+(x.promotion||'')===uci);resolve(m||null)}catch(e){log('native engine move failed: '+e.message);resolve(null)}return}if(!stockfishReady||!stockfishWorker){log('Stockfish is not ready');resolve(null);return}const legal=c.moves({verbose:true}),allowed=Array.isArray(allowedMoves)?allowedMoves:legal,allowedUci=allowed.map(x=>x.from+x.to+(x.promotion||''));if(!allowedUci.length){resolve(null);return}const done=uci=>{const m=legal.find(x=>x.from+x.to+(x.promotion||'')===uci);resolve(m||null)};stockfishQueue.push(done);stockfishActiveResolve=()=>{const i=stockfishQueue.indexOf(done);if(i>=0)stockfishQueue.splice(i,1);resolve(null)};stockfishWorker.postMessage('ucinewgame');stockfishWorker.postMessage('position fen '+c.fen());stockfishWorker.postMessage('go depth '+depth+' searchmoves '+allowedUci.join(' '))})}
+function stockfishMove(c,depth=12,allowedMoves=null){return new Promise(async resolve=>{
+  const legal=c.moves({verbose:true}),allowed=Array.isArray(allowedMoves)?allowedMoves:legal;
+  if(window.chessLabBackend?.role==='controller'||window.chessLabBackend?.nativeCompute?.()){
+    try{const uci=await window.chessLabBackend.getEngineMove(c.fen(),depth,allowed);resolve(legal.find(x=>x.from+x.to+(x.promotion||'')===uci)||null)}
+    catch(e){log('PC Stockfish request failed: '+e.message);resolve(null)}
+    return;
+  }
+  if(selectedEngine==='tonnetto'||selectedEngine==='js-chess-engine'){
+    try{const uci=await nativeBestMove(c.fen(),depth);resolve(legal.find(x=>x.from+x.to+(x.promotion||'')===uci)||null)}catch(e){resolve(null)}
+    return;
+  }
+  if(!stockfishReady||!stockfishWorker){log('Stockfish is not ready');resolve(null);return}
+  const allowedUci=allowed.map(x=>x.from+x.to+(x.promotion||''));if(!allowedUci.length){resolve(null);return}
+  const done=uci=>resolve(legal.find(x=>x.from+x.to+(x.promotion||'')===uci)||null);
+  stockfishQueue.push(done);stockfishActiveResolve=()=>{const i=stockfishQueue.indexOf(done);if(i>=0)stockfishQueue.splice(i,1);resolve(null)};
+  stockfishWorker.postMessage('ucinewgame');stockfishWorker.postMessage('position fen '+c.fen());stockfishWorker.postMessage('go depth '+depth+' searchmoves '+allowedUci.join(' '))
+})}
 function cancelEngine(){cancelRequested=true;if(fastBatchAbort){const abort=fastBatchAbort;fastBatchAbort=null;abort()}else stopFastWorkers();if(stockfishWorker&&stockfishReady){try{stockfishWorker.postMessage('stop')}catch(e){}}if(stockfishActiveResolve){const r=stockfishActiveResolve;stockfishActiveResolve=null;r()}if(analysisActive){const a=analysisActive;analysisActive=null;a.resolve(null)}stockfishQueue.length=0;busy=false;}
