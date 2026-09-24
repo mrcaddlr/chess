@@ -93,7 +93,7 @@ pub fn adjudicate(board:&Board,history:&HashMap<String,u32>,automatic_repetition
  None
 }
 
-#[derive(Clone,Serialize,Default)]pub struct TrainingStatus{pub running:bool,pub paused:bool,pub generation:u64,pub games:u64,pub positions:u64,pub loss:f32,pub replay_size:usize}
+#[derive(Clone,Serialize,Default)]pub struct TrainingStatus{pub running:bool,pub paused:bool,pub generation:u64,pub games:u64,pub positions:u64,pub loss:f32,pub policy_loss:f32,pub value_loss:f32,pub replay_size:usize,pub optimizer_step:u64,pub last_error:Option<String>}
 pub struct Trainer{pub replay:ReplayBuffer,pub mcts:Mcts,pub network:Network,pub optimizer:Optimizer}
 
 impl Trainer{
@@ -122,7 +122,7 @@ impl Trainer{
      self.optimizer.update_gradients(&mut self.network,&total);last=LossStats::from_gradients(&total);self.replay.update_priorities(&indices,&losses);
    }last
  }
- pub fn run_self_play(&mut self,games:u64)->TrainingStatus{let mut positions=0;for _ in 0..games{positions+=self.self_play_game(200);}let loss=self.train_steps(games.max(1)as usize,32).total;TrainingStatus{running:false,paused:false,generation:1,games,positions:positions as u64,loss,replay_size:self.replay.len()}}
+ pub fn run_self_play(&mut self,games:u64)->TrainingStatus{let mut positions=0;for _ in 0..games{positions+=self.self_play_game(200);}let stats=self.train_steps(games.max(1)as usize,32);TrainingStatus{running:false,paused:false,generation:1,games,positions:positions as u64,loss:stats.total,policy_loss:stats.policy,value_loss:stats.value,replay_size:self.replay.len(),optimizer_step:self.optimizer.step,last_error:None}}
  pub fn run(&mut self,games:u64)->TrainingStatus{self.run_self_play(games)}
 }
 
