@@ -5,26 +5,25 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0f12">
 <title>Chess Lab</title>
-<link rel="stylesheet" href="css/style.css?v=0.50.0">
+<link rel="stylesheet" href="css/style.css?v=0.60.0">
 <script src="js/chess.js?v=0.31.20"></script>
 </head>
 <body>
 <div class="app">
   <header class="topbar">
     <div class="brand"><span class="brand-mark">[♞]</span><div><h1>CHESS LAB</h1><p>LOCAL LEARNING TERMINAL</p></div></div>
-    <div class="top-status"><span id="onlineDot" class="dot"></span><span id="enginePill">CONNECTING...</span></div>
+    <div class="top-tools"><label class="global-search"><span>⌕</span><input id="globalSearch" type="search" placeholder="Search Chess Lab" autocomplete="off"></label><button class="status-chip" id="connectionChip" type="button"><span id="onlineDot" class="dot"></span><span id="enginePill">LOCAL · CONNECTING</span></button></div>
   </header>
 
   <div class="terminal">
     <aside class="sidebar">
-      <div class="side-title">NAVIGATION</div>
-      <button class="nav-item active" data-screen="overview">01  OVERVIEW</button>
-      <button class="nav-item" data-screen="match">02  PLAY</button>
-      <button class="nav-item" data-screen="training">03  TRAINING</button>
-      <button class="nav-item" data-screen="evaluation">04  EVALUATION</button>
-      <button class="nav-item" data-screen="brain">05  BRAIN</button>
-      <button class="nav-item" data-screen="models">06  MODELS</button>
-      <button class="nav-item" data-screen="settings">07  SETTINGS</button>
+      <div class="side-title">CHESS LAB</div>
+      <button class="nav-item active" data-screen="overview"><span class="nav-icon">⌂</span><span>Home</span></button>
+      <button class="nav-item" data-screen="match"><span class="nav-icon">♞</span><span>Play</span></button>
+      <button class="nav-item" data-screen="training"><span class="nav-icon">↗</span><span>Training</span></button>
+      <button class="nav-item" data-screen="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
+      <div class="sidebar-divider"></div>
+      <div class="side-note">LOCAL WORKSPACE<br><span>127.0.0.1:8787</span></div>
       <div class="sidebar-spacer"></div>
       <div class="shortcut-box">
         <div>KEYS</div>
@@ -37,7 +36,7 @@
 
     <main class="main">
       <section class="screen active" id="screen-overview">
-        <div class="screen-head"><div><span class="eyebrow">01 / OVERVIEW</span><h2>system overview</h2></div><span class="badge" id="generationBadge">GEN 0</span></div>
+        <div class="screen-head"><div><span class="eyebrow">HOME</span><h2>Overview</h2></div><span class="badge" id="generationBadge">GEN 0</span></div>
         <div class="overview-grid">
           <section class="panel status-panel">
             <div class="panel-title">SYSTEM</div>
@@ -72,7 +71,7 @@
       </section>
 
       <section class="screen" id="screen-match">
-        <div class="screen-head"><div><span class="eyebrow">02 / PLAY</span><h2>match</h2></div><span class="badge" id="modeBadge">LEARNER VS LEARNER</span></div>
+        <div class="screen-head"><div><span class="eyebrow">PLAY</span><h2>Play chess</h2></div><span class="badge" id="modeBadge">LEARNER VS LEARNER</span></div>
         <div class="match-layout">
           <section class="panel board-panel">
             <div class="player-strip"><div id="whitePlayerCard"><span>WHITE</span><b id="whitePlayerName">Learner</b></div><div id="blackPlayerCard"><span>BLACK</span><b id="blackPlayerName">Learner</b></div></div>
@@ -105,7 +104,7 @@
       </section>
 
       <section class="screen" id="screen-training">
-        <div class="screen-head"><div><span class="eyebrow">03 / TRAINING</span><h2>training terminal</h2></div><span class="badge" id="trainingLiveBadge">IDLE</span></div>
+        <div class="screen-head"><div><span class="eyebrow">TRAINING</span><h2>Train the learner</h2></div><span class="badge" id="trainingLiveBadge">IDLE</span></div>
         <div class="training-controls-panel">
           <div class="training-grid">
             <section class="panel config-panel">
@@ -174,17 +173,17 @@
       </section>
 
       <section class="screen" id="screen-settings">
-        <div class="screen-head"><div><span class="eyebrow">07 / SETTINGS</span><h2>runtime</h2></div></div>
+        <div class="screen-head"><div><span class="eyebrow">SETTINGS</span><h2>Runtime & engines</h2></div></div>
         <div class="settings-grid">
           <section class="panel"><div class="panel-title">BACKEND</div><div class="setting-line"><span>URL</span><b id="backendUrl">LOCAL</b></div><div class="setting-line"><span>ROLE</span><b>CONTROLLER</b></div><div class="setting-line"><span>COMPUTE</span><b id="computeStatus">CHECKING</b></div></section>
           <section class="panel"><div class="panel-title">SYSTEM LOG</div><div class="log-actions"><button class="btn mini" id="clearLog">CLEAR</button></div><pre class="log" id="log"></pre></section>
         </div>
       </section>
-    </main>
+    <div class="connection-popover" id="connectionPopover" hidden><div class="popover-title">LOCAL BACKEND</div><div class="connection-row"><span>Backend</span><b id="connectionBackend">Checking</b></div><div class="connection-row"><span>WebSocket</span><b id="connectionSocket">Checking</b></div><div class="connection-row"><span>Compute</span><b id="connectionCompute">Checking</b></div><div class="connection-row"><span>Stockfish</span><b id="connectionStockfish">Checking</b></div><div class="popover-url">127.0.0.1:8787</div></div></main>
   </div>
 
   <footer class="footer">
-    <span>BACKEND <b id="footerBackend">CHECKING</b></span><span>STOCKFISH <b id="footerStockfish">CHECKING</b></span><span>GEN <b id="footerGeneration">0</b></span><span class="footer-help">[1-7] SCREEN &nbsp; [↑↓] NAV &nbsp; [ENTER] SELECT &nbsp; [?] HELP</span>
+    <span><b id="footerBackend">LOCAL</b></span><span>SF <b id="footerStockfish">CHECKING</b></span><span>GEN <b id="footerGeneration">0</b></span><span class="footer-help">[1-4] NAV &nbsp; [↑↓] MOVE &nbsp; [ENTER] OPEN &nbsp; [/] SEARCH</span>
   </footer>
 </div>
 
@@ -192,21 +191,21 @@
 <div class="modal" id="promoModal"><div class="modal-box"><h3>PROMOTION</h3><div class="tiny">SELECT PIECE</div><div class="modal-actions" id="promoActions"></div></div></div>
 
 <script>
-if('serviceWorker' in navigator && location.protocol==='https:'){navigator.serviceWorker.register('./coi-service-worker.js?v=0.50.0').catch(()=>{});}
+if('serviceWorker' in navigator && location.protocol==='https:'){navigator.serviceWorker.register('./coi-service-worker.js?v=0.60.0').catch(()=>{});}
 </script>
 <script src="js/chess.js?v=0.31.20"></script>
 <script src="js/repetition.js?v=0.31.20"></script>
 <script src="js/core.js?v=0.31.20"></script>
 <script src="js/learner.js?v=0.31.20"></script>
-<script src="js/training.js?v=0.50.0"></script>
-<script src="js/engine.js?v=0.50.0"></script>
-<script src="js/pc-backend.js?v=0.50.0"></script>
+<script src="js/training.js?v=0.60.0"></script>
+<script src="js/engine.js?v=0.60.0"></script>
+<script src="js/pc-backend.js?v=0.60.0"></script>
 <script src="js/review.js?v=0.31.20"></script>
-<script src="js/board.js?v=0.50.0"></script>
-<script src="js/match.js?v=0.50.0"></script>
-<script src="js/ui.js?v=0.50.0"></script>
-<script src="js/storage.js?v=0.50.0"></script>
-<script src="js/navigation.js?v=0.50.0"></script>
-<script src="js/app.js?v=0.50.0"></script>
+<script src="js/board.js?v=0.60.0"></script>
+<script src="js/match.js?v=0.60.0"></script>
+<script src="js/ui.js?v=0.60.0"></script>
+<script src="js/storage.js?v=0.60.0"></script>
+<script src="js/navigation.js?v=0.60.0"></script>
+<script src="js/app.js?v=0.60.0"></script>
 </body>
 </html>
