@@ -10,7 +10,7 @@ HOST=os.environ.get("CHESS_LAB_HOST","0.0.0.0")
 PORT=int(os.environ.get("CHESS_LAB_PORT","8787"))
 TOKEN_FILE=ROOT/".chess-lab-pairing"
 clients=[]; clients_lock=threading.Lock()
-state={"compute":False,"training":False,"generation":0,"game":0,"totalGames":0,"positions":0,"gamesPerMinute":0,"phase":"idle","updated":time.time(),"stockfish":None,"evaluation":None}
+state={"compute":False,"training":False,"paused":False,"generation":0,"game":0,"totalGames":0,"positions":0,"updates":0,"totalUpdates":0,"ply":0,"fen":"start","turn":"w","loss":None,"gamesPerMinute":0,"phase":"idle","updated":time.time(),"stockfish":None,"evaluation":None,"completedGames":0,"completedPositions":0,"completedLoss":None,"error":""}
 
 def start_public_https():
     """Start a temporary public HTTPS tunnel when cloudflared is installed."""
@@ -132,6 +132,7 @@ def native_train(data):
             if typ=="evaluation-progress":
                 state["phase"]="stockfish-eval";state["evaluation"]={k:msg.get(k,0) for k in ("game","totalGames","wins","draws","losses")};state["updated"]=time.time();broadcast({"type":"status","data":state})
             elif typ=="live":
+                state["paused"]=False
                 for k in ("game","totalGames","positions","phase","ply","fen","turn"):
                     if k in msg:state[k]=msg[k]
                 state["updated"]=time.time();broadcast({"type":"status","data":state})
@@ -139,10 +140,14 @@ def native_train(data):
                 for k in ("game","totalGames","positions","phase","updates","totalUpdates","loss"):
                     if k in msg:state[k]=msg[k]
                 state["updated"]=time.time();broadcast({"type":"status","data":state})
+            elif typ=="paused":
+                state["paused"]=True;state["phase"]="paused";state["updated"]=time.time();broadcast({"type":"status","data":state})
+            elif typ=="resumed":
+                state["paused"]=False;state["phase"]="resuming";state["updated"]=time.time();broadcast({"type":"status","data":state})
             elif typ=="complete":
                 save_native_model(msg["brain"]);native_generation=int(msg.get("generation") or (native_generation+1))
-                state["generation"]=native_generation;state["training"]=False;state["phase"]="generation-complete";state["evaluation"]=msg.get("evaluation");state["stockfish"]=bool(msg.get("evaluation",{}).get("available")) if isinstance(msg.get("evaluation"),dict) else state.get("stockfish")
-                state["game"]=msg.get("games",0);state["totalGames"]=msg.get("games",0);state["positions"]=msg.get("positions",0);state["ply"]=0;state["fen"]="start";state["turn"]="w";state["updates"]=0;state["totalUpdates"]=0
+                state["generation"]=native_generation;state["training"]=False;state["paused"]=False;state["phase"]="generation-complete";state["error"]="";state["evaluation"]=msg.get("evaluation");state["stockfish"]=bool(msg.get("evaluation",{}).get("available")) if isinstance(msg.get("evaluation"),dict) else state.get("stockfish")
+                state["game"]=msg.get("games",0);state["totalGames"]=msg.get("games",0);state["completedGames"]=msg.get("games",0);state["completedPositions"]=msg.get("positions",0);state["completedLoss"]=msg.get("loss");state["loss"]=msg.get("loss");state["positions"]=msg.get("positions",0);state["ply"]=0;state["fen"]="start";state["turn"]="w";state["updates"]=0;state["totalUpdates"]=0
                 state["updated"]=time.time();broadcast({"type":"status","data":state});return msg
             elif typ=="error":raise RuntimeError(msg.get("message","native trainer error"))
 
@@ -353,16 +358,28 @@ class Handler(BaseHTTPRequestHandler):
                     ws_send(client["sock"],{"type":"registered","role":role,"state":state})
                     broadcast({"type":"connection","role":role,"connected":True},exclude=client)
                 elif typ=="command" and client["role"]=="controller":
-                    if msg.get("command") in ("start-training","stop-training","pause-training","resume-training","request-status"):
+                    if msg.get("command") in ("start-training","stop-training","pause-training","resume-training","checkpoint-training","request-status"):
                         command=msg.get("command");data=msg.get("data") or {}
                         if command=="start-training" and not state.get("training"):
                             if not native_available():
-                                state["training"]=False;state["phase"]="error";state["error"]="PC training requires Node.js; install Node.js to enable the local trainer.";state["updated"]=time.time();broadcast({"type":"status","data":state})
+                                state["training"]=False;state["paused"]=False;state["phase"]="error";state["error"]="PC training worker is unavailable. Node.js was not detected by the backend.";state["updated"]=time.time();broadcast({"type":"status","data":state})
                             else:
-                                state["training"]=True;state["phase"]="starting";state["error"]="";state["updated"]=time.time();broadcast({"type":"status","data":state})
+                                state["training"]=True;state["paused"]=False;state["phase"]="starting";state["error"]="";state["updated"]=time.time();broadcast({"type":"status","data":state})
                                 threading.Thread(target=run_native_training,args=(data,),daemon=True).start()
+                        elif command=="pause-training" and state.get("training"):
+                            with native_lock:
+                                if native_proc and native_proc.poll() is None:
+                                    native_proc.stdin.write(json.dumps({"type":"pause"})+"\\n");native_proc.stdin.flush()
+                            state["paused"]=True;state["phase"]="paused"
+                        elif command=="resume-training" and state.get("training"):
+                            with native_lock:
+                                if native_proc and native_proc.poll() is None:
+                                    native_proc.stdin.write(json.dumps({"type":"resume"})+"\\n");native_proc.stdin.flush()
+                            state["paused"]=False;state["phase"]="resuming"
+                        elif command=="checkpoint-training":
+                            state["phase"]="checkpoint-saved";state["updated"]=time.time()
                         elif command=="stop-training":
-                            native_stop();state["training"]=False;state["phase"]="stopping"
+                            native_stop();state["training"]=False;state["paused"]=False;state["phase"]="stopping"
                         broadcast({"type":"command","command":command,"data":data},exclude=client)
                 elif typ=="status" and client["role"]=="compute":
                     data=msg.get("data") or {}
