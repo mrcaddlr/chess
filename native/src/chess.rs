@@ -48,9 +48,9 @@ impl Board{
   }out
  }
  pub fn legal_moves(&self)->Vec<Move>{self.pseudo_legal_moves().into_iter().filter(|m|{let mut b=*self; b.make_unchecked(*m).is_ok()&&!b.in_check(!b.white_to_move)}).collect()}
- fn make_unchecked(&mut self,mv:Move)->Result<(),String>{let p=self.squares[mv.from as usize];if p=='.'||p.is_uppercase()!=self.white_to_move{return Err("invalid source".into())}let target=self.squares[mv.to as usize];let was_white=self.white_to_move;self.en_passant=None;
+ fn make_unchecked(&mut self,mv:Move)->Result<(),String>{let p=self.squares[mv.from as usize];if p=='.'||p.is_uppercase()!=self.white_to_move{return Err("invalid source".into())}let target=self.squares[mv.to as usize];let was_white=self.white_to_move;let old_ep=self.en_passant;self.en_passant=None;
   if p.to_ascii_lowercase()=='p'&&(mv.to as i16-mv.from as i16).abs()==16{self.en_passant=Some(((mv.from as u16+mv.to as u16)/2)as u8)}
-  if p.to_ascii_lowercase()=='p'&&Some(mv.to)==self.en_passant&&target=='.'{let cap=if was_white{mv.to+8}else{mv.to-8};self.squares[cap as usize]='.'}
+  if p.to_ascii_lowercase()=='p'&&Some(mv.to)==old_ep&&target=='.'{let cap=if was_white{mv.to+8}else{mv.to-8};self.squares[cap as usize]='.'}
   self.squares[mv.from as usize]='.';self.squares[mv.to as usize]=mv.promotion.unwrap_or(p);
   if p.to_ascii_lowercase()=='k'{if was_white{self.castling&=!3}else{self.castling&=!12}if (mv.from as i16-mv.to as i16).abs()==2{let home=if was_white{56}else{0};if mv.to>mv.from{self.squares[(home+5)as usize]='.';self.squares[(home+6)as usize]=if was_white{'R'}else{'r'}}else{self.squares[(home+0)as usize]='.';self.squares[(home+3)as usize]=if was_white{'R'}else{'r'}}}}
   if mv.from==63||mv.to==63{self.castling&=!1}if mv.from==56||mv.to==56{self.castling&=!2}if mv.from==7||mv.to==7{self.castling&=!4}if mv.from==0||mv.to==0{self.castling&=!8}
