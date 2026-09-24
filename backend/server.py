@@ -131,7 +131,7 @@ def start_native():
         msg=json.loads(line)
         native_ready=msg.get("type")=="ready"
         native_generation=int(msg.get("generation") or 0)
-        state["stockfish"]=bool(msg.get("stockfish"))
+        state["stockfish"]=bool(msg.get("stockfish"));state["stockfishInfo"]=msg.get("stockfishInfo") or STOCKFISH_INFO
         state["stockfishInfo"]=msg.get("stockfishInfo")
         state["generation"]=native_generation
         return native_ready
@@ -268,16 +268,43 @@ def broadcast(message,exclude=None):
                 try: clients.remove(c)
                 except ValueError: pass
 
+STOCKFISH_INFO={"available":False,"path":None,"name":None,"version":None,"error":"Stockfish 19 not detected"}
+
+def probe_stockfish19():
+    import shutil
+    candidates=[]
+    configured=os.environ.get("CHESS_LAB_STOCKFISH","")
+    if configured:candidates.append(configured)
+    candidates.extend([str(ROOT/".chess-lab/stockfish-19"),"stockfish","stockfish-ubuntu","stockfish.exe"])
+    for candidate in candidates:
+        if os.path.sep in candidate and not Path(candidate).is_file():continue
+        found=candidate if os.path.sep in candidate else shutil.which(candidate)
+        if not found:continue
+        try:
+            p=subprocess.Popen([found],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+            p.stdin.write("uci\n");p.stdin.flush()
+            name=version=""
+            deadline=time.time()+5
+            while time.time()<deadline:
+                line=p.stdout.readline()
+                if not line:break
+                line=line.strip()
+                if line.startswith("id name "):name=line[8:].strip()
+                elif line.startswith("id version "):version=line[11:].strip()
+                elif line=="uciok":break
+            p.kill()
+            ok=("stockfish" in name.lower() and (version.startswith("19") or " 19" in name))
+            if ok:return {"available":True,"path":found,"name":name,"version":version or "19"}
+        except Exception:pass
+    return {"available":False,"path":None,"name":None,"version":None,"error":"Stockfish 19 is required. Install the official Stockfish 19 Linux binary or set CHESS_LAB_STOCKFISH."}
+
+STOCKFISH_INFO=probe_stockfish19()
+
 def native_engine_move(fen, depth=12, allowed_moves=None):
     import shutil
-    engine=None
-    configured=os.environ.get("CHESS_LAB_STOCKFISH","")
-    if configured and os.path.isfile(configured): engine=configured
-    if not engine:
-        for candidate in ("stockfish","stockfish-ubuntu","stockfish.exe"):
-            found=shutil.which(candidate)
-            if found: engine=found; break
-    if not engine: raise RuntimeError("Stockfish executable not found on the PC")
+    engine=STOCKFISH_INFO.get("path")
+    if not STOCKFISH_INFO.get("available") or not engine:
+        raise RuntimeError(STOCKFISH_INFO.get("error","Stockfish 19 is not available"))
     allowed_moves=[str(x) for x in (allowed_moves or []) if x]
     p=subprocess.Popen([engine],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,bufsize=1)
     try:
@@ -352,7 +379,7 @@ class Handler(BaseHTTPRequestHandler):
         if p.path=="/api/health": return self._json({"ok":True,"service":"chess-lab-pc-bridge","version":"0.1.0"})
         if p.path=="/api/status":
             with clients_lock: connected=len(clients)
-            return self._json({**state,"connectedClients":connected,"pairingRequired":True,"nativeCompute":native_available(),"trainingAvailable":native_available(),"nativeRunning":bool(native_proc and native_proc.poll() is None),"generation":native_generation,"stockfishInfo":state.get("stockfishInfo")})
+            return self._json({**state,"connectedClients":connected,"pairingRequired":True,"nativeCompute":native_available(),"trainingAvailable":native_available(),"nativeRunning":bool(native_proc and native_proc.poll() is None),"generation":native_generation,"stockfishInfo":state.get("stockfishInfo") or STOCKFISH_INFO})
         if p.path=="/api/pairing": return self._json({"token":TOKEN})
         if p.path=="/api/engine-move":
             if self.headers.get("X-Chess-Lab-Token","")!=TOKEN:return self._json({"error":"invalid pairing token"},401)
@@ -401,7 +428,7 @@ class Handler(BaseHTTPRequestHandler):
                         command=msg.get("command");data=msg.get("data") or {}
                         if command=="start-training" and not state.get("training"):
                             if not native_available():
-                                state["training"]=False;state["paused"]=False;state["phase"]="error";state["error"]="PC training worker is unavailable. Node.js was not detected by the backend.";state["updated"]=time.time();broadcast({"type":"status","data":state})
+                                state["training"]=False;state["paused"]=False;state["phase"]="error";state["error"]="PC training worker is unavailable. Check that Node.js can be launched by the backend.";state["updated"]=time.time();broadcast({"type":"status","data":state})
                             else:
                                 state["training"]=True;state["paused"]=False;state["phase"]="starting";state["error"]="";state["game"]=0;state["totalGames"]=int(data.get("games",data.get("gamesPerGeneration",100)) or 100);state["positions"]=0;state["updates"]=0;state["totalUpdates"]=int(data.get("updates",400) or 400);state["updated"]=time.time();broadcast({"type":"status","data":state})
                                 threading.Thread(target=run_native_training,args=(data,),daemon=True).start()
