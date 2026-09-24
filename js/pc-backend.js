@@ -3,8 +3,8 @@
   const TOKEN_KEY='chess-lab-pairing-token';
   const params=new URLSearchParams(location.search);
   const role='controller';
-  const apiBase=location.origin;
-  let ws=null,reconnectTimer=null,heartbeatTimer=null,connected=false,nativeCompute=false,apiOnline=false;
+  const apiBase=(location.protocol==='http:' && !['localhost','127.0.0.1'].includes(location.hostname))?'http://127.0.0.1:8787':location.origin;
+  let ws=null,reconnectTimer=null,heartbeatTimer=null,connected=false,nativeCompute=false,apiOnline=false,engineAvailability={};
   const listeners={command:[],status:[],connection:[]};
   function emit(type,data){for(const fn of listeners[type]||[])try{fn(data)}catch(e){console.error(e)}}
   function token(){return localStorage.getItem(TOKEN_KEY)||''}
@@ -13,7 +13,7 @@
       const r=await fetch(apiBase+'/api/status',{cache:'no-store'});
       if(!r.ok)throw new Error('status '+r.status);
       const s=await r.json();
-      apiOnline=true;nativeCompute=!!s?.nativeCompute;emit('backend-info',s);
+      apiOnline=true;nativeCompute=!!s?.nativeCompute;engineAvailability=s?.engines||{};emit('backend-info',s);
       if(role==='controller'){const ready=!!s?.stockfishInfo?.available;stockfishReady=ready;setEngineUi(ready?'Local Stockfish ready':'Local backend connected · Stockfish unavailable',ready);}
       return s;
     }catch(e){apiOnline=false;if(role==='controller'){stockfishReady=false;setEngineUi('Local backend unreachable',false);}emit('backend-info',{apiOnline:false,nativeCompute:false,stockfishInfo:{available:false}});return null;}
