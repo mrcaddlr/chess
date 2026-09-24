@@ -8,6 +8,7 @@ global.importScripts=(...paths)=>{for(const p of paths){const file=path.resolve(
 importScripts('js/chess.js','js/repetition.js','js/core.js','js/learner.js');
 
 let brain=null,replay=[],initialized=false,cancelRequested=false;
+function advanceTrainingCounters(count){generation=(Number(generation)||0)+1;games=(Number(games)||0)+Number(count||0);}
 function out(o){process.stdout.write(JSON.stringify(o)+'\n')}
 function terminal(c){if(isCheckmate(c))return c.turn()==='w'?-1:1;if(isStalemate(c)||isInsufficientMaterial(c))return 0;const f=c.fen().split(' ');return Number(f[4])>=100?0:null}
 function yieldNow(){return new Promise(r=>setImmediate(r))}
@@ -96,7 +97,7 @@ async function handle(d){
   const samples=await selfPlay(games,maxPlies,sims);const loss=await train(updates,lr);
   let evaluation=null;
   if(!cancelRequested&&d.stockfishEval!==false) evaluation=await evaluateAgainstStockfish(Math.max(1,Math.min(20,Number(d.evalGames)||4)),Math.max(40,Number(d.evalPlies)||120),Math.max(1,Math.min(16,Number(d.evalSims)||sims)),Math.max(4,Math.min(16,Number(d.stockfishDepth)||8)));
-  if(!cancelRequested){generation=(Number(generation)||0)+1;games=(Number(games)||0)+games;}out({type:'complete',brain:brain.toJSON(),games:cancelRequested?0:games,positions:samples.length,replaySize:replay.length,loss,evaluation,cancelled:cancelRequested,generation:Number(generation)||0});
+  if(!cancelRequested)advanceTrainingCounters(games);out({type:'complete',brain:brain.toJSON(),games:cancelRequested?0:games,positions:samples.length,replaySize:replay.length,loss,evaluation,cancelled:cancelRequested,generation:Number(generation)||0});
 }
 const rl=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
 rl.on('line',async line=>{try{await handle(JSON.parse(line))}catch(e){out({type:'error',message:e?.stack||String(e)})}});
