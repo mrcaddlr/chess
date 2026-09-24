@@ -28,7 +28,15 @@
     if(e.target.matches('input,select,textarea,[contenteditable="true"]'))return;
     if(e.key==='/'){e.preventDefault();search?.focus();return}
     if(e.key>='1'&&e.key<='4'){show(screens[Number(e.key)-1],false);return}
-    if(e.key==='ArrowDown'||e.key==='ArrowUp'){const next=(index+(e.key==='ArrowDown'?1:-1)+screens.length)%screens.length;e.preventDefault();show(screens[next],true);return}
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+      const dir=e.key==='ArrowDown'?1:-1;
+      const next=(index+dir+screens.length)%screens.length;
+      e.preventDefault();
+      show(screens[next],true);
+      const active=buttons[next];
+      if(active){active.scrollIntoView({block:'nearest',inline:'nearest'});active.animate?.([{transform:'translateY('+(dir>0?'-2px':'2px')+' )',opacity:.72},{transform:'translateY(0)',opacity:1}],{duration:140,easing:'ease-out'});}
+      return;
+    }
     if(e.key==='Enter'&&document.activeElement?.classList.contains('nav-item'))document.activeElement.click();
   });
   window.chessLabNavigation={show,search:q=>{const nodes=[...document.querySelectorAll('.screen.active .panel')];const n=nodes.find(x=>x.textContent.toLowerCase().includes(q));if(n){n.scrollIntoView({behavior:'smooth',block:'center'});n.animate?.([{outline:'1px solid #9bb7ff'},{outline:'none'}],{duration:900})}}};
