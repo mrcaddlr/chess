@@ -52,17 +52,10 @@ function trainingLogLine(message){const root=$('trainingLog');if(!root)return;ro
 function setTrainingConfigVisibility(){const mode=$('trainingMode')?.value||'generation',opp=$('trainOpponent')?.value||'self';if($('targetEloField'))$('targetEloField').style.display=mode==='target'?'grid':'none';if($('mixRatioField'))$('mixRatioField').style.display=opp==='mix'?'grid':'none'}
 function setTrainingButtonState(running){if($('startTraining'))$('startTraining').disabled=running;if($('pauseTraining'))$('pauseTraining').disabled=!running;if($('stopTraining'))$('stopTraining').disabled=!running}
 $('startTraining')?.addEventListener('click',async()=>{
-  const config=remoteTrainingConfig();
-  if(window.chessLabBackend?.command){
-    const ok=await window.chessLabBackend.command('start-training',config);
-    if(ok){trainingLogLine('PC training run requested');setTrainingButtonState(true);toast('training started');return}
-    trainingLogLine('PC backend unavailable; switching to browser training');
-  }
   if(typeof trainBatch==='function'){
-    if(typeof trainingMode!=='undefined'){}
-    trainBatch().catch(e=>{trainingLogLine('ERROR: browser training failed: '+e.message);setStatus('error','training failed · '+e.message,0);setTrainingButtonState(false)});
+    trainBatch().catch(e=>{trainingLogLine('ERROR: training failed: '+e.message);setStatus('error','training failed · '+e.message,0);setTrainingButtonState(false)});
     setTrainingButtonState(true);
-    toast('browser training started');
+    toast(window.chessLabBackend?.nativeCompute?.()?'Rust training started':'training started');
   }else{
     trainingLogLine('ERROR: no training runtime is available');
     toast('training runtime unavailable');
