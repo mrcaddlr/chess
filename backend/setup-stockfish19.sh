@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIR="$ROOT/.chess-lab"
 ARCHIVE="$DIR/stockfish-19.tar.gz"
-URL="https://github.com/official-stockfish/Stockfish/releases/latest/download/stockfish-linux-x86-64-universal.tar.gz"
+URL="https://github.com/official-stockfish/Stockfish/releases/download/sf_19/stockfish-linux-x86-64-universal.tar.gz"
 mkdir -p "$DIR"
 echo "Downloading the official Stockfish 19 Linux x86-64 universal build..."
 curl -fL --retry 3 "$URL" -o "$ARCHIVE"
