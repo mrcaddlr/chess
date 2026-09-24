@@ -52,12 +52,12 @@ async fn start_training(State(s):State<Arc<AppState>>,Json(body):Json<Value>)->J
  thread::spawn(move||{
   let dir=state.root.join(".chess-lab");let _=std::fs::create_dir_all(&dir);
   let generation_path=dir.join("generation.ckpt");let champion_path=dir.join("champion.ckpt");let replay_path=dir.join("replay.json");
-  let mut trainer=Trainer::new();trainer.replay.capacity=replay_capacity;
+  let mut trainer=Trainer::new();trainer.replay=training::ReplayBuffer::new(replay_capacity);
   let mut generation=0u64;
   if generation_path.exists(){if let Ok(g)=checkpoint::load(&generation_path,&mut trainer.network,&mut trainer.optimizer){generation=g;}}
   if replay_path.exists(){if let Ok(r)=training::ReplayBuffer::load(&replay_path,replay_capacity){trainer.replay=r;}}
   let mut total_games=0u64;let mut total_positions=0u64;let mut champion_score=0.0;let mut champion_generation=0u64;
-  if champion_path.exists(){let mut n=trainer.network.clone();let mut o=trainer.optimizer.clone();if let Ok(g)=checkpoint::load(&champion_path,&mut n,&mut o){champion_generation=g;}}
+  if champion_path.exists(){let mut n=trainer.network.clone();let mut o=trainer.optimizer.clone();if let Ok(g)=checkpoint::load(&champion_path,&mut n,&mut o){champion_generation=g;champion_score=0.5;}}
   while !state.stop.load(Ordering::SeqCst)&&generation<generations{
    while state.pause.load(Ordering::SeqCst)&&!state.stop.load(Ordering::SeqCst){set_status(&state,|x|{x.paused=true;x.phase="paused".into()});thread::sleep(Duration::from_millis(200));}
    if state.stop.load(Ordering::SeqCst){break}
