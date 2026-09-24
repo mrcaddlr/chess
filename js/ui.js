@@ -54,17 +54,17 @@ function applyRemoteTrainingConfig(data){
   for(const [id,value] of Object.entries(data)){const e=$(id);if(e&&value!=null)e.value=String(value)}
 }
 $('startTraining')?.addEventListener('click',()=>{
-  if(window.chessLabBackend?.role==='controller'){
-    if(!window.chessLabBackend.command('start-training',remoteTrainingConfig())){toast('PC is offline');setStatus('error','connect to the PC backend first',0)}
-    else {setStatus('remote','sent training command to PC',0);toast('training command sent')}
+  if(window.chessLabBackend?.nativeCompute?.() || window.chessLabBackend?.role==='controller'){
+    if(!window.chessLabBackend.command('start-training',remoteTrainingConfig())){toast('PC backend is offline');setStatus('error','connect to the PC backend first',0)}
+    else {setStatus('remote','PC training starting',0);toast('PC training started')}
     return;
   }
   trainBatch().catch(e=>{log('training launch error: '+e.message);setStatus('error','training failed to start',0)})
 });
   $('stopTraining')?.addEventListener('click',()=>{
-  if(window.chessLabBackend?.role==='controller'){
-    if(!window.chessLabBackend.command('stop-training'))toast('PC is offline');
-    else {setStatus('remote','sent stop command to PC',0);toast('stop command sent')}
+  if(window.chessLabBackend?.nativeCompute?.() || window.chessLabBackend?.role==='controller'){
+    if(!window.chessLabBackend.command('stop-training'))toast('PC backend is offline');
+    else {setStatus('remote','stop requested',0);toast('stop requested')}
     return;
   }
   cancelRequested=true;cancelEngine();training=false;busy=false;setStatus('paused','training stopped',0);renderStats();toast('training stopped')
