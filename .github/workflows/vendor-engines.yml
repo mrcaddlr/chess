@@ -50,7 +50,8 @@ jobs:
             stockfish-19.js stockfish-19.wasm \
             stockfish-19-single.js stockfish-19-single.wasm \
             stockfish-19-lite.js stockfish-19-lite.wasm \
-            stockfish-19-lite-single.js stockfish-19-lite-single.wasm
+            stockfish-19-lite-single.js stockfish-19-lite-single.wasm \
+            stockfish.worker.js
 
 
           echo "Downloading Fairy-Stockfish NNUE WASM..."
