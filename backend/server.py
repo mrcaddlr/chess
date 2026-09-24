@@ -339,6 +339,7 @@ def engine_availability():
     return {'sf19-full-single':{'available':sf19},'sf19-full-multi':{'available':sf19},'sf19-lite-single':{'available':sf19},'sf19-lite-multi':{'available':sf19},'sf18-full-single':{'available':sf18},'sf18-full-multi':{'available':sf18},'sf18-lite-single':{'available':sf18},'sf18-lite-multi':{'available':sf18},'lozza':{'available':lozza},'fairy-stockfish':{'available':fairy},'custom-wasm':{'available':True}}
 
 class Handler(BaseHTTPRequestHandler):
+    protocol_version="HTTP/1.1"
     server_version="ChessLabBridge/0.1"
     def log_message(self,fmt,*args): pass
     def _json(self,obj,status=200):
