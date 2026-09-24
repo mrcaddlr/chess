@@ -14,7 +14,7 @@
       if(!r.ok)throw new Error('status '+r.status);
       const h=await r.json();
       const sr=await fetch(apiBase+'/api/status',{cache:'no-store'}); if(!sr.ok)throw new Error('status '+sr.status); const s=await sr.json();
-      apiOnline=true;nativeCompute=!!s?.nativeCompute;engineAvailability=s?.engines||{};
+      apiOnline=true;nativeCompute=!!s?.nativeCompute;engineAvailability=Object.fromEntries((Array.isArray(s?.engines)?s.engines:Object.entries(s?.engines||{}).map(([id,v])=>({id,...v}))).map(v=>[v.id,v]));
       document.querySelectorAll('#engineSelect option').forEach(opt=>{
         const a=engineAvailability[opt.value];
         opt.disabled=!!a&&!a.available&&opt.value!=='custom-wasm';
@@ -26,7 +26,7 @@
         if(fallback){const sel=document.getElementById('engineSelect');if(sel){sel.value=fallback[0];selectedEngine=fallback[0]}}
       }
       emit('backend-info',s);
-      if(role==='controller'){const ready=!!s?.stockfishInfo?.available;stockfishReady=ready;setEngineUi(ready?'Local Stockfish ready':'Local backend connected · Stockfish unavailable',ready);}
+      if(role==='controller'){const ready=!!s?.stockfishInfo?.available;stockfishReady=ready;setEngineUi(ready?'Stockfish 19 · Full · Single ready':'Local backend connected · Stockfish unavailable',ready);}
       return s;
     }catch(e){apiOnline=false;if(role==='controller'){stockfishReady=false;setEngineUi('Local backend unreachable',false);}emit('backend-info',{apiOnline:false,nativeCompute:false,stockfishInfo:{available:false}});return null;}
   }
