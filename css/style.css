@@ -1066,3 +1066,9 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
   .match-layout,.training-layout{padding:7px!important}
   .piece{font-size:clamp(21px,9vw,42px)!important}
 }
+
+
+/* 0.31.23 — keep CRT effects from becoming a solid overlay over training UI */
+.crt-overlay{display:none!important;}
+body::before,body::after{display:none!important;}
+.training-layout,.training-workspace,.training-controls,.training-view,.training-visual-panel{position:relative;z-index:1;}
