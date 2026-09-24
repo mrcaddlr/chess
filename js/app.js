@@ -12,4 +12,24 @@ if(typeof window!=='undefined'){
   window.addEventListener('beforeunload',()=>{try{saveBrain(false)}catch(e){}});
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&!training)try{saveBrain(false)}catch(e){}});
 }
-try{createStockfish()}catch(e){log('Stockfish startup error: '+e.message);setEngineUi('engine unavailable',false)}
+if(window.chessLabBackend?.role==='controller'){
+  log('remote controller mode · compute stays on the PC');
+  setEngineUi('PC backend controller',true);
+}else{
+  try{createStockfish()}catch(e){log('Stockfish startup error: '+e.message);setEngineUi('engine unavailable',false)}
+}
+if(window.chessLabBackend?.role==='compute'){
+  setInterval(()=>{
+    try{
+      window.chessLabBackend.publishStatus({
+        training:!!training,
+        generation:Number(generation)||0,
+        game:Number(trainingLiveState?.game)||0,
+        totalGames:Number(trainingLiveState?.totalGames)||0,
+        positions:Number(trainingLiveState?.positions)||Number(replay?.length)||0,
+        gamesPerMinute:Number(trainingSpeed)||0,
+        phase:String(trainingLiveState?.phase||'idle')
+      });
+    }catch(e){}
+  },1000);
+}
