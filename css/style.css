@@ -1071,3 +1071,10 @@ select,input{max-width:100%}
 
 /* Never let the decorative CRT layer participate in layout. */
 .crt-overlay{display:none!important}
+
+/* Training live monitor */
+.training-settings-title{margin:14px 0 8px;padding-top:12px;border-top:1px solid var(--border,rgba(127,127,127,.22));font-weight:900;text-transform:uppercase;letter-spacing:.08em;font-size:.78rem}
+.training-live-main{display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:14px;align-items:start;margin-top:10px}
+.training-live-board-wrap{min-width:0}.training-live-board{display:grid;grid-template-columns:repeat(8,1fr);aspect-ratio:1;border-radius:12px;overflow:hidden;border:1px solid var(--border,rgba(127,127,127,.25));background:#ddd}.training-live-square{display:grid;place-items:center;font-size:clamp(18px,4vw,34px);line-height:1;aspect-ratio:1}.training-live-square.light{background:#f3eadf}.training-live-square.dark{background:#b58f76}.training-live-square.last{box-shadow:inset 0 0 0 3px rgba(255,255,255,.55)}
+.training-live-meta{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:.72rem;opacity:.75}.training-live-data{display:grid;grid-template-columns:repeat(3,minmax(70px,1fr));gap:8px}.training-live-data>div{padding:10px;border:1px solid var(--border,rgba(127,127,127,.2));border-radius:10px;background:rgba(255,255,255,.035)}.training-live-data b{display:block;font-size:1.05rem}.training-live-data span{display:block;font-size:.7rem;opacity:.7;margin-top:2px}
+@media(max-width:720px){.training-live-main{grid-template-columns:1fr}.training-live-board-wrap{max-width:280px}.training-live-data{grid-template-columns:repeat(3,1fr)}}
