@@ -10,7 +10,7 @@ HOST=os.environ.get("CHESS_LAB_HOST","0.0.0.0")
 PORT=int(os.environ.get("CHESS_LAB_PORT","8787"))
 TOKEN_FILE=ROOT/".chess-lab-pairing"
 clients=[]; clients_lock=threading.Lock()
-state={"compute":False,"training":False,"paused":False,"generation":0,"game":0,"totalGames":0,"positions":0,"updates":0,"totalUpdates":0,"ply":0,"fen":"start","turn":"w","loss":None,"gamesPerMinute":0,"phase":"idle","updated":time.time(),"stockfish":None,"evaluation":None,"completedGames":0,"completedPositions":0,"completedLoss":None,"error":""}
+state={"compute":False,"training":False,"paused":False,"history":[],"generation":0,"game":0,"totalGames":0,"positions":0,"updates":0,"totalUpdates":0,"ply":0,"fen":"start","turn":"w","loss":None,"gamesPerMinute":0,"phase":"idle","updated":time.time(),"stockfish":None,"evaluation":None,"completedGames":0,"completedPositions":0,"completedLoss":None,"error":""}
 
 def start_public_https():
     """Start a temporary public HTTPS tunnel when cloudflared is installed."""
@@ -100,7 +100,7 @@ def start_native():
         import subprocess
         native_proc=subprocess.Popen([find_node(),str(NATIVE_SCRIPT)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,bufsize=1)
         model=load_native_model()
-        native_proc.stdin.write(json.dumps({"type":"init","brain":model})+"\n")
+        native_proc.stdin.write(json.dumps({"type":"init","brain":model,"generation":native_generation})+"\n")
         native_proc.stdin.flush()
         line=native_proc.stdout.readline()
         if not line:return False
@@ -146,7 +146,7 @@ def native_train(data):
                 state["paused"]=False;state["phase"]="resuming";state["updated"]=time.time();broadcast({"type":"status","data":state})
             elif typ=="complete":
                 save_native_model(msg["brain"]);native_generation=int(msg.get("generation") or (native_generation+1))
-                state["generation"]=native_generation;state["training"]=False;state["paused"]=False;state["phase"]="generation-complete";state["error"]="";state["evaluation"]=msg.get("evaluation");state["stockfish"]=bool(msg.get("evaluation",{}).get("available")) if isinstance(msg.get("evaluation"),dict) else state.get("stockfish")
+                state["generation"]=native_generation;state["training"]=False;state["paused"]=False;state["phase"]="generation-complete";state["error"]="";state["history"]=list(state.get("history") or [])[-49:]+[{"generation":native_generation,"games":msg.get("games",0),"positions":msg.get("positions",0),"loss":msg.get("loss"),"evaluation":msg.get("evaluation")}];state["evaluation"]=msg.get("evaluation");state["stockfish"]=bool(msg.get("evaluation",{}).get("available")) if isinstance(msg.get("evaluation"),dict) else state.get("stockfish")
                 state["game"]=msg.get("games",0);state["totalGames"]=msg.get("games",0);state["completedGames"]=msg.get("games",0);state["completedPositions"]=msg.get("positions",0);state["completedLoss"]=msg.get("loss");state["loss"]=msg.get("loss");state["positions"]=msg.get("positions",0);state["ply"]=0;state["fen"]="start";state["turn"]="w";state["updates"]=0;state["totalUpdates"]=0
                 state["updated"]=time.time();broadcast({"type":"status","data":state});return msg
             elif typ=="error":raise RuntimeError(msg.get("message","native trainer error"))
@@ -364,7 +364,7 @@ class Handler(BaseHTTPRequestHandler):
                             if not native_available():
                                 state["training"]=False;state["paused"]=False;state["phase"]="error";state["error"]="PC training worker is unavailable. Node.js was not detected by the backend.";state["updated"]=time.time();broadcast({"type":"status","data":state})
                             else:
-                                state["training"]=True;state["paused"]=False;state["phase"]="starting";state["error"]="";state["updated"]=time.time();broadcast({"type":"status","data":state})
+                                state["training"]=True;state["paused"]=False;state["phase"]="starting";state["error"]="";state["game"]=0;state["totalGames"]=int(data.get("games",data.get("gamesPerGeneration",100)) or 100);state["positions"]=0;state["updates"]=0;state["totalUpdates"]=int(data.get("updates",400) or 400);state["updated"]=time.time();broadcast({"type":"status","data":state})
                                 threading.Thread(target=run_native_training,args=(data,),daemon=True).start()
                         elif command=="pause-training" and state.get("training"):
                             with native_lock:
