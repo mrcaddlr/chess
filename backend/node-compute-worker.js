@@ -48,7 +48,7 @@ async function selfPlay(games,maxPlies,sims){
       const safe=safeRepetitionMove(c,result.move,brain,hist,state);if(safe.forcedDraw||!safe.move)break;
       local.push({x:Array.from(encode(c)),action:actionIndex(safe.move),legal:legal.map(actionIndex),policy:result.policy||[{a:actionIndex(safe.move),p:1}],side:c.turn()});
       if(!c.move({from:safe.move.from,to:safe.move.to,promotion:safe.move.promotion}))break;
-      p++;recordPosition(c,hist);if((p&15)===0)await yieldNow();
+      p++;recordPosition(c,hist);out({type:'live',phase:'self-play',game:g+1,totalGames:games,positions:positions+p,plies:p,fen:c.fen(),turn:c.turn()});if((p&3)===0)await yieldNow();
     }
     let r=terminal(c);if(r===null)r=0;for(const s of local)all.push({...s,reward:s.side==='w'?r:-r});
     positions+=local.length;out({type:'progress',phase:'self-play',game:g+1,totalGames:games,positions,plies:p});
@@ -60,7 +60,7 @@ async function train(updates,lr){
   for(let i=0;i<updates&&!cancelRequested;i++){
     if(!replay.length)break;const s=replay[(Math.random()*replay.length)|0];if(!s?.legal?.length)continue;
     const loss=brain.trainPolicyValue(Float32Array.from(s.x),s.policy,s.reward,s.legal,lr);total+=loss;used++;
-    if((i&15)===15)out({type:'progress',phase:'training',update:i+1,totalUpdates:updates,loss:used?total/used:0});
+    if((i&3)===3)out({type:'progress',phase:'training',update:i+1,totalUpdates:updates,loss:used?total/used:0,positions:replay.length});
     if((i&31)===31)await yieldNow();
   } return used?total/used:0;
 }
@@ -96,7 +96,7 @@ async function handle(d){
   const samples=await selfPlay(games,maxPlies,sims);const loss=await train(updates,lr);
   let evaluation=null;
   if(!cancelRequested&&d.stockfishEval!==false) evaluation=await evaluateAgainstStockfish(Math.max(1,Math.min(20,Number(d.evalGames)||4)),Math.max(40,Number(d.evalPlies)||120),Math.max(1,Math.min(16,Number(d.evalSims)||sims)),Math.max(4,Math.min(16,Number(d.stockfishDepth)||8)));
-  out({type:'complete',brain:brain.toJSON(),games:cancelRequested?0:games,positions:samples.length,replaySize:replay.length,loss,evaluation,cancelled:cancelRequested});
+  if(!cancelRequested){generation=(Number(generation)||0)+1;globalThis.games=(Number(globalThis.games)||0)+games;}out({type:'complete',brain:brain.toJSON(),games:cancelRequested?0:games,positions:samples.length,replaySize:replay.length,loss,evaluation,cancelled:cancelRequested,generation:Number(generation)||0});
 }
 const rl=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
 rl.on('line',async line=>{try{await handle(JSON.parse(line))}catch(e){out({type:'error',message:e?.stack||String(e)})}});
