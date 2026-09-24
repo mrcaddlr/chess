@@ -19,7 +19,7 @@ pub struct Mcts{pub nodes:Vec<SearchNode>,pub exploration:f32}
 impl Mcts{
  pub fn new()->Self{Self{nodes:Vec::new(),exploration:1.4}}
  pub fn search_with_policy(&mut self,board:&Board,network:&Network,simulations:usize)->(Option<Move>,Vec<(Move,f32)>){
-   let legal=board.pseudo_legal_moves();if legal.is_empty(){return(None,Vec::new());}
+   let legal=board.legal_moves();if legal.is_empty(){return(None,Vec::new());}
    self.nodes.clear();self.nodes.push(SearchNode{visits:0,value_sum:0.0,prior:1.0,children:HashMap::new(),mv:None});
    let (priors,root_value)=network.infer(board);
    for mv in &legal{let p=priors[Network::move_index(*mv)];let idx=self.nodes.len();self.nodes.push(SearchNode{visits:0,value_sum:0.0,prior:p.max(1e-6),children:HashMap::new(),mv:Some(*mv)});self.nodes[0].children.insert(mv.to,idx);}
@@ -47,7 +47,7 @@ impl Trainer{
  pub fn self_play_game(&mut self,max_plies:usize)->usize{
    let mut board=Board::default();let mut positions=Vec::new();
    for _ in 0..max_plies{
-     let legal=board.pseudo_legal_moves();if legal.is_empty(){break;}
+     let legal=board.legal_moves();if legal.is_empty(){break;}
      let(mv,policy)=self.mcts.search_with_policy(&board,&self.network,32);let mv=mv.unwrap_or(legal[0]);
      positions.push((board,policy));let _=board.make(mv);
    }
@@ -72,6 +72,6 @@ impl Trainer{
 #[cfg(test)]mod tests{
  use super::*;
  #[test]fn replay_buffer_is_bounded(){let mut r=ReplayBuffer::new(2);let b=Board::default();for _ in 0..3{r.push(PositionSample{board:b,policy:Vec::new(),value:0.0});}assert_eq!(r.len(),2);}
- #[test]fn mcts_returns_a_legal_move(){let b=Board::default();let mut m=Mcts::new();let mv=m.search(&b,8).unwrap();assert!(b.pseudo_legal_moves().contains(&mv));}
+ #[test]fn mcts_returns_a_legal_move(){let b=Board::default();let mut m=Mcts::new();let mv=m.search(&b,8).unwrap();assert!(b.legal_moves().contains(&mv));}
  #[test]fn training_produces_replay(){let mut t=Trainer::new();let n=t.self_play_game(4);assert_eq!(n,4);assert_eq!(t.replay.len(),4);}
 }
